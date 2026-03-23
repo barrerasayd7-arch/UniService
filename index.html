@@ -1,0 +1,571 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/css/bootstrap.min.css" rel="stylesheet"
+        integrity="sha384-sRIl4kxILFvY47J16cr9ZwB07vP4J8+LH7qKQnuqkuIAvNWLzeN8tE5YBujZqJLB" crossorigin="anonymous">
+    <title>UniServicios</title>
+
+    <style>
+        body {
+            background-color: #0d1117;
+            color: #e8edf5;
+            font-family: Arial, sans-serif;
+        }
+
+        h1, h2, h3, h4 {
+            font-weight: 800;
+        }
+
+        .navbar-brand-custom {
+            font-size: 1.5rem;
+            font-weight: 800;
+            color: #0ea5a0;
+            text-decoration: none;
+        }
+
+
+        .nav-link-custom {
+            color: #8896ae;
+            text-decoration: none;
+            padding: 6px 12px;
+            border-radius: 8px;
+        }
+
+
+        .seccion {
+            padding: 60px 0;
+            border-bottom: 1px solid #1e2636;
+        }
+
+        .label-seccion {
+            color: #0ea5a0;
+            font-size: 0.8rem;
+            font-weight: 700;
+            letter-spacing: 1.5px;
+            text-transform: uppercase;
+            margin-bottom: 6px;
+        }
+
+        
+        .card-servicio {
+            background-color: #161c26;
+            border: 1px solid #1e2636;
+            border-radius: 12px;
+            overflow: hidden;
+            transition: border-color 0.2s;
+        }
+
+        .card-servicio:hover {
+            border-color: #0ea5a0;
+        }
+
+
+
+        .card-body-custom {
+            padding: 16px;
+        }
+
+        .precio {
+            color: #0ea5a0;
+            font-weight: 800;
+            font-size: 1.1rem;
+        }
+
+        .estrellas {
+            color: #f5c842;
+        }
+
+        .texto-muted {
+            color: #837f82;
+            font-size: 0.82rem;
+        }
+
+        /* FORMS */
+        .caja-formulario {
+            background-color: #161c26;
+            border: 1px solid #1e2636;
+            border-radius: 12px;
+            padding: 30px;
+        }
+
+        .form-control, .form-select {
+            background-color: #0d1117;
+            border: 1px solid #2a3245;
+            color: #e8edf5;
+            border-radius: 8px;
+        }
+
+        .form-control::placeholder {
+            color: #8896ae;
+        }
+
+        .form-label {
+            color: #8896ae;
+            font-size: 0.82rem;
+            font-weight: 600;
+            letter-spacing: 0.4px;
+            margin-bottom: 5px;
+        }
+
+        .form-check-input {
+            background-color: #1e2636;
+            border-color: #2a3245;
+        }
+
+        .form-check-input:checked {
+            background-color: #0ea5a0;
+            border-color: #0ea5a0;
+        }
+
+        .form-check-label {
+            color: #f5e8f2;
+            font-size: 0.9rem;
+        }
+
+        /* BUTTONS */
+        .btn-verde {
+            background-color: #0ea5a0;
+            color: #fff;
+            border: none;
+            border-radius: 8px;
+            padding: 10px 22px;
+            font-weight: 700;
+        }
+
+
+        .btn-borde {
+            background-color: cornflowerblue;
+            color: #f5e8f1;
+            border: 1px solid #4b73d0;
+            border-radius: 8px;
+            padding: 10px 22px;
+        }
+
+        .hero {
+            background: linear-gradient(135deg, rgba(29, 31, 90, 0.15) 0%, rgba(124,92,191,0.1) 100%);
+            border-bottom: 1px solid #0ea5a0;
+            padding: 80px 0 60px;
+            text-align: center;
+        }
+
+       
+        .chip {
+            background-color: #1e2636;
+            border: 1px solid #2a3245;
+            border-radius: 50px;
+            padding: 6px 16px;
+            font-size: 0.82rem;
+            color: #8896ae;
+            text-decoration: none;
+            display: inline-block;
+            margin: 4px;
+        }
+
+        .chip:hover, .chip.activo {
+            background-color: rgba(14,165,160,0.15);
+            border-color: rgba(14,165,160,0.4);
+            color: #0ea5a0;
+        }
+
+       
+
+
+        .et-verde  { background: rgba(14,165,160,0.15);  color: #0ea5a0;  border: 1px solid rgba(14,165,160,0.3); }
+        .et-amarillo { background: rgba(245,200,66,0.12); color: #f5c842; border: 1px solid rgba(245,200,66,0.3); }
+        .et-rojo   { background: rgba(240,100,73,0.12);  color: #f06449; border: 1px solid rgba(240,100,73,0.3); }
+        .et-morado { background: rgba(124,92,191,0.12);  color: #7c5cbf; border: 1px solid rgba(124,92,191,0.3); }
+
+ 
+
+        footer h6 {
+            color: #f5e8ef;
+            font-weight: 700;
+            margin-bottom: 12px;
+        }
+
+        footer a {
+            color: #8896ae;
+            text-decoration: none;
+            display: block;
+            margin-bottom: 5px;
+        }
+
+        footer a:hover {
+            color: #0ea5a0;
+        }
+
+        select option {
+            background-color: #170d13;
+        }
+    </style>
+</head>
+
+<body>
+
+
+    <div style="background-color:#161c26; border-bottom:2px solid #0ea5a0; padding:12px 0; position:sticky; top:0; z-index:999;">
+        <div class="container">
+            <div class="row align-items-center">
+                <div class="col-auto">
+                    <a  href="#inicio" class="navbar-brand-custom">UniServicios</a>
+                </div>
+                <div class="col">
+                    <div class="d-flex flex-wrap gap-1 justify-content-end">
+                        <a href="#inicio"        class="nav-link-custom">🏠 Inicio</a>
+                        <a href="#buscar"        class="nav-link-custom">🔍 Buscar servicios</a>
+                        <a href="#publicar"      class="nav-link-custom">➕ Publicar servicio</a>
+                        <a href="#mis-servicios" class="nav-link-custom">💼 Mis servicios</a>
+                        <a href="#solicitudes"   class="nav-link-custom">🔔 Mis solicitudes</a>
+                        <a href="#perfil"        class="nav-link-custom">👤 Perfil</a>
+                        <a href="#"              class="nav-link-custom" style="color:#f06449;">🚪 Cerrar sesión</a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+
+
+    <div class="hero" id="inicio">
+        <div class="container">
+            <p class="label-seccion"> Plataforma Universitaria</p>
+            <h1 style="font-size:2.8rem;">Intercambia <span style="color:#0ea5a0;">servicios</span><br>entre estudiantes</h1>
+            <p style="color:#68758c;  margin:16px auto 28px;">
+                Tutorías, ensayos, proyectos, diseño, programación y arriendo de <br> habitaciones — todo para la comunidad universitaria.
+            </p>
+            <a href="#buscar" class="btn btn-verde">🔍 Explorar servicios</a>
+            <a href="#publicar" class="btn btn-borde">➕ Publicar mi servicio</a>
+
+            <br><br>
+        </div>
+    </div>
+
+
+    
+    <div style="background-color:#161c26; border-bottom:1px solid #1e2636; padding:16px 0;">
+        <div class="container text-center">
+            <a href="#" class="chip activo">📚 Tutorías</a>
+            <a href="#" class="chip">✍️ Ensayos</a>
+            <a href="#" class="chip">🗂️ Proyectos</a>
+            <a href="#" class="chip">💻 Programación</a>
+            <a href="#" class="chip">🎨 Diseño</a>
+            <a href="#" class="chip">🏠 Arriendo</a>
+            <a href="#" class="chip">🌐 Otros</a>
+        </div>
+    </div>
+
+
+   
+    <div class="seccion">
+        <div class="container">
+            <p class="label-seccion">🕐 Recién publicados</p>
+            <h2>Servicios más recientes</h2>
+            <p style="color:#8896ae;">Los últimos servicios añadidos por la comunidad</p>
+
+            <div class="row g-4">
+
+                <!-- Tarjeta 1 -->
+                <div class="col-sm-6 col-lg-3">
+                    <div class="card-servicio">
+                        <div class="card-icono" style="background:linear-gradient(135deg,rgba(14,165,160,.2),rgba(14,165,160,.04));">
+                            📚
+                        </div>
+                        <div class="card-body-custom">
+                            <span class="etiqueta et-verde">Tutoría</span>
+                            <p class="texto-muted mt-2 mb-1">🏫 U. Nacional · Bogotá</p>
+                            <h5>Cálculo diferencial e integral</h5>
+                            <p class="texto-muted">Explico desde lo básico hasta integrales triples. Más de 50 estudiantes aprobados.</p>
+                            <div class="d-flex align-items-center gap-2 mb-3">
+                                <div class="avatar" style="background:#0ea5a0;">AN</div>
+                                <span class="texto-muted">Andrés N.</span>
+                            </div>
+                            <hr style="border-color:#1e2636;">
+                            <div class="d-flex justify-content-between align-items-center">
+                                <div>
+                                    <div class="estrellas">★★★★★</div>
+                                    <div class="texto-muted">4.9 (38 reseñas)</div>
+                                </div>
+                                <div class="precio">$25.000/h</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Tarjeta 2 -->
+                <div class="col-sm-6 col-lg-3">
+                    <div class="card-servicio">
+                        <div class="card-icono" style="background:linear-gradient(135deg,rgba(245,200,66,.15),rgba(245,200,66,.03));">
+                            ✍️
+                        </div>
+                        <div class="card-body-custom">
+                            <span class="etiqueta et-amarillo">Ensayo</span>
+                            <p class="texto-muted mt-2 mb-1">🏫 U. de Antioquia · Medellín</p>
+                            <h5>Ensayos académicos — APA 7</h5>
+                            <p class="texto-muted">Argumentativos, expositivos y de análisis crítico con normas APA, Icontec o Chicago.</p>
+                            <div class="d-flex align-items-center gap-2 mb-3">
+                                <div class="avatar" style="background:#f5c842; color:#111;">LP</div>
+                                <span class="texto-muted">Laura P.</span>
+                            </div>
+                            <hr style="border-color:#1e2636;">
+                            <div class="d-flex justify-content-between align-items-center">
+                                <div>
+                                    <div class="estrellas">★★★★☆</div>
+                                    <div class="texto-muted">4.7 (21 reseñas)</div>
+                                </div>
+                                <div class="precio">$40.000</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                
+
+            </div>
+        </div>
+    </div>
+
+
+  
+    <div class="seccion" style="background-color:#0d1117;" id="mejor-calificados">
+        <div class="container">
+            <p class="label-seccion">🏆 Top valorados</p>
+            <h2>Servicios mejor calificados ⭐</h2>
+            <p style="color:#8896ae;">Ordenados por satisfacción de los usuarios</p>
+
+            <div class="row g-3">
+
+                <div class="col-sm-6 col-lg-3">
+                    <div class="card-servicio" style="border-color:rgba(245,200,66,.3);">
+                        <div class="card-body-custom">
+                            <div class="d-flex justify-content-between align-items-start">
+                                <div>
+                                    <p style="font-size:0.75rem; color:#f5c842; font-weight:700; margin-bottom:4px;">#1 MEJOR CALIFICADO</p>
+                                    <h5>Diseño gráfico — logos e infografías</h5>
+                                    <p class="texto-muted">U. Jorge Tadeo · Bogotá</p>
+                                </div>
+                                <div style="font-size:2rem;">🎨</div>
+                            </div>
+                            <div class="estrellas">★★★★★</div>
+                            <div class="texto-muted mb-2">5.0 (64 reseñas)</div>
+                            <div class="d-flex justify-content-between align-items-center">
+                                <div class="d-flex align-items-center gap-2">
+                                    <div class="avatar" style="background:#f5c842; color:#111; width:30px; height:30px; font-size:0.75rem;">SM</div>
+                                    <span class="texto-muted">Sofía M.</span>
+                                </div>
+                                <div class="precio">$80.000</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+
+    
+    <div class="seccion" id="buscar">
+        <div class="container">
+            <p class="label-seccion">🔍 Búsqueda</p>
+            <h2>Buscar servicios</h2>
+            <p style="color:#8896ae;">Encuentra exactamente lo que necesitas</p>
+
+            <div class="caja-formulario">
+                <form action="#">
+                    <fieldset>
+                        <legend style="color:#0ea5a0; font-size:0.9rem; font-weight:700; margin-bottom:20px;">Filtros de búsqueda</legend>
+
+                        <div class="row g-3 mb-3">
+                            <div class="col-md-6">
+                                <label for="busqueda" class="form-label">🔍 Palabras clave</label>
+                                <input type="text" class="form-control" id="busqueda" placeholder="Ej: tutoría cálculo, ensayo APA...">
+                            </div>
+                            <div class="col-md-3">
+                                <label for="materia" class="form-label">📖 Materia</label>
+                                <input type="text" class="form-control" id="materia" placeholder="Ej: Cálculo, Derecho...">
+                            </div>
+                            <div class="col-md-3">
+                                <label for="universidad-buscar" class="form-label">🏫 Universidad</label>
+                                <input type="text" class="form-control" id="universidad-buscar" placeholder="Ej: U. Nacional...">
+                            </div>
+                        </div>
+
+
+                        <div class="row g-3 mb-3">
+                            <div class="col-md-4">
+                                <label for="categoria-buscar" class="form-label">📂 Categoría</label>
+                                <select class="form-select" id="categoria-buscar">
+                                    <option value="">Todas las categorías</option>
+                                    <option value="tutorias">📚 Tutorías</option>
+                                    <option value="ensayos">✍️ Ensayos</option>
+                                    <option value="proyectos">🗂️ Proyectos</option>
+                                    <option value="programacion">💻 Programación</option>
+                                    <option value="diseno">🎨 Diseño</option>
+                                    <option value="arriendo">🏠 Arriendo de habitaciones</option>
+                                    <option value="otros">🌐 Otros servicios</option>
+                                </select>
+                            </div>
+                            <div class="col-md-4">
+                                <label for="precio-max" class="form-label">💰 Precio máximo (COP)</label>
+                                <input type="number" class="form-control" id="precio-max" placeholder="Ej: 50000">
+                            </div>
+                            <div class="col-md-4">
+                                <label for="calificacion" class="form-label">⭐ Calificación mínima</label>
+                                <select class="form-select" id="calificacion">
+                                    <option value="">Cualquier calificación</option>
+                                    <option value="5">★★★★★ 5.0 únicamente</option>
+                                    <option value="4">★★★★☆ 4.0 o más</option>
+                                    <option value="3">★★★☆☆ 3.0 o más</option>
+                                </select>
+                            </div>
+                        </div>
+
+                        <button type="submit" class="btn btn-verde me-2">🔍 Buscar</button>
+                        <button type="reset" class="btn btn-borde">🗑️ Limpiar filtros</button>
+                    </fieldset>
+                </form>
+            </div>
+
+            
+            <div class="d-flex justify-content-between align-items-center mt-4 mb-3 flex-wrap gap-2">
+                <p class="mb-0 texto-muted">Mostrando <strong style="color:#e8edf5;">x resultados</strong> ordenados por calificación</p>
+                <select class="form-select" style="width:auto; background-color:#161c26; border-color:#2a3245; color:#e8edf5;">
+                    <option>Mejor calificados primero</option>
+                    <option>Más recientes</option>
+                    <option>Precio: menor a mayor</option>
+                    <option>Precio: mayor a menor</option>
+                </select>
+            </div>
+
+            <div class="row g-3">
+                <div class="col-sm-6 col-lg-4">
+                    <div class="card-servicio">
+                        <div class="card-body-custom">
+                            <div class="d-flex justify-content-between">
+                                <span class="etiqueta et-verde">Tutoría</span>
+                                <div style="font-size:1.6rem;">📚</div>
+                            </div>
+                            <h5 class="mt-2">Física mecánica y termodinámica</h5>
+                            <p class="texto-muted">U. Nacional · Resolución de problemas con enfoque en exámenes finales.</p>
+                            <div class="d-flex justify-content-between align-items-center">
+                                <div><div class="estrellas">★★★★★</div><div class="texto-muted">4.8 (19)</div></div>
+                                <div class="precio">$28.000/h</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+               
+            </div>
+        </div>
+    </div>
+
+
+
+    <div class="seccion" style="background-color:#000000;" id="publicar">
+        <div class="container">
+            <div class="row justify-content-center">
+                <div class="col-lg-8">
+                    <p class="label-seccion"> Nuevo servicio</p>
+                    <h2>Publicar servicio</h2>
+                    <p style="color:#8896ae;">Comparte tu talento con la comunidad universitaria</p>
+
+                    <div class="caja-formulario">
+                        <form action="#">
+                            <fieldset>
+                                <legend style="color:#0ea5a0; font-size:0.9rem; font-weight:700; margin-bottom:20px;">Información del servicio</legend>
+
+                                <div class="row g-3">
+                                    <div class="col-12">
+                                        <label for="titulo" class="form-label">📌 Título del servicio</label>
+                                        <input type="text" class="form-control" id="titulo" placeholder="Ej: Tutoría de Cálculo Diferencial para ingeniería">
+                                    </div>
+
+                                    <div class="col-12">
+                                        <label for="descripcion" class="form-label">📝 Descripción</label>
+                                        <textarea class="form-control" id="descripcion" rows="4" placeholder="Describe tu servicio: qué ofreces, cómo trabajas, qué incluye el precio..."></textarea>
+                                    </div>
+
+                                    <div class="col-md-6">
+                                        <label for="categoria" class="form-label">📂 Categoría</label>
+                                        <select class="form-select" id="categoria">
+                                            <option value="">Selecciona una categoría</option>
+                                            <option value="tutorias">📚 Tutorías</option>
+                                            <option value="ensayos">✍️ Ensayos</option>
+                                            <option value="proyectos">🗂️ Proyectos</option>
+                                            <option value="programacion">💻 Programación</option>
+                                            <option value="diseno">🎨 Diseño</option>
+                                            <option value="arriendo">🏠 Arriendo de habitaciones</option>
+                                            <option value="otros">🌐 Otros servicios</option>
+                                        </select>
+                                    </div>
+
+                                    <div class="col-md-6">
+                                        <label for="precio" class="form-label">💰 Precio (COP)</label>
+                                        <input type="number" class="form-control" id="precio" placeholder="Ej: 30000">
+                                    </div>
+
+                                    <div class="col-md-6">
+                                        <label for="universidad" class="form-label">🏫 Universidad</label>
+                                        <input type="text" class="form-control" id="universidad" placeholder="Ej: Universidad Nacional de Colombia">
+                                    </div>
+
+                                    <div class="col-md-6">
+                                        <label for="contacto" class="form-label">📞 Contacto (WhatsApp o correo)</label>
+                                        <input type="text" class="form-control" id="contacto" placeholder="Ej: +57 300 123 4567">
+                                    </div>
+
+                                   
+                                    <div class="col-12">
+                                        <p class="form-label mb-2">📍 Modalidad del servicio</p>
+                                        <div class="form-check form-check-inline">
+                                            <input class="form-check-input" type="checkbox" id="presencial" value="presencial">
+                                            <label class="form-check-label" for="presencial">Presencial</label>
+                                        </div>
+                                        <div class="form-check form-check-inline">
+                                            <input class="form-check-input" type="checkbox" id="virtual" value="virtual">
+                                            <label class="form-check-label" for="virtual">Virtual</label>
+                                        </div>
+                                        <div class="form-check form-check-inline">
+                                            <input class="form-check-input" type="checkbox" id="mixta" value="mixta">
+                                            <label class="form-check-label" for="mixta">Mixta</label>
+                                        </div>
+                                    </div>
+
+
+                                    <div class="col-12">
+                                        <p class="form-label mb-2">📅 Disponibilidad</p>
+                                        <div class="form-check form-check-inline">
+                                            <input class="form-check-input" type="radio" name="disponibilidad" id="semana" value="semana">
+                                            <label class="form-check-label" for="semana">Entre semana</label>
+                                        </div>
+                                        <div class="form-check form-check-inline">
+                                            <input class="form-check-input" type="radio" name="disponibilidad" id="finesemana" value="finesemana">
+                                            <label class="form-check-label" for="finesemana">Fines de semana</label>
+                                        </div>
+                                        <div class="form-check form-check-inline">
+                                            <input class="form-check-input" type="radio" name="disponibilidad" id="siempre" value="siempre">
+                                            <label class="form-check-label" for="siempre">Siempre disponible</label>
+                                        </div>
+                                    </div>
+
+                                    <div class="col-12 mt-2">
+                                        <button type="submit" class="btn btn-verde me-2"> Publicar servicio</button>
+                                        <button type="reset" class="btn btn-borde">🗑️ Limpiar</button>
+                                    </div>
+                                </div>
+
+                            </fieldset>
+                        </form>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+
+   
+
+</body>
+</html>
