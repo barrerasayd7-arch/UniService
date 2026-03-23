@@ -1,0 +1,19 @@
+# --- Archivos de Sistema ---
+Thumbs.db
+Desktop.ini
+.DS_Store
+
+# --- Editores de Código ---
+.vscode/
+.idea/
+*.swo
+*.user
+
+# --- Archivos Temporales ---
+*.log
+*.tmp
+*.bak
+
+# --- Web (si usas librerías) ---
+node_modules/
+.env
