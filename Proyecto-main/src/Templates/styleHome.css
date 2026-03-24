@@ -232,6 +232,14 @@ fieldset { border: none; padding: 0; }
   box-shadow: 0 8px 24px rgba(14, 165, 160, 0.35);
 }
 
+.form-btns {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 1rem;
+  margin-top: 1rem;
+}
+
 .btn-borde { background: transparent; color: var(--texto); border: 1px solid var(--borde2); }
 .btn-borde:hover { border-color: var(--teal); color: var(--teal); transform: translateY(-2px); }
 
@@ -825,28 +833,6 @@ footer hr {
 }
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 /* ================================================
    UniServicios — Hoja de estilos personalizada
    ================================================ */
@@ -1073,8 +1059,14 @@ h1, h2, h3, h4 {
     margin-bottom: 5px;
 }
 
+.check-item {
+  margin-left: 50px;     /* Espacio a la derecha de cada checkbox */
+  margin-bottom: 20px;    /* Espacio debajo de cada checkbox */
+  margin-top: 5px;       /* Espacio encima de cada checkbox */
+}
+
 /* Casilla de verificación (checkbox) y radio sin marcar */
-.form-check-input {
+.form-check-input:not(:checked) {
     background-color: #1e2636;
     border-color: #2a3245;
 }
@@ -1095,7 +1087,6 @@ h1, h2, h3, h4 {
 select option {
     background-color: #0d1117;
 }
-
 
 /* ── BOTONES PERSONALIZADOS ── */
 

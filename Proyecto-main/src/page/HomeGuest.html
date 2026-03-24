@@ -14,11 +14,11 @@
     <!-- ── NAVBAR ── -->
     <nav class="navbar-custom" id="inicio">
         <div class="container">
-            <a href="#inicio" class="navbar-brand-custom">UniServicios</a>
+            <a href="#inicio" class="navbar-brand-custom">UniServices</a>
             <div class="navbar-links">
                 <a href="#inicio"        class="nav-link-custom">Inicio</a>
                 <a href="#buscar"        class="nav-link-custom">Buscar servicios</a>
-                <a href="#"              class="nav-link-custom nav-iniciar">Iniciar Sesión</a>
+                <a href="Login.html"     class="nav-link-custom nav-iniciar">Iniciar Sesión</a>
             </div>
         </div>
     </nav>
@@ -59,8 +59,8 @@
     <section class="seccion" id="recientes">
         <div class="container">
             <p class="label-seccion">🕐 Recién publicados</p>
-            <h2>Servicios más recientes</h2>
-            <p class="seccion-desc">Los últimos servicios añadidos por la comunidad</p>
+            <h2>Servicios recientes</h2>
+            <p class="seccion-desc">Últimos servicios añadidos por la comunidad</p>
 
             <div class="cards-grid">
 
@@ -81,7 +81,7 @@
                                 <div class="estrellas">★★★★★</div>
                                 <div class="texto-muted">4.9 (38 reseñas)</div>
                             </div>
-                            <div class="precio">$25.000/h</div>
+                            <div class="precio">$15.000/h</div>
                         </div>
                     </div>
                 </div>
@@ -193,9 +193,10 @@
                                 <label for="calificacion" class="form-label">⭐ Calificación mínima</label>
                                 <select class="form-select" id="calificacion">
                                     <option value="">Cualquier calificación</option>
-                                    <option value="5">★★★★★ 5.0 únicamente</option>
-                                    <option value="4">★★★★☆ 4.0 o más</option>
-                                    <option value="3">★★★☆☆ 3.0 o más</option>
+                                    <option value="5">★★★★★  -  5 únicamente</option>
+                                    <option value="4">★★★★☆  -  4 o más</option>
+                                    <option value="3">★★★☆☆  -  3 o más</option>
+                                    <option value="2">★★☆☆☆  -  2 o más</option>
                                 </select>
                             </div>
                         </div>
@@ -305,9 +306,9 @@
                             <div class="form-grupo">
                                 <p class="form-label">📅 Disponibilidad</p>
                                 <div class="check-group">
-                                    <label class="check-item"><input type="radio" name="disponibilidad" id="semana"      value="semana">      Entre semana</label>
-                                    <label class="check-item"><input type="radio" name="disponibilidad" id="finesemana"  value="finesemana">  Fines de semana</label>
-                                    <label class="check-item"><input type="radio" name="disponibilidad" id="siempre"     value="siempre">     Siempre disponible</label>
+                                    <label class="check-item"><input type="checkbox" name="disponibilidad" id="semana"      value="semana">      Entre semana</label>
+                                    <label class="check-item"><input type="checkbox" name="disponibilidad" id="finesemana"  value="finesemana">  Fines de semana</label>
+                                    <label class="check-item"><input type="checkbox" name="disponibilidad" id="siempre"     value="siempre">     Siempre disponible</label>
                                 </div>
                             </div>
 
