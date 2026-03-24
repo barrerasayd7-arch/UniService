@@ -815,5 +815,17 @@ document.addEventListener("DOMContentLoaded", () => {
 });
 </script>
 
+<script>
+    // Manejar cierre de sesión (Borrar variable de login y redirigir a página pública)
+document.addEventListener("DOMContentLoaded", () => {
+  const cerrarSesion = document.querySelector(".nav-Cerrar");
+  cerrarSesion.addEventListener("click", function(e) {
+    e.preventDefault(); // evita que el link vaya directo
+    localStorage.removeItem("logueado"); // borra la variable de login
+    window.location.href = "HomeGuest.html"; // redirige a la página pública
+  });
+});
+</script>
+
 </body>
 </html>
