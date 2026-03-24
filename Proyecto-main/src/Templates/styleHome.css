@@ -668,6 +668,7 @@ textarea.form-input {
     border-radius: 8px;
     padding: 10px 22px;
     font-weight: 700;
+    margin-right: 10px;
 }
 
 .boton-principal:hover {
