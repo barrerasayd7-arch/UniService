@@ -12,7 +12,7 @@ function setSuccess(input) {
   input.classList.add("success");
   input.nextElementSibling.textContent = "";
 }
-console.log("JS conectado correctamente 🚀");
+console.log("JS conectado correctamente");
 
 /* ===== VALIDACIÓN EN TIEMPO REAL ===== */
 
