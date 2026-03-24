@@ -589,8 +589,9 @@ textarea.form-input {
 .check-group {
   display: flex;
   flex-wrap: wrap;
-  gap: 20px;
   margin-top: 4px;
+  justify-content: center;
+  gap: 50px;
 }
 
 .check-item {
@@ -599,6 +600,8 @@ textarea.form-input {
   gap: 8px;
   font-size: 0.85rem;
   color: var(--texto2);
+  margin-bottom: 30px;
+  margin-top: 10px;
   cursor: pointer;
 }
 

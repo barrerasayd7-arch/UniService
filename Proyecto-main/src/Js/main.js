@@ -38,10 +38,19 @@ pass.addEventListener("input", () => {
   }
 });
 
+// Usuarios temporales para pruebas de login (en un proyecto real esto se haría con una base de datos y autenticación segura)
+const usuarios = [
+  { telefono: "1112223344", pass: "PassTest1", nombre: "Franklin" },
+  { telefono: "7778889944", pass: "PassTest2", nombre: "Lenín" },
+  { telefono: "3332221144", pass: "PassTest2", nombre: "Sayd" },
+  { telefono: "5556667788", pass: "PassTest3", nombre: "Andres" }
+];
 
 /* ===== VALIDACIÓN AL ENVIAR ===== */
 
 document.querySelector("#panel-login .btn-principal").addEventListener("click", function(e) {
+  e.preventDefault(); // Evita envío real
+
   let valid = true;
 
   if (telefono.value.length !== 10) {
@@ -54,5 +63,15 @@ document.querySelector("#panel-login .btn-principal").addEventListener("click", 
     valid = false;
   }
 
-  if (!valid) e.preventDefault();
+  if (!valid) return;
+
+  // Validar contra usuarios temporales
+  const usuario = usuarios.find(u => u.telefono === telefono.value && u.pass === pass.value);
+
+  if (usuario) {
+    alert("✅ Bienvenido " + usuario.nombre + " ✅");
+    window.location.href = "HomePrincipal.html"; // Redirige a página de usuario
+  } else {
+    alert("❌ Teléfono o contraseña incorrectos ❌");
+  }
 });
