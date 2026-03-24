@@ -71,6 +71,8 @@ document.querySelector("#panel-login .btn-principal").addEventListener("click", 
   if (usuario) {
     alert("✅ Bienvenido " + usuario.nombre + " ✅");
     window.location.href = "HomePrincipal.html"; // Redirige a página de usuario
+    localStorage.setItem("logueado", "true");             // Marca como logueado
+    localStorage.setItem("usuario", usuario.nombre);      // Guarda nombre para mostrar en Home
   } else {
     alert("❌ Teléfono o contraseña incorrectos ❌");
   }
