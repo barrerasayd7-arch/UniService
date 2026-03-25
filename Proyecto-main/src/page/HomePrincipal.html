@@ -777,12 +777,14 @@ document.addEventListener("DOMContentLoaded", () => {
 document.addEventListener("DOMContentLoaded", () => {
   const cerrarSesion = document.querySelector(".nav-Cerrar");
   cerrarSesion.addEventListener("click", function(e) {
-    e.preventDefault(); // evita que el link vaya directo
-    localStorage.removeItem("logueado"); // borra la variable de login
-    window.location.href = "HomeGuest.html"; // redirige a la página pública
+    e.preventDefault();                             // evita que el link vaya directo
+    localStorage.removeItem("logueado");            // borra la variable de login
+    window.location.href = "HomeGuest.html";        // redirige a la página pública
   });
 });
 </script>
+
+<script src="../Js/Servicios.js"></script>
 
 </body>
 </html>
