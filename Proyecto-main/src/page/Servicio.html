@@ -1,0 +1,623 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Detalles del Servicio - UniService</title>
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;800&family=DM+Serif+Display:ital@0;1&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="../Templates/styleHome.css">
+    <style>
+        /* ── ESTILOS ESPECÍFICOS PARA VISTA DE SERVICIO ── */
+
+        .detalle-hero {
+            background: linear-gradient(135deg, rgba(14, 165, 160, 0.1) 0%, rgba(14, 165, 160, 0.02) 100%);
+            border-bottom: 1px solid var(--borde);
+            padding: 40px 0;
+            margin-bottom: 48px;
+        }
+
+        .breadcrumb {
+            display: flex;
+            gap: 8px;
+            margin-bottom: 20px;
+            font-size: 0.85rem;
+        }
+
+        .breadcrumb a {
+            color: var(--teal);
+            transition: var(--trans);
+        }
+
+        .breadcrumb a:hover { color: var(--teal2); }
+        .breadcrumb span { color: var(--texto2); }
+
+        .grid-detalle {
+            display: grid;
+            grid-template-columns: 2fr 1fr;
+            gap: 40px;
+            margin-bottom: 60px;
+        }
+
+        /* ── GALERÍA DE IMÁGENES ── */
+        .galeria-principal {
+            background: var(--card);
+            border: 1px solid var(--borde);
+            border-radius: 16px;
+            overflow: hidden;
+            margin-bottom: 24px;
+        }
+
+        .imagen-grande {
+            width: 100%;
+            height: 400px;
+            background: linear-gradient(135deg, rgba(14, 165, 160, 0.15), rgba(14, 165, 160, 0.03));
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 4rem;
+        }
+
+        .galeria-miniaturas {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 8px;
+            padding: 12px;
+            background: var(--bg2);
+        }
+
+        .miniatura {
+            aspect-ratio: 1;
+            background: var(--card);
+            border: 2px solid var(--borde);
+            border-radius: 8px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.5rem;
+            transition: var(--trans);
+        }
+
+        .miniatura:hover {
+            border-color: var(--teal);
+        }
+
+        /* ── INFORMACIÓN PRINCIPAL ── */
+        .info-principal {
+            display: flex;
+            flex-direction: column;
+            gap: 24px;
+        }
+
+        .header-servicio {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            gap: 16px;
+        }
+
+        .titulo-servicio h1 {
+            font-size: 2rem;
+            margin-bottom: 12px;
+        }
+
+        .rating-grande {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            margin-bottom: 16px;
+        }
+
+        .estrellas-grande {
+            color: var(--amarillo);
+            font-size: 1.2rem;
+            letter-spacing: 2px;
+        }
+
+        .texto-rating {
+            color: var(--texto2);
+            font-size: 0.9rem;
+        }
+
+        .desc-completa {
+            color: var(--texto);
+            line-height: 1.8;
+            font-size: 0.95rem;
+            background: var(--card);
+            padding: 20px;
+            border-radius: 12px;
+            border: 1px solid var(--borde);
+        }
+
+        /* ── TARJETA DE PROVEEDOR ── */
+        .card-proveedor {
+            background: linear-gradient(135deg, var(--card) 0%, var(--card-hover) 100%);
+            border: 1px solid var(--borde);
+            border-radius: 16px;
+            padding: 24px;
+            text-align: center;
+            margin-bottom: 24px;
+        }
+
+        .avatar-grande {
+            width: 80px;
+            height: 80px;
+            border-radius: 50%;
+            margin: 0 auto 16px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 2.5rem;
+            box-shadow: 0 8px 20px rgba(0, 0, 0, 0.3);
+        }
+
+        .avatar-grande.ag-azul { background: linear-gradient(135deg, #3b82f6, #60a5fa); }
+        .avatar-grande.ag-morado { background: linear-gradient(135deg, #8b5cf6, #a78bfa); }
+        .avatar-grande.ag-verde { background: linear-gradient(135deg, #0ea5a0, #14c7c1); }
+        .avatar-grande.ag-naranja { background: linear-gradient(135deg, #f97316, #fb923c); }
+
+        .nombre-proveedor {
+            font-size: 1.2rem;
+            font-weight: 700;
+            margin-bottom: 4px;
+        }
+
+        .ubicacion-proveedor {
+            color: var(--texto2);
+            font-size: 0.9rem;
+            margin-bottom: 16px;
+        }
+
+        .btn-primary {
+            display: inline-block;
+            width: 100%;
+            padding: 12px;
+            background: var(--teal);
+            color: var(--bg);
+            border: none;
+            border-radius: 10px;
+            font-weight: 700;
+            cursor: pointer;
+            transition: var(--trans);
+            margin-bottom: 12px;
+        }
+
+        .btn-primary:hover {
+            background: var(--teal2);
+            transform: translateY(-2px);
+        }
+
+        .btn-secondary {
+            display: inline-block;
+            width: 100%;
+            padding: 12px;
+            background: transparent;
+            color: var(--texto);
+            border: 1px solid var(--borde);
+            border-radius: 10px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: var(--trans);
+        }
+
+        .btn-secondary:hover {
+            border-color: var(--teal);
+            color: var(--teal);
+        }
+
+        /* ── SECCIONES DE INFORMACIÓN ── */
+        .seccion-info {
+            background: var(--card);
+            border: 1px solid var(--borde);
+            border-radius: 12px;
+            padding: 24px;
+            margin-bottom: 24px;
+        }
+
+        .seccion-info h3 {
+            font-size: 1.1rem;
+            margin-bottom: 16px;
+            color: var(--texto);
+            border-bottom: 2px solid var(--teal);
+            padding-bottom: 12px;
+        }
+
+        .info-row {
+            display: flex;
+            justify-content: space-between;
+            padding: 12px 0;
+            border-bottom: 1px solid var(--borde);
+        }
+
+        .info-row:last-child {
+            border-bottom: none;
+        }
+
+        .info-label {
+            color: var(--texto2);
+            font-weight: 500;
+        }
+
+        .info-valor {
+            color: var(--teal);
+            font-weight: 700;
+        }
+
+        /* ── RESEÑAS ── */
+        .resenas-container {
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: 16px;
+        }
+
+        .resena {
+            background: var(--bg2);
+            border: 1px solid var(--borde);
+            border-radius: 12px;
+            padding: 16px;
+        }
+
+        .resena-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 12px;
+        }
+
+        .resena-autor {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .avatar-resena {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            background: var(--teal);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 700;
+            font-size: 0.9rem;
+        }
+
+        .resena-info h4 {
+            font-size: 0.95rem;
+            margin-bottom: 2px;
+        }
+
+        .resena-fecha {
+            color: var(--texto3);
+            font-size: 0.8rem;
+        }
+
+        .resena-rating {
+            color: var(--amarillo);
+            font-size: 0.9rem;
+        }
+
+        .resena-texto {
+            color: var(--texto);
+            line-height: 1.6;
+            font-size: 0.9rem;
+        }
+
+        /* ── FORMULARIO DE SOLICITUD ── */
+        .form-solicitud {
+            background: var(--card);
+            border: 1px solid var(--borde);
+            border-radius: 12px;
+            padding: 24px;
+        }
+
+        .form-grupo-custom {
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+            margin-bottom: 16px;
+        }
+
+        .form-label-custom {
+            font-size: 0.85rem;
+            font-weight: 600;
+            color: var(--texto2);
+        }
+
+        .form-input-custom,
+        .form-select-custom,
+        textarea.form-input-custom {
+            padding: 10px 12px;
+            background: var(--bg2);
+            border: 1px solid var(--borde);
+            border-radius: 8px;
+            color: var(--texto);
+            font-family: 'Poppins', sans-serif;
+            transition: var(--trans);
+        }
+
+        .form-input-custom:focus,
+        .form-select-custom:focus,
+        textarea.form-input-custom:focus {
+            outline: none;
+            border-color: var(--teal);
+            background: var(--card);
+        }
+
+        textarea.form-input-custom {
+            resize: vertical;
+            min-height: 100px;
+            font-size: 0.9rem;
+        }
+
+        /* ── RESPONSIVE ── */
+        @media (max-width: 1024px) {
+            .grid-detalle {
+                grid-template-columns: 1fr;
+                gap: 24px;
+            }
+
+            .imagen-grande {
+                height: 300px;
+            }
+        }
+
+        @media (max-width: 768px) {
+            .header-servicio {
+                flex-direction: column;
+            }
+
+            .titulo-servicio h1 {
+                font-size: 1.5rem;
+            }
+
+            .galeria-miniaturas {
+                grid-template-columns: repeat(3, 1fr);
+            }
+        }
+    </style>
+</head>
+
+<body>
+
+    <!-- ── NAVBAR ── -->
+    <nav class="navbar-custom">
+        <div class="container">
+            <a href="HomePrincipal.html" class="navbar-brand-custom">UniService</a>
+            <div class="navbar-links">
+                <a href="HomePrincipal.html#inicio" class="nav-link-custom">Inicio</a>
+                <a href="HomePrincipal.html#recientes" class="nav-link-custom">Servicios</a>
+                <a href="HomePrincipal.html#publicar" class="nav-link-custom">Publicar servicio</a>
+                <a href="HomePrincipal.html#perfil" class="nav-link-custom">Perfil</a>
+                <a href="HomeGuest.html" class="nav-link-custom nav-Cerrar">Cerrar Sesión</a>
+            </div>
+        </div>
+    </nav>
+
+    <!-- ── BREADCRUMB ── -->
+    <section class="detalle-hero">
+        <div class="container">
+            <div class="breadcrumb">
+                <a href="HomePrincipal.html">Inicio</a>
+                <span>›</span>
+                <a href="HomePrincipal.html#recientes">Servicios</a>
+                <span>›</span>
+                <span id="category-breadcrumb">Programación</span>
+            </div>
+        </div>
+    </section>
+
+    <!-- ── CONTENIDO PRINCIPAL ── -->
+    <main class="container">
+        <div class="grid-detalle">
+            <!-- COLUMNA IZQUIERDA: GALERÍA E INFORMACIÓN -->
+            <div>
+                <!-- Galería -->
+                <div class="galeria-principal">
+                    <div class="imagen-grande" id="imagen-principal">💻</div>
+                    <div class="galeria-miniaturas">
+                        <div class="miniatura" data-emoji="💻">💻</div>
+                        <div class="miniatura" data-emoji="🖥️">🖥️</div>
+                        <div class="miniatura" data-emoji="⌨️">⌨️</div>
+                        <div class="miniatura" data-emoji="🔧">🔧</div>
+                    </div>
+                </div>
+
+                <!-- Información Principal -->
+                <div class="info-principal">
+                    <div class="header-servicio">
+                        <div class="titulo-servicio">
+                            <h1 id="titulo-servicio">Desarrollo en Java y C++</h1>
+                            <span class="etiqueta et-azul" id="categoria-badge">Programación</span>
+                        </div>
+                    </div>
+
+                    <div class="rating-grande">
+                        <div>
+                            <div class="estrellas-grande">★★★★★</div>
+                            <div class="texto-rating"><strong id="rating-numero">4.8</strong> de 5.0</div>
+                        </div>
+                        <div class="texto-rating">
+                            <div id="total-resenas">45 reseñas</div>
+                            <div id="servicios-completados">120 servicios completados</div>
+                        </div>
+                    </div>
+
+                    <div class="desc-completa" id="descripcion-completa">
+                        Te ayudo con proyectos de programación en Java y C++. Tengo experiencia en lógica, 
+                        algoritmos, estructuras de datos y desarrollo de aplicaciones. Ideal para parciales, 
+                        entregas de código y trabajos del semestre. Disponible para sesiones de tutoría 
+                        personalizadas y resolución de dudas específicas.
+                    </div>
+                </div>
+
+                <!-- Secciones de Información -->
+                <div class="seccion-info">
+                    <h3>📋 Detalles del Servicio</h3>
+                    <div class="info-row">
+                        <span class="info-label">Modalidad</span>
+                        <span class="info-valor" id="modalidad">Online / Presencial</span>
+                    </div>
+                    <div class="info-row">
+                        <span class="info-label">Duración</span>
+                        <span class="info-valor" id="duracion">Flexible (30 min - 2 horas)</span>
+                    </div>
+                    <div class="info-row">
+                        <span class="info-label">Precio por sesión</span>
+                        <span class="info-valor" id="precio-sesion">$35.000/hora</span>
+                    </div>
+                    <div class="info-row">
+                        <span class="info-label">Disponibilidad</span>
+                        <span class="info-valor" id="disponibilidad">Lun-Sab 8:00 - 20:00</span>
+                    </div>
+                    <div class="info-row">
+                        <span class="info-label">Tiempo de respuesta</span>
+                        <span class="info-valor" id="respuesta">Menos de 2 horas</span>
+                    </div>
+                </div>
+
+                <!-- Reseñas -->
+                <div class="seccion-info">
+                    <h3>⭐ Reseñas de Clientes</h3>
+                    <div class="resenas-container">
+                        <div class="resena">
+                            <div class="resena-header">
+                                <div class="resena-autor">
+                                    <div class="avatar-resena">AM</div>
+                                    <div class="resena-info">
+                                        <h4>Ana Martínez</h4>
+                                        <div class="resena-fecha">hace 2 semanas</div>
+                                    </div>
+                                </div>
+                                <div class="resena-rating">★★★★★</div>
+                            </div>
+                            <div class="resena-texto">
+                                Excelente tutor. Muy paciente y explica de forma clara. Me ayudó a aprobar 
+                                mi parcial de algoritmos. ¡Totalmente recomendado!
+                            </div>
+                        </div>
+
+                        <div class="resena">
+                            <div class="resena-header">
+                                <div class="resena-autor">
+                                    <div class="avatar-resena">CO</div>
+                                    <div class="resena-info">
+                                        <h4>Carlos Osorio</h4>
+                                        <div class="resena-fecha">hace 1 mes</div>
+                                    </div>
+                                </div>
+                                <div class="resena-rating">★★★★☆</div>
+                            </div>
+                            <div class="resena-texto">
+                                Muy buen servicio. Los conceptos quedaron claros y me ayudó a terminar 
+                                mi proyecto a tiempo. Definitivamente vuelvo a contratar.
+                            </div>
+                        </div>
+
+                        <div class="resena">
+                            <div class="resena-header">
+                                <div class="resena-autor">
+                                    <div class="avatar-resena">JS</div>
+                                    <div class="resena-info">
+                                        <h4>Julia Sánchez</h4>
+                                        <div class="resena-fecha">hace 1 mes</div>
+                                    </div>
+                                </div>
+                                <div class="resena-rating">★★★★★</div>
+                            </div>
+                            <div class="resena-texto">
+                                Juan es muy profesional y dedicado. Resuelve dudas complejas de forma sencilla. 
+                                Precio justo por la calidad del servicio.
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- COLUMNA DERECHA: INFORMACIÓN DEL PROVEEDOR Y SOLICITUD -->
+            <div>
+                <!-- Tarjeta del Proveedor -->
+                <div class="card-proveedor">
+                    <div class="avatar-grande ag-azul" id="avatar-proveedor">JM</div>
+                    <div class="nombre-proveedor" id="nombre-proveedor">Juan Martínez</div>
+                    <div class="ubicacion-proveedor">
+                        <span id="universidad">🏫 U. del Valle</span> · <span id="ciudad">Cali</span>
+                    </div>
+                    <button class="btn-primary">Solicitar Servicio</button>
+                    <button class="btn-secondary">Contactar Proveedor</button>
+                </div>
+
+                <!-- Información del Proveedor -->
+                <div class="seccion-info">
+                    <h3>👤 Información del Proveedor</h3>
+                    <div class="info-row">
+                        <span class="info-label">Miembro desde</span>
+                        <span class="info-valor" id="miembro-desde">Enero 2023</span>
+                    </div>
+                    <div class="info-row">
+                        <span class="info-label">Respuesta promedio</span>
+                        <span class="info-valor" id="respuesta-promedio">45 minutos</span>
+                    </div>
+                    <div class="info-row">
+                        <span class="info-label">Tasa de completitud</span>
+                        <span class="info-valor" id="completitud">99%</span>
+                    </div>
+                    <div class="info-row">
+                        <span class="info-label">Idiomas</span>
+                        <span class="info-valor" id="idiomas">Español, Inglés</span>
+                    </div>
+                </div>
+
+                <!-- Formulario de Solicitud -->
+                <form class="form-solicitud">
+                    <h3 style="margin-bottom: 16px; border-bottom: 2px solid var(--teal); padding-bottom: 12px;">
+                        📝 Realizar Solicitud
+                    </h3>
+
+                    <div class="form-grupo-custom">
+                        <label class="form-label-custom">Tipo de servicio</label>
+                        <select class="form-select-custom">
+                            <option>Selecciona el tipo</option>
+                            <option>Tutoría individual</option>
+                            <option>Ayuda con proyecto</option>
+                            <option>Preparación parcial</option>
+                            <option>Otro</option>
+                        </select>
+                    </div>
+
+                    <div class="form-grupo-custom">
+                        <label class="form-label-custom">Fecha preferida</label>
+                        <input type="date" class="form-input-custom">
+                    </div>
+
+                    <div class="form-grupo-custom">
+                        <label class="form-label-custom">Hora preferida</label>
+                        <input type="time" class="form-input-custom">
+                    </div>
+
+                    <div class="form-grupo-custom">
+                        <label class="form-label-custom">Duración (minutos)</label>
+                        <select class="form-select-custom">
+                            <option>30 minutos</option>
+                            <option>60 minutos</option>
+                            <option>90 minutos</option>
+                            <option>120 minutos</option>
+                        </select>
+                    </div>
+
+                    <div class="form-grupo-custom">
+                        <label class="form-label-custom">Descripción de la solicitud</label>
+                        <textarea class="form-input-custom" placeholder="Cuéntale detalles específicos de lo que necesitas..."></textarea>
+                    </div>
+
+                    <button type="submit" class="btn-primary">Enviar Solicitud</button>
+                </form>
+            </div>
+        </div>
+    </main>
+
+    <script src="../Js/main.js"></script>
+</body>
+
+</html>
