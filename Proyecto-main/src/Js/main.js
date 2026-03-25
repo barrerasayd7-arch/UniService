@@ -149,6 +149,17 @@ document.querySelector("#panel-login .btn-principal").addEventListener("click", 
   }
 });
 
+// Mostrar opciones al cargar la página
+console.log("💾 Usuarios cargados del localStorage: " + usuarios.length);
+console.log(`
+📋 FUNCIONES DISPONIBLES:
+- verUsuarios() → Ver todos los usuarios
+- eliminarUsuario("telefono") → Eliminar un usuario
+- buscarUsuario("telefono") → Buscar un usuario
+- resetearUsuarios() → Restaurar usuarios iniciales
+....................................................
+`);
+
 /* ===== VALIDACIÓN AL ENVIAR - REGISTRO ===== */
 
 document.getElementById("crear_acc").addEventListener("click", function(e) {
@@ -277,12 +288,3 @@ function buscarUsuario(telefono) {
   return usuario;
 }
 
-// Mostrar usuarios al cargar la página
-console.log("💾 Usuarios cargados del localStorage: " + usuarios.length);
-console.log(`
-📋 FUNCIONES DISPONIBLES:
-- verUsuarios() → Ver todos los usuarios
-- eliminarUsuario("telefono") → Eliminar un usuario
-- buscarUsuario("telefono") → Buscar un usuario
-- resetearUsuarios() → Restaurar usuarios iniciales
-`);
