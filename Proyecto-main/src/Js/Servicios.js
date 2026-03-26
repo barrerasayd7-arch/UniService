@@ -164,13 +164,15 @@ window.verServicios = function () {
 function calcularEstrellas(arrayEstrellas) {
   if (!arrayEstrellas || arrayEstrellas.length === 0) return "☆☆☆☆☆ (0)";
   
+  // Calcular el promedio de las estrellas
   const suma = arrayEstrellas.reduce((a, b) => a + b, 0);
   const promedio = suma / arrayEstrellas.length;
   
-  // Redondeo a .5 o .0
+  // Redondeo a x.5 o x.0
   const redondeado = Math.round(promedio * 2) / 2;
-  
+   
   const fullStars = Math.floor(redondeado);
+  // Verificar si hay media estrella
   const hasHalf = redondeado % 1 !== 0;
 
   let estrellasHtml = "";
@@ -193,7 +195,7 @@ function calcularEstrellas(arrayEstrellas) {
  * Calcula el promedio de un array de estrellas y devuelve el HTML de estrellas
  */
 function obtenerEstrellasHTML(estrellasArray) {
-    if (!estrellasArray || estrellasArray.length === 0) return "☆☆☆☆☆ (0)";
+    if (!estrellasArray || estrellasArray.length === 0) return { html: "☆☆☆☆☆", promedio: "0.0" };
     
     const suma = estrellasArray.reduce((a, b) => a + b, 0);
     const promedio = suma / estrellasArray.length;
@@ -241,7 +243,9 @@ function renderTop3() {
                 <div class="estrellas" style="color: #ffc107; font-size: 1.2rem;">
                     ${servicio.estrellasVisual}
                 </div>
-                <div class="texto-muted">${servicio.promedioNum} (${servicio.estrellas?.length || 0} reseñas)</div>
+                <div class="texto-muted">${servicio.promedioNum} (${servicio.estrellas?.length || 0} reseñas)
+
+                </div>
                 <div class="card-footer card-footer-top">
                     <div class="card-autor">
                         <div class="avatar avatar-amarillo avatar-sm">
