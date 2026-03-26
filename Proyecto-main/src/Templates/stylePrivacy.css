@@ -1,0 +1,55 @@
+/* ── ESTILOS GENERALES DE PRIVACIDAD ── */
+.privacy-section {
+    padding: 60px 20px;
+    background-color: var(--bg2);
+    font-family: 'Poppins', sans-serif;
+    color: #333;
+    line-height: 1.7;
+}
+
+.section-title {
+    font-family: 'DM Serif Display', serif;
+    font-size: 2.2rem;
+    font-weight: 800;
+    color: var(--teal);
+    margin-bottom: 25px;
+    text-align: center;
+}
+
+.privacy-textPrincipal {
+    font-size: 1.1rem;
+    margin-bottom: 30px;
+    text-align: justify;
+    color: rgba(225, 235, 251, 0.9);;
+}
+
+/* ── SUBTÍTULOS ── */
+.privacy-subtitle {
+    font-size: 1.4rem;
+    font-weight: 600;
+    color: var(--texto);
+    margin-top: 30px;
+    margin-bottom: 10px;
+    border-left: 4px solid var(--teal);
+    padding-left: 10px;
+}
+
+/* ── TEXTO ── */
+.privacy-text {
+    font-size: 1rem;
+    margin-bottom: 20px;
+    text-align: justify;
+    color: var(--texto2);
+}
+
+/* ── DESTACADO ── */
+.privacy-highlight {
+    background: var(--card-hover);
+    border: 1px solid var(--borde2);
+    padding: 15px;
+    margin-top: 30px;
+    font-weight: 600;
+    color: var(--texto);
+    border-radius: 6px;
+    text-align: center;
+}
