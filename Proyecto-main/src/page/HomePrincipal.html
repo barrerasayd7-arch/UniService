@@ -72,7 +72,7 @@
             <div id="contenedor-tarjetas"></div>
             <script>
                 // 1. Datos de ejemplo (esto normalmente lo guardarías una sola vez)
-                const servicios = [
+               /* const servicios = [
                    {
                      id: "servicio1",
                      icono: "💻",
@@ -184,32 +184,33 @@
                 // Guardar en localStorage (solo la primera vez)
                 if (!localStorage.getItem("servicios")) {
                   localStorage.setItem("servicios", JSON.stringify(servicios));
-                }
+                }*/
 
                 // 2. Recuperar y renderizar
                 const contenedor = document.getElementById("contenedor-tarjetas");
-                const data = JSON.parse(localStorage.getItem("servicios")) || [];
+                const data = JSON.parse(localStorage.getItem("logstore_servicios")) || [];
                 
                 data.slice(0, 8).forEach(servicio => {
                   const tarjeta = `
                     <a href="Servicio.html?id=${servicio.id}" class="card-servicio">
                       <div class="card-icono card-icono-azul">${servicio.icono}</div>
                       <div class="card-body-custom">
-                        <span class="etiqueta et-azul">${servicio.etiqueta}</span>
-                        <p class="card-meta">${servicio.meta}</p>
+                        <span class="etiqueta et-azul">${servicio.categoria}</span>
+                        <p class="card-meta">${servicio.universidad}</p>
                         <h5>${servicio.titulo}</h5>
                         <p class="texto-muted">${servicio.descripcion}</p>
                         <div class="card-autor">
                           <div class="avatar avatar-azul">${servicio.avatar}</div>
-                          <span class="texto-muted">${servicio.autor}</span>
+                          <span class="texto-muted">${servicio.publicador}</span>
                         </div>
-                        <hr class="card-divider">
+                        <div class="texto-fecha">/////////////</div>
                         <div class="card-footer">
                           <div>
+                            <hr class="card-divider">
                             <div class="estrellas">${servicio.estrellas}</div>
                             <div class="texto-muted">${servicio.reseñas}</div>
                           </div>
-                          <div class="precio">${servicio.precio}</div>
+                          <div class="precio">${servicio.precio}$</div>
                         </div>
                       </div>
                     </a>
