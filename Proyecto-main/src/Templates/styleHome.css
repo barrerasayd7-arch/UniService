@@ -322,6 +322,7 @@ fieldset { border: none; padding: 0; }
   display: flex;
   flex-direction: column;
   max-width: 350px;
+  height: 450px;
   margin: 10px;
 }
 
@@ -389,7 +390,7 @@ fieldset { border: none; padding: 0; }
 
 .card-meta   { font-size: 0.75rem; color: var(--texto3); margin: 6px 0 4px; }
 .card-autor  { display: flex; align-items: center; gap: 8px; margin-bottom: 12px; }
-.card-divider { border: none; border-top: 1px solid var(--borde); margin: 12px 0; }
+.card-divider { border: none; border-top: 1px solid var(--borde); margin: 20px 0; }
 .card-footer  { display: flex; justify-content: space-between; align-items: center; margin-top: auto; }
 .card-footer-top { margin-top: 14px; }
 
@@ -515,7 +516,8 @@ fieldset { border: none; padding: 0; }
 .texto-muted { color: var(--texto2); font-size: 0.82rem; }
 .texto-claro { color: var(--texto);  font-weight: 600; }
 .estrellas   { color: var(--amarillo); font-size: 0.85rem; letter-spacing: 1px; }
-.precio      { font-size: 1rem; font-weight: 800; color: var(--teal); }
+.precio      { font-size: 1rem; font-weight: 800; color: var(--teal);}
+.texto-fecha { color: var(--texto); text-align: right;}
 
 /* ══════════════════════════════
    FORMULARIOS

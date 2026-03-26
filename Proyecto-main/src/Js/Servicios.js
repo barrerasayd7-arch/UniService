@@ -12,10 +12,10 @@ const modalidad_servicio = document.getElementById("modalidad-servicio");
 
 
 // El identificador del usuario que está logueado en el sistema (se asume que viene de localStorage)
-const publicador =
-  localStorage.getItem("usuarioTelefono") ||
-  localStorage.getItem("usuario") ||
-  "Desconocido";
+const publicador = localStorage.getItem("usuario");
+
+  
+  //localStorage.getItem("usuarioTelefono") ||
 
 // Inicializar contador de servicios si no existe
 if (!localStorage.getItem("servicioCounter")) {
@@ -36,8 +36,11 @@ if (!localStorage.getItem("logstore_servicios")) {
       universidad: "Universidad Nacional",
       contacto: "7778889944",
       modalidad: "mixta",
+      icono: "📚",
+      avatar: "",
+      estrellas: [5, 4, 4, 5, 5],
       disponibilidad: "Entre semana",
-      publicador: "7778889944",
+      publicador: "Lenín",
       fechaPublicacion: new Date().toLocaleString(),
     },
     {
@@ -49,8 +52,11 @@ if (!localStorage.getItem("logstore_servicios")) {
       universidad: "Universidad Javeriana",
       contacto: "7778889944",
       modalidad: "presencial",
+      icono: "✍️",
+      avatar: "",
+      estrellas: [4, 4, 5, 5],
       disponibilidad: "Siempre disponible",
-      publicador: "7778889944",
+      publicador: "Lenín",
       fechaPublicacion: new Date().toLocaleString(),
     },
   ];
@@ -78,6 +84,32 @@ if (!formPublicar) {
   formPublicar.addEventListener("submit", function (e) {
     e.preventDefault(); // evita recarga de página al enviar
 
+    /*saca icono segun categoria*/
+      let icono = "🌐"; // Icono por defecto
+      switch (categoria.value) {
+        case "tutorias":
+          icono = "📚";
+          break;
+        case "ensayos":
+          icono = "✍️";
+          break;
+        case "proyectos":
+          icono = "🗂️";
+          break;
+        case "programacion":
+          icono = "💻";
+          break;
+        case "diseno":
+          icono = "🎨";
+          break;
+        case "arriendo":
+          icono = "🏠";
+          break;
+        case "otros":
+          icono = "🌐";
+          break;
+      }
+
     // Obtener y actualizar el contador
     let counter = parseInt(localStorage.getItem("servicioCounter")) || 0;
     counter++;
@@ -92,22 +124,22 @@ if (!formPublicar) {
       precio: precio.value,
       universidad: Universidad.value.trim(),
       contacto: contacto.value.trim(),
-      modalidad: modalidad_servicio.value.trim(),
+      modalidad: document.querySelector('input[name="modalidad"]:checked')?.value || "No especificado",
+      icono: icono,
+      avatar: "", //recuerda pasar este atributo despues a el perfil del usuario que publica el servicio
+      estrellas: [], // Inicialmente sin calificaciones
       disponibilidad:
         document.querySelector('input[name="disponibilidad"]:checked')?.value ||
         "No especificado",
       publicador: publicador,
+
       fechaPublicacion: new Date().toLocaleString(),
     };
 
     // Leemos los servicios guardados (si existen), agregamos el nuevo y volvemos a guardar
-    let serviciosGuardados =
-      JSON.parse(localStorage.getItem("logstore_servicios")) || [];
+    let serviciosGuardados = JSON.parse(localStorage.getItem("logstore_servicios")) || [];
     serviciosGuardados.push(nuevoServicio);
-    localStorage.setItem(
-      "logstore_servicios",
-      JSON.stringify(serviciosGuardados),
-    );
+    localStorage.setItem("logstore_servicios",JSON.stringify(serviciosGuardados),);
 
     // Feedback visual / consola para saber que la acción se completó
     console.log("Servicio guardado:", nuevoServicio);
@@ -130,5 +162,28 @@ window.verServicios = function () {
 };
 
 
+function calcularEstrellas(arrayEstrellas) {
+  if (!arrayEstrellas || arrayEstrellas.length === 0) return "☆☆☆☆☆ (0)";
+  
+  const suma = arrayEstrellas.reduce((a, b) => a + b, 0);
+  const promedio = suma / arrayEstrellas.length;
+  
+  // Redondeo a .5 o .0
+  const redondeado = Math.round(promedio * 2) / 2;
+  
+  const fullStars = Math.floor(redondeado);
+  const hasHalf = redondeado % 1 !== 0;
 
-//iconos:
+  let estrellasHtml = "";
+  for (let i = 1; i <= 5; i++) {
+    if (i <= fullStars) {
+      estrellasHtml += "★";
+    } else if (hasHalf && i === fullStars + 1) {
+      estrellasHtml += "⯨"; // Media estrella (icono)
+    } else {
+      estrellasHtml += "☆";
+    }
+  }
+
+  return `${estrellasHtml} (${promedio.toFixed(1)})`;
+}
