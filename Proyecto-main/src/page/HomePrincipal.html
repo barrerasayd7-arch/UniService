@@ -71,152 +71,46 @@
 
             <div id="contenedor-tarjetas"></div>
             <script>
-                // 1. Datos de ejemplo (esto normalmente lo guardarías una sola vez)
-               /* const servicios = [
-                   {
-                     id: "servicio1",
-                     icono: "💻",
-                     etiqueta: "Programación",
-                     meta: "UPC",
-                     titulo: "Java y C++",
-                     descripcion: "Te ayudo con proyectos, lógica y algoritmos.",
-                     autor: "Juan M.",
-                     avatar: "JM",
-                     estrellas: "★★★★★",
-                     reseñas: "4.8 (45 reseñas)",
-                     precio: "$35.000/h"
-                   },
-                   {
-                     id: "servicio2",
-                     icono: "💻",
-                     etiqueta: "Programación",
-                     meta: "U. Nacional",
-                     titulo: "Python básico",
-                     descripcion: "Clases prácticas de Python para principiantes.",
-                     autor: "Ana P.",
-                     avatar: "AP",
-                     estrellas: "★★★★☆",
-                     reseñas: "4.5 (30 reseñas)",
-                     precio: "$30.000/h"
-                   },
-                   {
-                     id: "servicio3",
-                     icono: "🎨",
-                     etiqueta: "Diseño",
-                     meta: "U. del Valle",
-                     titulo: "Diseño Web",
-                     descripcion: "Aprende HTML, CSS y JavaScript desde cero.",
-                     autor: "Carlos G.",
-                     avatar: "CG",
-                     estrellas: "★★★★★",
-                     reseñas: "5.0 (12 reseñas)",
-                     precio: "$40.000/h"
-                   },
-                   {
-                     id: "servicio4",
-                     icono: "📊",
-                     etiqueta: "Estadística",
-                     meta: "U. Javeriana",
-                     titulo: "Análisis de datos",
-                     descripcion: "Uso de R y Python para estadística aplicada.",
-                     autor: "Laura S.",
-                     avatar: "LS",
-                     estrellas: "★★★★☆",
-                     reseñas: "4.6 (20 reseñas)",
-                     precio: "$38.000/h"
-                   },
-                   {
-                     id: "servicio5",
-                     icono: "🔧",
-                     etiqueta: "Ingeniería",
-                     meta: "UIS",
-                     titulo: "Mecánica básica",
-                     descripcion: "Asesorías en dinámica y resistencia de materiales.",
-                     autor: "Pedro R.",
-                     avatar: "PR",
-                     estrellas: "★★★★☆",
-                     reseñas: "4.4 (18 reseñas)",
-                     precio: "$32.000/h"
-                   },
-                   {
-                     id: "servicio6",
-                     icono: "📚",
-                     etiqueta: "Idiomas",
-                     meta: "U. Andes",
-                     titulo: "Inglés intermedio",
-                     descripcion: "Conversación y gramática para exámenes internacionales.",
-                     autor: "María T.",
-                     avatar: "MT",
-                     estrellas: "★★★★★",
-                     reseñas: "4.9 (50 reseñas)",
-                     precio: "$45.000/h"
-                   },
-                   {
-                     id: "servicio7",
-                     icono: "🧮",
-                     etiqueta: "Matemáticas",
-                     meta: "U. Cauca",
-                     titulo: "Álgebra lineal",
-                     descripcion: "Matrices, vectores y aplicaciones prácticas.",
-                     autor: "José L.",
-                     avatar: "JL",
-                     estrellas: "★★★★☆",
-                     reseñas: "4.7 (22 reseñas)",
-                     precio: "$33.000/h"
-                   },
-                   {
-                     id: "servicio8",
-                     icono: "⚛️",
-                     etiqueta: "Física",
-                     meta: "U. Antioquia",
-                     titulo: "Electromagnetismo",
-                     descripcion: "Clases de teoría y resolución de problemas.",
-                     autor: "Sofía V.",
-                     avatar: "SV",
-                     estrellas: "★★★★★",
-                     reseñas: "5.0 (15 reseñas)",
-                     precio: "$42.000/h"
-                   }
-                 ];
-                
-                localStorage.setItem("servicios", JSON.stringify(servicios));
+                function renderServiciosRecientes() {
+                    const contenedor = document.getElementById("contenedor-tarjetas");
+                    const data = JSON.parse(localStorage.getItem("logstore_servicios")) || [];
+                    contenedor.innerHTML = "";
 
-                // Guardar en localStorage (solo la primera vez)
-                if (!localStorage.getItem("servicios")) {
-                  localStorage.setItem("servicios", JSON.stringify(servicios));
-                }*/
+                    data.slice(0, 8).forEach(servicio => {
+                      const estrellasTexto = typeof calcularEstrellas === 'function'
+                        ? calcularEstrellas(servicio.estrellas)
+                        : (servicio.estrellas || "☆☆☆☆☆ (0)");
 
-                // 2. Recuperar y renderizar
-                const contenedor = document.getElementById("contenedor-tarjetas");
-                const data = JSON.parse(localStorage.getItem("logstore_servicios")) || [];
-                
-                data.slice(0, 8).forEach(servicio => {
-                  const tarjeta = `
-                    <a href="Servicio.html?id=${servicio.id}" class="card-servicio">
-                      <div class="card-icono card-icono-azul">${servicio.icono}</div>
-                      <div class="card-body-custom">
-                        <span class="etiqueta et-azul">${servicio.categoria}</span>
-                        <p class="card-meta">${servicio.universidad}</p>
-                        <h5>${servicio.titulo}</h5>
-                        <p class="texto-muted">${servicio.descripcion}</p>
-                        <div class="card-autor">
-                          <div class="avatar avatar-azul">${servicio.avatar}</div>
-                          <span class="texto-muted">${servicio.publicador}</span>
-                        </div>
-                        <div class="texto-fecha">/////////////</div>
-                        <div class="card-footer">
-                          <div>
-                            <hr class="card-divider">
-                            <div class="estrellas">${servicio.estrellas}</div>
-                            <div class="texto-muted">${servicio.reseñas}</div>
+                      const tarjeta = `
+                        <a href="Servicio.html?id=${servicio.id}" class="card-servicio">
+                          <div class="card-icono card-icono-azul">${servicio.icono}</div>
+                          <div class="card-body-custom">
+                            <span class="etiqueta et-azul">${servicio.categoria}</span>
+                            <p class="card-meta">${servicio.universidad}</p>
+                            <h5>${servicio.titulo}</h5>
+                            <p class="texto-muted">${servicio.descripcion}</p>
+                            <div class="card-autor">
+                              <div class="avatar avatar-azul">${servicio.avatar}</div>
+                              <span class="texto-muted">${servicio.publicador}</span>
+                            </div>
+                            <div class="texto-fecha">${servicio.fechaPublicacion}</div>
+                            <div class="card-footer">
+                              <div>
+                                <hr class="card-divider">
+                                <div class="estrellas">${estrellasTexto}</div>
+                                <div class="texto-muted">${servicio.reseñas || "0 reseñas"}</div>
+                              </div>
+                              <div class="precio">${servicio.precio}$</div>
+                            </div>
                           </div>
-                          <div class="precio">${servicio.precio}$</div>
-                        </div>
-                      </div>
-                    </a>
-                  `;
-                  contenedor.innerHTML += tarjeta;
-                });
+                        </a>
+                      `;
+
+                      contenedor.innerHTML += tarjeta;
+                    });
+                }
+
+                window.addEventListener("load", renderServiciosRecientes);
             </script>
         </div>
     </section>

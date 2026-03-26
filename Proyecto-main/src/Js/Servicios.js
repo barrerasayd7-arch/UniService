@@ -124,7 +124,7 @@ if (!formPublicar) {
       precio: precio.value,
       universidad: Universidad.value.trim(),
       contacto: contacto.value.trim(),
-      modalidad: modalidad_servicio.value.trim(),
+      modalidad: document.querySelector('input[name="modalidad"]:checked')?.value || "No especificado",
       icono: icono,
       avatar: "", //recuerda pasar este atributo despues a el perfil del usuario que publica el servicio
       estrellas: [], // Inicialmente sin calificaciones
@@ -160,3 +160,30 @@ window.verServicios = function () {
   console.log("Total de servicios: " + serviciosGuardados.length);
   return serviciosGuardados;
 };
+
+
+function calcularEstrellas(arrayEstrellas) {
+  if (!arrayEstrellas || arrayEstrellas.length === 0) return "☆☆☆☆☆ (0)";
+  
+  const suma = arrayEstrellas.reduce((a, b) => a + b, 0);
+  const promedio = suma / arrayEstrellas.length;
+  
+  // Redondeo a .5 o .0
+  const redondeado = Math.round(promedio * 2) / 2;
+  
+  const fullStars = Math.floor(redondeado);
+  const hasHalf = redondeado % 1 !== 0;
+
+  let estrellasHtml = "";
+  for (let i = 1; i <= 5; i++) {
+    if (i <= fullStars) {
+      estrellasHtml += "★";
+    } else if (hasHalf && i === fullStars + 1) {
+      estrellasHtml += "⯨"; // Media estrella (icono)
+    } else {
+      estrellasHtml += "☆";
+    }
+  }
+
+  return `${estrellasHtml} (${promedio.toFixed(1)})`;
+}

@@ -517,7 +517,7 @@ fieldset { border: none; padding: 0; }
 .texto-claro { color: var(--texto);  font-weight: 600; }
 .estrellas   { color: var(--amarillo); font-size: 0.85rem; letter-spacing: 1px; }
 .precio      { font-size: 1rem; font-weight: 800; color: var(--teal);}
-.texto-fecha { color: var(--borde2); text-align: right;}
+.texto-fecha { color: var(--texto); text-align: right;}
 
 /* ══════════════════════════════
    FORMULARIOS
