@@ -325,3 +325,280 @@ window.addEventListener("DOMContentLoaded", () => {
     renderTop3();
     renderMisServicios();
 });
+
+
+/* ═══════════════════════════════════════════════════════════════
+   JAVASCRIPT - FUNCIONALIDADES INTERACTIVAS
+   ═══════════════════════════════════════════════════════════════ */
+
+document.addEventListener('DOMContentLoaded', function() {
+
+    // ── NAVBAR SCROLL EFFECT ──
+    const navbar = document.getElementById('navbar');
+
+    window.addEventListener('scroll', function() {
+        if (window.pageYOffset > 50) {
+            navbar.classList.add('scrolled');
+        } else {
+            navbar.classList.remove('scrolled');
+        }
+    });
+
+    // ── NAVBAR ACTIVE LINK ON CLICK ──
+    const navLinks = document.querySelectorAll('.nav-link-custom:not(.nav-Cerrar)');
+
+    navLinks.forEach(link => {
+        link.addEventListener('click', function(e) {
+            navLinks.forEach(l => l.classList.remove('nav-active'));
+            this.classList.add('nav-active');
+        });
+    });
+
+    // ── NAVBAR ACTIVE LINK ON SCROLL ──
+    const sections = document.querySelectorAll('section[id]');
+
+    window.addEventListener('scroll', function() {
+        let current = '';
+
+        sections.forEach(section => {
+            const sectionTop = section.offsetTop - 100;
+            const sectionHeight = section.offsetHeight;
+
+            if (window.pageYOffset >= sectionTop && window.pageYOffset < sectionTop + sectionHeight) {
+                current = section.getAttribute('id');
+            }
+        });
+
+        navLinks.forEach(link => {
+            link.classList.remove('nav-active');
+            if (link.getAttribute('href') === '#' + current) {
+                link.classList.add('nav-active');
+            }
+        });
+    });
+
+    // ── MOBILE NAV TOGGLE ──
+    const navToggle = document.getElementById('navToggle');
+    const navbarLinks = document.getElementById('navbarLinks');
+
+    if (navToggle) {
+        navToggle.addEventListener('click', function() {
+            this.classList.toggle('active');
+            navbarLinks.classList.toggle('active');
+        });
+
+        navLinks.forEach(link => {
+            link.addEventListener('click', function() {
+                navToggle.classList.remove('active');
+                navbarLinks.classList.remove('active');
+            });
+        });
+    }
+
+    // ── CHIPS INTERACTIVOS ──
+    const chips = document.querySelectorAll('.chip-interactive');
+
+    chips.forEach(chip => {
+        chip.addEventListener('click', function(e) {
+            e.preventDefault();
+            chips.forEach(c => c.classList.remove('activo'));
+            this.classList.add('activo');
+            const categoria = this.dataset.category;
+            console.log('Categoría seleccionada:', categoria);
+        });
+    });
+
+    // ── CARDS 3D EFFECT ──
+    function initCards3D() {
+        const cards = document.querySelectorAll('.card-3d');
+
+        cards.forEach(card => {
+            card.addEventListener('mousemove', function(e) {
+                const rect = this.getBoundingClientRect();
+                const x = e.clientX - rect.left;
+                const y = e.clientY - rect.top;
+                const centerX = rect.width / 2;
+                const centerY = rect.height / 2;
+                const rotateX = (y - centerY) / 15;
+                const rotateY = (centerX - x) / 15;
+
+                this.style.transform = `translateY(-8px) rotateX(${rotateX}deg) rotateY(${rotateY}deg)`;
+            });
+
+            card.addEventListener('mouseleave', function() {
+                this.style.transform = 'translateY(0) rotateX(0) rotateY(0)';
+            });
+
+            card.addEventListener('click', function(e) {
+                const rect = this.getBoundingClientRect();
+                const x = e.clientX - rect.left;
+                const y = e.clientY - rect.top;
+
+                const ripple = document.createElement('span');
+                ripple.className = 'ripple';
+                ripple.style.left = x + 'px';
+                ripple.style.top = y + 'px';
+                ripple.style.width = ripple.style.height = '100px';
+
+                this.appendChild(ripple);
+                setTimeout(() => ripple.remove(), 600);
+            });
+        });
+    }
+
+    initCards3D();
+
+    const observer = new MutationObserver(function(mutations) {
+        mutations.forEach(function(mutation) {
+            if (mutation.addedNodes.length) {
+                initCards3D();
+            }
+        });
+    });
+
+    const container = document.getElementById('contenedor-tarjetas');
+    if (container) {
+        observer.observe(container, { childList: true });
+    }
+
+    // ── TOP CARDS 3D EFFECT ──
+    const topCards = document.querySelectorAll('.top-card');
+
+    topCards.forEach(card => {
+        card.addEventListener('mousemove', function(e) {
+            const rect = this.getBoundingClientRect();
+            const x = e.clientX - rect.left;
+            const y = e.clientY - rect.top;
+            const centerX = rect.width / 2;
+            const centerY = rect.height / 2;
+            const rotateX = (y - centerY) / 12;
+            const rotateY = (centerX - x) / 12;
+
+            this.style.transform = `perspective(1000px) rotateX(${rotateX}deg) rotateY(${rotateY}deg) translateZ(15px)`;
+        });
+
+        card.addEventListener('mouseleave', function() {
+            this.style.transform = 'perspective(1000px) rotateX(0) rotateY(0) translateZ(0)';
+        });
+    });
+
+    // ── PARTICLES CANVAS ──
+    function initParticles(canvasId) {
+        const canvas = document.getElementById(canvasId);
+        if (!canvas) return;
+
+        const ctx = canvas.getContext('2d');
+        let particles = [];
+
+        function resize() {
+            const section = canvas.closest('.section-dynamic');
+            if (section) {
+                canvas.width = section.offsetWidth;
+                canvas.height = section.offsetHeight;
+            }
+        }
+
+        resize();
+
+        class Particle {
+            constructor() {
+                this.reset();
+            }
+
+            reset() {
+                this.x = Math.random() * canvas.width;
+                this.y = Math.random() * canvas.height;
+                this.size = Math.random() * 2 + 0.5;
+                this.speedX = (Math.random() - 0.5) * 0.3;
+                this.speedY = (Math.random() - 0.5) * 0.3;
+                this.opacity = Math.random() * 0.4 + 0.1;
+            }
+
+            update() {
+                this.x += this.speedX;
+                this.y += this.speedY;
+
+                if (this.x < 0 || this.x > canvas.width) this.speedX *= -1;
+                if (this.y < 0 || this.y > canvas.height) this.speedY *= -1;
+            }
+
+            draw() {
+                ctx.fillStyle = `rgba(14, 165, 160, ${this.opacity})`;
+                ctx.beginPath();
+                ctx.arc(this.x, this.y, this.size, 0, Math.PI * 2);
+                ctx.fill();
+            }
+        }
+
+        function init() {
+            const count = Math.min(40, Math.floor(canvas.width * canvas.height / 20000));
+            particles = [];
+            for (let i = 0; i < count; i++) {
+                particles.push(new Particle());
+            }
+        }
+
+        function connect() {
+            for (let i = 0; i < particles.length; i++) {
+                for (let j = i + 1; j < particles.length; j++) {
+                    const dx = particles[i].x - particles[j].x;
+                    const dy = particles[i].y - particles[j].y;
+                    const dist = Math.sqrt(dx * dx + dy * dy);
+
+                    if (dist < 100) {
+                        const opacity = (100 - dist) / 100 * 0.1;
+                        ctx.strokeStyle = `rgba(14, 165, 160, ${opacity})`;
+                        ctx.lineWidth = 0.5;
+                        ctx.beginPath();
+                        ctx.moveTo(particles[i].x, particles[i].y);
+                        ctx.lineTo(particles[j].x, particles[j].y);
+                        ctx.stroke();
+                    }
+                }
+            }
+        }
+
+        function animate() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            particles.forEach(p => {
+                p.update();
+                p.draw();
+            });
+            connect();
+            requestAnimationFrame(animate);
+        }
+
+        init();
+        animate();
+
+        window.addEventListener('resize', () => {
+            resize();
+            init();
+        });
+    }
+
+    // Inicializar partículas en todas las secciones oscuras dinámicas
+    initParticles('particles-top');
+    initParticles('particles-publicar');
+    initParticles('particles-solicitudes');
+    initParticles('particles-calificar');
+
+    // ── SMOOTH SCROLL ──
+    document.querySelectorAll('a[href^="#"]').forEach(anchor => {
+        anchor.addEventListener('click', function(e) {
+            const href = this.getAttribute('href');
+            if (href !== '#' && href !== 'HomeGuest.html') {
+                e.preventDefault();
+                const target = document.querySelector(href);
+                if (target) {
+                    target.scrollIntoView({
+                        behavior: 'smooth',
+                        block: 'start'
+                    });
+                }
+            }
+        });
+    });
+
+    console.log('✅ Funcionalidades interactivas cargadas correctamente');
+});
