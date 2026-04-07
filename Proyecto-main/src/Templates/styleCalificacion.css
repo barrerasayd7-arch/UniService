@@ -19,7 +19,7 @@
   font-size: 1.8rem;
   box-shadow: 0 8px 24px rgba(14, 165, 160, 0.4);
   transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-  z-index: 99;
+  z-index: 999;
   animation: bounce 2s infinite;
 }
 
@@ -48,11 +48,12 @@
   backdrop-filter: blur(4px);
   -webkit-backdrop-filter: blur(4px);
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   justify-content: center;
+  padding-top: 20px;
   opacity: 0;
   visibility: hidden;
-  z-index: 100;
+  z-index: 1000;
   transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
@@ -66,7 +67,7 @@
   background: linear-gradient(135deg, var(--bg2) 0%, #0d1f33 100%);
   border: 1px solid var(--borde);
   border-radius: 24px;
-  padding: 40px;
+  padding: 30px;
   max-width: 500px;
   width: 90%;
   max-height: 90vh;
@@ -74,6 +75,7 @@
   box-shadow: 0 20px 60px rgba(0, 0, 0, 0.6);
   animation: slideInUp 0.5s cubic-bezier(0.4, 0, 0.2, 1);
   position: relative;
+  z-index: 1001;
 }
 
 .rating-modal-overlay:not(.active) .rating-modal {
@@ -202,145 +204,108 @@
   justify-content: center;
   gap: 8px;
   margin-bottom: 20px;
-  padding: 15px;
-  background: rgba(0, 0, 0, 0.2);
-  border-radius: 20px;
-  backdrop-filter: blur(10px);
-  -webkit-backdrop-filter: blur(10px);
+  padding: 20px;
+  background: linear-gradient(135deg, rgba(14, 165, 160, 0.03) 0%, rgba(245, 200, 66, 0.02) 100%);
+  border-radius: 16px;
+  border: 1px solid rgba(14, 165, 160, 0.1);
+  backdrop-filter: blur(5px);
+  -webkit-backdrop-filter: blur(5px);
 }
 
 .rating-star {
-  font-size: 4rem;
+  background: none;
+  border: none;
+  font-size: 2.2rem;
+  color: #d1d5db;
   cursor: pointer;
   transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-  filter: grayscale(100%) brightness(0.6);
-  opacity: 0.7;
+  padding: 5px;
+  border-radius: 8px;
   position: relative;
-  text-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
-  background: linear-gradient(135deg, #e5e7eb 0%, #9ca3af 100%);
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-  background-clip: text;
-  border-radius: 50%;
-  padding: 10px;
   display: flex;
   align-items: center;
   justify-content: center;
-  min-width: 60px;
-  min-height: 60px;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  min-width: 40px;
+  min-height: 40px;
 }
 
 .rating-star::before {
   content: '';
   position: absolute;
   inset: 0;
-  border-radius: 50%;
-  background: radial-gradient(circle, rgba(255, 255, 255, 0.2) 0%, transparent 70%);
+  background: linear-gradient(135deg, rgba(14, 165, 160, 0.1) 0%, rgba(245, 200, 66, 0.1) 100%);
+  border-radius: 8px;
   opacity: 0;
-  transition: opacity 0.3s ease;
+  transform: scale(0.8);
+  transition: all 0.3s ease;
 }
 
 .rating-star::after {
   content: '';
   position: absolute;
   inset: -2px;
-  border-radius: 50%;
-  background: linear-gradient(135deg, transparent 0%, rgba(255, 255, 255, 0.1) 50%, transparent 100%);
+  background: linear-gradient(135deg, transparent 0%, rgba(14, 165, 160, 0.2) 50%, transparent 100%);
+  border-radius: 10px;
   opacity: 0;
   transition: opacity 0.4s ease;
   z-index: -1;
 }
 
 .rating-star:hover {
-  filter: none;
-  opacity: 1;
+  color: #fbbf24;
   transform: scale(1.1) translateY(-2px);
-  box-shadow: 0 8px 25px rgba(0, 0, 0, 0.2);
-  position: relative;
 }
 
 .rating-star:hover::before {
-  content: '✨';
-  position: absolute;
-  top: -10px;
-  left: 50%;
-  transform: translateX(-50%);
-  font-size: 0.8rem;
-  opacity: 0;
-  animation: particleFloat 1s ease-out forwards;
-  pointer-events: none;
+  opacity: 1;
+  transform: scale(1);
 }
 
 .rating-star:hover::after {
   opacity: 1;
-  animation: starGlow 2s ease-in-out infinite alternate;
 }
 
 .rating-star.active,
 .rating-star.hovered {
-  filter: none;
-  opacity: 1;
-  transform: scale(1.1) translateY(-2px);
-  box-shadow: 0 8px 25px rgba(0, 0, 0, 0.2);
-  animation: starPulse 1.5s ease-in-out infinite;
+  color: #f59e0b;
+  transform: scale(1.05) translateY(-1px);
 }
 
 .rating-star.active::before,
 .rating-star.hovered::before {
   opacity: 1;
+  transform: scale(1);
 }
 
 .rating-star.active::after,
 .rating-star.hovered::after {
   opacity: 1;
-  animation: starGlow 2s ease-in-out infinite alternate;
 }
 
 /* Colores específicos para cada estrella */
 .rating-star[data-value="1"].active,
 .rating-star[data-value="1"].hovered {
-  background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-  background-clip: text;
-  text-shadow: 0 6px 20px rgba(239, 68, 68, 0.6);
+  color: #ef4444;
 }
 
 .rating-star[data-value="2"].active,
 .rating-star[data-value="2"].hovered {
-  background: linear-gradient(135deg, #f97316 0%, #ea580c 100%);
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-  background-clip: text;
-  text-shadow: 0 6px 20px rgba(249, 115, 22, 0.6);
+  color: #f97316;
 }
 
 .rating-star[data-value="3"].active,
 .rating-star[data-value="3"].hovered {
-  background: linear-gradient(135deg, #eab308 0%, #ca8a04 100%);
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-  background-clip: text;
-  text-shadow: 0 6px 20px rgba(234, 179, 8, 0.6);
+  color: #eab308;
 }
 
 .rating-star[data-value="4"].active,
 .rating-star[data-value="4"].hovered {
-  background: linear-gradient(135deg, #84cc16 0%, #65a30d 100%);
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-  background-clip: text;
-  text-shadow: 0 6px 20px rgba(132, 204, 22, 0.6);
+  color: #84cc16;
 }
 
 .rating-star[data-value="5"].active,
 .rating-star[data-value="5"].hovered {
-  background: linear-gradient(135deg, #10b981 0%, #059669 100%);
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-  background-clip: text;
-  text-shadow: 0 6px 20px rgba(16, 185, 129, 0.6);
+  color: #10b981;
 }
 
 .rating-star.active,
@@ -559,6 +524,10 @@
 
 /* Responsive */
 @media (max-width: 768px) {
+  .rating-modal-overlay {
+    padding-top: 10px;
+  }
+
   .rating-modal {
     padding: 30px 20px;
   }
@@ -568,15 +537,15 @@
   }
 
   .rating-star {
-    font-size: 3.5rem;
-    min-width: 50px;
-    min-height: 50px;
-    padding: 8px;
+    font-size: 2rem;
+    min-width: 35px;
+    min-height: 35px;
+    padding: 4px;
   }
 
   .rating-stars-container {
     gap: 6px;
-    padding: 12px;
+    padding: 15px;
   }
 
   .rating-stars-section {
