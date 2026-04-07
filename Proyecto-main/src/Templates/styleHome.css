@@ -44,7 +44,16 @@ h1, h2, h3, h4, h5, h6 {
   line-height: 1.25;
 }
 
-h2 { font-size: 2rem; font-weight: 800; margin-bottom: 8px; }
+h2 {
+  font-size: 2rem;
+  font-weight: 800;
+  margin-bottom: 8px;
+  background: linear-gradient(135deg, var(--texto) 0%, var(--teal2) 50%, var(--amarillo) 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  animation: fadeInDown 0.8s ease both;
+}
 h5 { font-size: 0.97rem; font-weight: 700; margin: 8px 0 10px; line-height: 1.4; }
 
 a    { text-decoration: none; }
@@ -240,8 +249,37 @@ fieldset { border: none; padding: 0; }
   margin-top: 1rem;
 }
 
-.btn-borde { background: transparent; color: var(--texto); border: 1px solid var(--borde2); }
-.btn-borde:hover { border-color: var(--teal); color: var(--teal); transform: translateY(-2px); }
+.btn-borde {
+  background: transparent;
+  color: var(--texto);
+  border: 2px solid var(--borde2);
+  position: relative;
+  overflow: hidden;
+  transition: color 0.4s ease;
+}
+
+.btn-borde::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: -100%;
+  width: 100%;
+  height: 100%;
+  background: var(--teal);
+  z-index: -1;
+  transition: left 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.btn-borde:hover::before {
+  left: 0;
+}
+
+.btn-borde:hover {
+  color: #070d16;
+  border-color: var(--teal);
+  transform: translateY(-2px);
+  box-shadow: 0 8px 24px rgba(14, 165, 160, 0.35);
+}
 
 /* ══════════════════════════════
    CHIPS BAR
@@ -285,8 +323,59 @@ fieldset { border: none; padding: 0; }
 /* ══════════════════════════════
    SECCIONES
 ══════════════════════════════ */
-.seccion        { padding: 72px 0; background-color: var(--bg); }
-.seccion-oscura { background-color: var(--bg2); }
+.seccion {
+  padding: 72px 0;
+  background-color: var(--bg);
+  position: relative;
+  overflow: hidden;
+}
+
+.seccion::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: linear-gradient(135deg, rgba(14, 165, 160, 0.05) 0%, transparent 40%, rgba(14, 165, 160, 0.02) 100%);
+  pointer-events: none;
+  z-index: 0;
+}
+
+.seccion > * {
+  position: relative;
+  z-index: 1;
+}
+
+.seccion-oscura {
+  background: linear-gradient(135deg, var(--bg2) 0%, #0d1f33 50%, var(--bg2) 100%);
+  position: relative;
+}
+
+.seccion-oscura::before {
+  content: '';
+  position: absolute;
+  top: -50%;
+  right: -20%;
+  width: 400px;
+  height: 400px;
+  background: radial-gradient(circle, rgba(14, 165, 160, 0.15) 0%, transparent 70%);
+  border-radius: 50%;
+  filter: blur(60px);
+}
+
+.seccion-oscura::after {
+  content: '';
+  position: absolute;
+  bottom: -30%;
+  left: -10%;
+  width: 300px;
+  height: 300px;
+  background: radial-gradient(circle, rgba(139, 92, 246, 0.1) 0%, transparent 70%);
+  border-radius: 50%;
+  filter: blur(50px);
+}
+
 .seccion-negra  { background-color: #000; }
 
 .label-seccion {
@@ -296,9 +385,42 @@ fieldset { border: none; padding: 0; }
   text-transform: uppercase;
   color: var(--teal);
   margin-bottom: 10px;
+  display: inline-block;
+  padding: 8px 16px;
+  background: linear-gradient(135deg, rgba(14, 165, 160, 0.1) 0%, rgba(14, 165, 160, 0.05) 100%);
+  border: 1px solid rgba(14, 165, 160, 0.3);
+  border-radius: 8px;
+  animation: slideInLeft 0.6s ease both;
 }
 
-.seccion-desc { color: var(--texto2); font-size: 0.95rem; margin-bottom: 36px; }
+@keyframes slideInLeft {
+  from {
+    opacity: 0;
+    transform: translateX(-30px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+@keyframes fadeInDown {
+  from {
+    opacity: 0;
+    transform: translateY(-20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.seccion-desc {
+  color: var(--texto2);
+  font-size: 0.95rem;
+  margin-bottom: 36px;
+  animation: fadeInUp 0.8s ease 0.2s both;
+}
 
 /* ══════════════════════════════
    GRID DE CARDS
@@ -1203,13 +1325,32 @@ html {
 .section-dynamic {
     position: relative;
     overflow: hidden;
+    background: linear-gradient(135deg, var(--bg2) 0%, #0d1f33 40%, #0a1520 100%);
 }
 
-.dynamic-bg {
+.section-dynamic::before {
+    content: '';
     position: absolute;
-    inset: 0;
-    z-index: 0;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: 
+        radial-gradient(circle at 20% 50%, rgba(14, 165, 160, 0.1) 0%, transparent 50%),
+        radial-gradient(circle at 80% 80%, rgba(139, 92, 246, 0.08) 0%, transparent 50%),
+        radial-gradient(circle at 40% 0%, rgba(14, 165, 160, 0.05) 0%, transparent 50%);
+    animation: bgShift 15s ease-in-out infinite;
     pointer-events: none;
+}
+
+@keyframes bgShift {
+    0%, 100% { transform: none; }
+    50% { transform: translate(20px, -20px); }
+}
+
+.section-dynamic > * {
+    position: relative;
+    z-index: 1;
 }
 
 .particles-canvas {

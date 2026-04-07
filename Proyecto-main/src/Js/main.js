@@ -288,3 +288,28 @@ function buscarUsuario(telefono) {
   }
   return usuario;
 }
+
+/* ===== EFECTO DINÁMICO DE FONDO EN SCROLL ===== */
+document.addEventListener('DOMContentLoaded', function() {
+  const dynamicBg = document.querySelector('.dynamic-bg');
+  
+  if (dynamicBg) {
+    window.addEventListener('scroll', function() {
+      // Calcular el progreso del scroll (0 a 1)
+      const scrollHeight = document.documentElement.scrollHeight - window.innerHeight;
+      const scrollProgress = scrollHeight > 0 ? window.scrollY / scrollHeight : 0;
+      
+      // Efecto 1: Cambiar opacidad de fondo (desvanecerse)
+      const opacity = Math.max(0.3, 1 - scrollProgress * 0.5);
+      dynamicBg.style.opacity = opacity;
+      
+      // Efecto 2: Cambiar escala (zoom leve)
+      const scale = 1 + scrollProgress * 0.1;
+      dynamicBg.style.transform = `scale(${scale})`;
+      
+      // Efecto 3: Cambiar filter blur progresivamente
+      const blur = scrollProgress * 10;
+      dynamicBg.style.filter = `blur(${blur}px)`;
+    });
+  }
+});

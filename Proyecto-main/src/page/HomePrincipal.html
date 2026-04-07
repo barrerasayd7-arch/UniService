@@ -7,6 +7,7 @@
     <title>UniServicios</title>
     <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;800&family=DM+Serif+Display:ital@0;1&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="../Templates/styleHome.css">
+    <link rel="stylesheet" href="../Templates/styleCalificacion.css">
 </head>
 
 <body>
@@ -471,85 +472,40 @@
 
        <section class="seccion seccion-oscura section-dynamic" id="calificar-servicio">
         <div class="dynamic-bg">
-            <canvas class="particles-canvas" id="particles-calificar"></canvas>
             <div class="floating-shapes-small">
                 <div class="shape-sm shape-sm-1"></div>
                 <div class="shape-sm shape-sm-2"></div>
             </div>
         </div>
-    <div class="bloque-pagina" id="calificar">
-        <div class="container">
-            <div class="row justify-content-center">
-                <div class="col-lg-6">
-                    <p class="etiqueta-seccion text-center">⭐ Sistema de valoración</p>
-                    <h2 class="text-center">Calificar servicio</h2><br>
-                    <p class="text-center" style="color:#8896ae;">Tu opinión ayuda a otros estudiantes a elegir mejor</p>
- 
-                    <div class="contenedor-formulario">
-                        <form action="#">
-                            <fieldset>
-                                <legend style="color:#0ea5a0; font-size:0.9rem; font-weight:700; margin-bottom:16px;">Calificar: Ensayo argumentativo — María López</legend>
- 
-                                <p class="form-label">⭐ Calificación general</p>
-                                <div class="d-flex gap-3 mb-3">
-                                    <div class="form-check">
-                                        <input class="form-check-input" type="radio" name="calificacion" id="cal1" value="1">
-                                        <label class="form-check-label" for="cal1">★ 1</label>
-                                    </div>
-                                    <div class="form-check">
-                                        <input class="form-check-input" type="radio" name="calificacion" id="cal2" value="2">
-                                        <label class="form-check-label" for="cal2">★★ 2</label>
-                                    </div>
-                                    <div class="form-check">
-                                        <input class="form-check-input" type="radio" name="calificacion" id="cal3" value="3">
-                                        <label class="form-check-label" for="cal3">★★★ 3</label>
-                                    </div>
-                                    <div class="form-check">
-                                        <input class="form-check-input" type="radio" name="calificacion" id="cal4" value="4">
-                                        <label class="form-check-label" for="cal4">★★★★ 4</label>
-                                    </div>
-                                    <div class="form-check">
-                                        <input class="form-check-input" type="radio" name="calificacion" id="cal5" value="5">
-                                        <label class="form-check-label" for="cal5">★★★★★ 5</label>
-                                    </div>
-                                </div><br>
- 
-                                <p class="form-label">¿Qué aspectos destacas?</p>
-                                <div class="mb-3">
-                                    <div class="form-check">
-                                        <input class="form-check-input" type="checkbox" id="puntual">
-                                        <label class="form-check-label" for="puntual">⏰ Puntualidad</label>
-                                    </div>
-                                    <div class="form-check">
-                                        <input class="form-check-input" type="checkbox" id="calidad">
-                                        <label class="form-check-label" for="calidad">🌟 Calidad del trabajo</label>
-                                    </div>
-                                    <div class="form-check">
-                                        <input class="form-check-input" type="checkbox" id="comunicacion">
-                                        <label class="form-check-label" for="comunicacion">💬 Buena comunicación</label>
-                                    </div>
-                                    <div class="form-check">
-                                        <input class="form-check-input" type="checkbox" id="precio-ok">
-                                        <label class="form-check-label" for="precio-ok">💰 Precio justo</label>
-                                    </div>
-                                </div><br>
- 
-                                <div class="form-grupo">
-                                    <label for="descripcion" class="form-label"> Descripción</label>
-                                    <textarea class="form-input" id="descripcion" rows="4" placeholder="cuentanos como fue tu experiencia con el servicio"></textarea>
-                                </div><br>
- 
-                                <button type="submit" class="btn boton-principal me-2">📤 Enviar calificación</button>
-                                <button type="reset" class="btn boton-secundario">🗑️ Limpiar</button><br>
-                            </fieldset>
-                        </form>
+        <div class="bloque-pagina" id="calificar">
+            <div class="container">
+                <div class="row justify-content-center">
+                    <div class="col-lg-8 text-center">
+                        <p class="label-seccion">⭐ Sistema de valoración</p>
+                        <h2>Calificar servicios</h2>
+                        <p class="seccion-desc">Tu opinión ayuda a otros estudiantes a elegir mejor</p>
+                        
+                        <div style="margin-top: 50px; padding: 40px; background: rgba(14, 165, 160, 0.08); border-radius: 16px; border: 2px solid rgba(14, 165, 160, 0.2);">
+                            <div style="font-size: 3.5rem; margin-bottom: 20px;">⭐</div>
+                            <h3 style="color: var(--teal2); margin-bottom: 15px;">Sistema de Calificación Flotante</h3>
+                            <p style="color: var(--texto2); margin-bottom: 20px;">Ahora puedes calificar cualquier servicio en cualquier momento usando el botón flotante que aparece en la esquina inferior derecha de la pantalla.</p>
+                            <p style="color: var(--texto3); font-size: 0.9rem;">
+                                <strong>Características:</strong><br>
+                                ✨ Selecciona estrellas interactivas<br>
+                                ✨ Marca aspectos destacados<br>
+                                ✨ Deja comentarios detallados<br>
+                                ✨ Ayuda a la comunidad
+                            </p>
+                        </div>
+                        
+                        <button onclick="openRatingModal()" style="margin-top: 30px; padding: 14px 32px; background: linear-gradient(135deg, var(--teal) 0%, var(--teal2) 100%); border: none; color: var(--bg); border-radius: 10px; cursor: pointer; font-weight: 600; transition: all 0.3s ease; font-size: 1rem;">
+                            Abrir Sistema de Calificación
+                        </button>
                     </div>
- 
                 </div>
             </div>
         </div>
-    </div>
- </section>
+        </section>
     
 
 
@@ -644,6 +600,7 @@ document.addEventListener("DOMContentLoaded", () => {
 </script>
 
 <script src="../Js/Servicios.js"></script>
+<script src="../Js/calificacion.js"></script>
 
 </body>
 </html>
