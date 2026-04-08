@@ -1,3 +1,12 @@
+IF NOT EXISTS (SELECT * FROM sys.databases WHERE name = 'UniService')
+BEGIN
+    CREATE DATABASE UniService;
+END
+GO
+USE UniService;
+GO
+-- Aquí sigue tu código de CREATE TABLE...
+
 -- Tabla de Usuarios
 CREATE TABLE usuarios (
     id_usuario INT IDENTITY(1,1) PRIMARY KEY,
@@ -42,7 +51,7 @@ CREATE TABLE servicios (
     precio_hora DECIMAL(10, 2) NOT NULL,
     contacto NVARCHAR(150),
     modalidad INT, -- 0: Presencial, 1: Virtual, 2: Mixta
-    icono NVARCHAR(1), 
+    icono NVARCHAR(10), 
     disponibilidad INT, -- 0: Entre semana, 1: Fines, 2: Siempre
     fecha_publicacion DATETIME2 DEFAULT GETDATE(),
     
@@ -90,9 +99,78 @@ CREATE TABLE calificaciones (
 -- 7. TABLA DE ASPECTOS DESTACADOS 
 CREATE TABLE aspectos_destacados (
     id_calificacion INT NOT NULL,
-    -- 0: Puntualidad, 1: Calidad, 2: Comunicación, 3: Precio justo
-    tipo_aspecto TINYINT NOT NULL, 
+    tipo_aspecto NVARCHAR(30) NOT NULL, 
     
     PRIMARY KEY (id_calificacion, tipo_aspecto),
     CONSTRAINT fk_aspecto_calificacion FOREIGN KEY (id_calificacion) REFERENCES calificaciones(id_calificacion) ON DELETE CASCADE
 );
+
+
+
+
+-- =============================================
+-- 1. POBLAR USUARIOS
+-- =============================================
+INSERT INTO usuarios (telefono, password_hash, nombre, descripcion, correo, universidad)
+VALUES 
+(N'3043307911', N'Pass1', N'Sayd', N'Estudiante de Ingenieria de sistemas Universidad Popular del Cesar', N'barrerasayd7@gmail.com', 1),
+(N'3117906271', N'Pass2', N'Lenin', N'Estudiante de Ingenieria de sistemas Universidad Popular del Cesar', N'leninrys1218@gmail.com', 1);
+
+-- =============================================
+-- 2. POBLAR CATEGORÍAS
+-- =============================================
+INSERT INTO categorias (nombre_categoria)
+VALUES 
+(N'Tutorías'), 
+(N'Ensayos y redacción'), 
+(N'Proyectos'), 
+(N'Programación'), 
+(N'Diseño'), 
+(N'Arriendo de habitaciones'), 
+(N'Otros servicios');
+
+-- =============================================
+-- 3. SEGUIDORES (Sayd y Lenin se siguen mutuamente)
+-- =============================================
+-- Asumiendo que Sayd es ID 1 y Lenin es ID 2
+INSERT INTO seguidores (id_seguidor, id_seguido)
+VALUES (1, 2), (2, 1);
+
+-- =============================================
+-- 4. SERVICIOS INICIALES
+-- =============================================
+INSERT INTO servicios (id_proveedor, titulo, descripcion, id_categoria, precio_hora, contacto, modalidad, icono, disponibilidad)
+VALUES 
+(1, N'Desarrollo Web con React', N'Creación de interfaces modernas y funcionales', 4, 35000.00, N'3043307911', 1, N'💻', 0),
+(2, N'Tutoría de Cálculo Integral', N'Explicación de métodos de integración y series', 1, 25000.00, N'3117906271', 0, N'📚', 1);
+
+-- =============================================
+-- 5. SOLICITUDES
+-- =============================================
+-- Sayd solicita a Lenin (Aceptada: fue_aceptada = 1)
+INSERT INTO solicitudes (id_cliente, id_proveedor, id_servicio, fue_aceptada)
+VALUES (1, 2, 2, 1);
+
+-- Lenin solicita a Sayd (Pendiente: fue_aceptada = 0)
+INSERT INTO solicitudes (id_cliente, id_proveedor, id_servicio, fue_aceptada)
+VALUES (2, 1, 1, 0);
+
+-- =============================================
+-- 6. CALIFICACIÓN (Lenin califica a Sayd)
+-- =============================================
+-- Nota: id_solicitud es 1 (la de Sayd contratando a Lenin)
+-- Lenin (ID 2) califica el servicio de Sayd (ID 1)
+INSERT INTO calificaciones (id_solicitud, id_cliente, id_servicio, puntuacion, comentario)
+VALUES (1, 2, 1, 4, N'¡gran servicio!');
+
+-- =============================================
+-- 7. ASPECTOS DESTACADOS
+-- =============================================
+INSERT INTO aspectos_destacados (id_calificacion, tipo_aspecto)
+VALUES 
+(1, 'Puntualidad'),
+(1, 'Calidad'),
+(1, 'Comunicación'),
+(1, 'Precio justo');
+
+

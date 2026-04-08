@@ -1,0 +1,24 @@
+version: '3.8'
+services:
+  sqlserver:
+    image: mcr.microsoft.com/mssql/server:2025-latest 
+    container_name: uniservice_db
+    ports:
+      - "1433:1433"
+    environment:
+      - ACCEPT_EULA=Y
+      - MSSQL_SA_PASSWORD=Uniservicio58414555
+    volumes:
+      - sql_data:/var/opt/mssql
+      - ./database:/docker-entrypoint-initdb.d
+      - ./import-data.sh:/import-data.sh
+    # Esta línea es la clave: inicia SQL y luego el script de carga
+    entrypoint: /bin/bash -c "/import-data.sh & /opt/mssql/bin/sqlservr"
+      
+volumes:
+  sql_data:
+
+
+
+
+
