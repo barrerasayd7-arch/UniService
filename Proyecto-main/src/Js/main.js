@@ -85,10 +85,20 @@ document.querySelector("#panel-login .btn-principal").addEventListener("click", 
   .then(data => {
     if (data.ok) {
       localStorage.setItem("logueado", "true");
+      localStorage.setItem("usuarioId", data.id);
       localStorage.setItem("usuario", data.nombre);
       localStorage.setItem("usuarioTelefono", data.telefono);
-      alert("✅ Bienvenido " + data.nombre + " ✅");
-      window.location.href = "HomePrincipal.html";
+
+      // Marcar como activo en la base
+      fetch("http://localhost/api/crud/usuario_crud.php", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id_usuario: data.id, estado: 1 })
+      }).finally(() => {
+        alert("✅ Bienvenido " + data.nombre + " ✅");
+        window.location.href = "HomePrincipal.html";
+      });
+
     } else {
       alert("❌ Teléfono o contraseña incorrectos ❌");
     }

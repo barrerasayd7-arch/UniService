@@ -284,7 +284,7 @@ function renderMisServicios() {
         contenedor.innerHTML = `
             <div class="text-center p-5 border rounded" style="border-style: dashed !important;">
                 <p class="texto-gris">Aún no has publicado ningún servicio.</p>
-                <a href="#publicar servicio" class="btn btn-sm boton-principal">¡Publicar mi primer servicio!</a>
+                <a href="#publicar" class="btn btn-sm boton-principal">¡Publicar mi primer servicio!</a>
             </div>`;
         return;
     }
