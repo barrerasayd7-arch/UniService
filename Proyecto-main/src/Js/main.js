@@ -85,6 +85,7 @@ document.querySelector("#panel-login .btn-principal").addEventListener("click", 
   .then(data => {
     if (data.ok) {
       localStorage.setItem("logueado", "true");
+      localStorage.setItem("usuarioId", data.id);
       localStorage.setItem("usuario", data.nombre);
       localStorage.setItem("usuarioTelefono", data.telefono);
       alert("✅ Bienvenido " + data.nombre + " ✅");

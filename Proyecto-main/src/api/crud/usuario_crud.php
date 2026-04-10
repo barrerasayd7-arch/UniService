@@ -56,6 +56,7 @@ if ($method === "POST") {
         if ($usuario && password_verify($password, $usuario["password_hash"])) {
             echo json_encode([
                 "ok"       => true,
+                "id"       => $usuario["id_usuario"],
                 "nombre"   => $usuario["nombre"],
                 "telefono" => $usuario["telefono"]
             ]);
