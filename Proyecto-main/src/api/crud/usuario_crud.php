@@ -13,26 +13,63 @@ include "../config/conexion.php";
 
 $method = $_SERVER["REQUEST_METHOD"];
 
-// ===== REGISTRO =====
+// ===== REGISTRO o SUBIDA DE IMAGEN =====
 if ($method === "POST") {
-    $datos         = json_decode(file_get_contents("php://input"), true);
-    $telefono      = $datos["telefono"];
-    $nombre        = $datos["nombre"];
-    $password_hash = password_hash($datos["password"], PASSWORD_BCRYPT);
-    $correo        = isset($datos["correo"]) ? $datos["correo"] : null;
-    $universidad   = isset($datos["universidad"]) ? $datos["universidad"] : 1;
 
-    $query  = "EXEC sp_CrearUsuario @telefono=?, @password_hash=?, @nombre=?, @correo=?, @universidad=?";
-    $params = [$telefono, $password_hash, $nombre, $correo, $universidad];
+    // Si viene archivo → es subida de imagen (simulamos PUT con _method)
+    if (!empty($_FILES["file"])) {
+        $id_usuario = $_POST["id_usuario"] ?? null;
+        if (!$id_usuario) { echo json_encode(["error" => "ID requerido"]); exit(); }
 
-    $resultado = sqlsrv_query($conexion, $query, $params);
+        $targetDir = "../../img/";
 
-    if ($resultado === false) {
-        $errores = sqlsrv_errors();
-        $mensaje = $errores[0]["message"] ?? "Error al crear el usuario";
-        echo json_encode(["error" => $mensaje]);
+        $targetFile = $targetDir . uniqid() . "_" . basename($_FILES["file"]["name"]);
+        $imageFileType = strtolower(pathinfo($targetFile, PATHINFO_EXTENSION));
+        $allowed       = ["jpg", "jpeg", "png", "gif"];
+
+        if (!in_array($imageFileType, $allowed)) {
+            echo json_encode(["error" => "Formato no permitido"]); exit();
+        }
+        if ($_FILES["file"]["size"] > 2000000) {
+            echo json_encode(["error" => "Archivo demasiado grande"]); exit();
+        }
+
+        if (move_uploaded_file($_FILES["file"]["tmp_name"], $targetFile)) {
+            $rutaCompleta = "img/" . basename($targetFile);
+            $query     = "EXEC sp_ActualizarUsuario @id_usuario=?, @avatar=?";
+            $params    = [(int)$id_usuario, $rutaCompleta];
+            $resultado = sqlsrv_query($conexion, $query, $params);
+
+if ($resultado === false) {
+    $errores = sqlsrv_errors();
+    echo json_encode(["error" => $errores[0]["message"] ?? "Error al actualizar"]);
+} else {
+    echo json_encode(["ok" => true]);
+}
+        } else {
+            echo json_encode(["error" => "Error al mover archivo"]);
+        }
+
     } else {
-        echo json_encode(["mensaje" => "Cuenta creada exitosamente"]);
+        // Registro normal de usuario nuevo
+        $datos         = json_decode(file_get_contents("php://input"), true);
+        $telefono      = $datos["telefono"];
+        $nombre        = $datos["nombre"];
+        $password_hash = password_hash($datos["password"], PASSWORD_BCRYPT);
+        $correo        = $datos["correo"] ?? null;
+        $universidad   = $datos["universidad"] ?? 1;
+
+        $query  = "EXEC sp_CrearUsuario @telefono=?, @password_hash=?, @nombre=?, @correo=?, @universidad=?";
+        $params = [$telefono, $password_hash, $nombre, $correo, $universidad];
+
+        $resultado = sqlsrv_query($conexion, $query, $params);
+
+        if ($resultado === false) {
+            $errores = sqlsrv_errors();
+            echo json_encode(["error" => $errores[0]["message"] ?? "Error al crear usuario"]);
+        } else {
+            echo json_encode(["mensaje" => "Cuenta creada exitosamente"]);
+        }
     }
 
 // ===== LOGIN y GET PERFIL =====
@@ -86,19 +123,45 @@ if ($method === "POST") {
         echo json_encode(["error" => "Parámetros insuficientes"]);
     }
 
-// ===== ACTUALIZAR ESTADO =====
+// ===== ACTUALIZAR USUARIO =====
 } else if ($method === "PUT") {
-    $datos      = json_decode(file_get_contents("php://input"), true);
-    $id_usuario = $datos["id_usuario"];
-    $estado     = $datos["estado"]; // 1 = activo, 0 = inactivo
+    $datos = json_decode(file_get_contents("php://input"), true);
 
-    $query     = "EXEC sp_ActualizarUsuario @id_usuario=?, @estado=?";
-    $params    = [(int)$id_usuario, (int)$estado];
+    $id_usuario  = $datos["id_usuario"]  ?? null;
+    $telefono    = $datos["telefono"]    ?? null;
+    $password    = $datos["password"]    ?? null;
+    $nombre      = $datos["nombre"]      ?? null;
+    $descripcion = $datos["descripcion"] ?? null;
+    $correo      = $datos["correo"]      ?? null;
+    $estado      = $datos["estado"]      ?? null;
+    $universidad = $datos["universidad"] ?? null;
+    $avatar      = $datos["avatar"]      ?? null;
+
+    if (!$id_usuario) {
+        echo json_encode(["error" => "ID de usuario requerido"]);
+        exit();
+    }
+
+    $password_hash = $password ? password_hash($password, PASSWORD_BCRYPT) : null;
+
+    $query  = "EXEC sp_ActualizarUsuario @id_usuario=?, @telefono=?, @password_hash=?, @nombre=?, @descripcion=?, @correo=?, @estado=?, @universidad=?, @avatar=?";
+    $params = [
+        (int)$id_usuario,
+        $telefono,
+        $password_hash,
+        $nombre,
+        $descripcion,
+        $correo,
+        $estado     !== null ? (int)$estado     : null,
+        $universidad !== null ? (int)$universidad : null,
+        $avatar
+    ];
+
     $resultado = sqlsrv_query($conexion, $query, $params);
 
     if ($resultado === false) {
         $errores = sqlsrv_errors();
-        echo json_encode(["error" => $errores[0]["message"] ?? "Error al actualizar estado"]);
+        echo json_encode(["error" => $errores[0]["message"] ?? "Error al actualizar"]);
     } else {
         echo json_encode(["ok" => true]);
     }

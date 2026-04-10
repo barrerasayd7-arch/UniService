@@ -39,7 +39,10 @@ BEGIN
             avatar        = COALESCE(@avatar, avatar)
         WHERE id_usuario = @id_usuario;
 
-        PRINT 'Usuario actualizado correctamente.';
+        IF @@ROWCOUNT = 0
+        BEGIN
+            RAISERROR ('No se pudo actualizar el usuario. Verifique los datos proporcionados.', 16, 1);
+        END
     END TRY
     BEGIN CATCH
         DECLARE @ErrorMessage NVARCHAR(4000) = ERROR_MESSAGE();

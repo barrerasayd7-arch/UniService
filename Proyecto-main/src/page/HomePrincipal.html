@@ -421,7 +421,7 @@
                 <p class="insignia-seccion mb-1">💼 Panel personal</p>
                 <h2 class="mb-0">Mis servicios</h2>
             </div>
-            <a href="#publicar servicio" class="btn boton-principal">➕ Nuevo servicio</a>
+            <a href="#publicar" class="btn boton-principal">➕ Nuevo servicio</a>
         </div><br>
 
         <div id="contenedor-mis-servicios">
@@ -650,78 +650,6 @@ document.addEventListener("DOMContentLoaded", () => {
     });
   });
 });
-</script>
-
-<script>
-    // Mejorar validación y experiencia del formulario de publicar servicio
-    const formPublicar = document.getElementById('form-publicar-servicio');
-    if (formPublicar) {
-        const inputs = formPublicar.querySelectorAll('.form-input, .form-select, input[type="radio"]');
-        
-        inputs.forEach(input => {
-            // Agregar clase cuando hay contenido o se selecciona opción
-            function updateFilledState() {
-                const group = input.closest('.form-grupo');
-                if (group) {
-                    if (input.type === 'radio') {
-                        if (input.checked) group.classList.add('filled');
-                    } else if (input.value.trim() !== '') {
-                        group.classList.add('filled');
-                    } else {
-                        group.classList.remove('filled');
-                    }
-                }
-            }
-            
-            input.addEventListener('change', updateFilledState);
-            input.addEventListener('input', updateFilledState);
-            input.addEventListener('blur', updateFilledState);
-            updateFilledState();
-        });
-        
-        // Mejorar envío del formulario
-        formPublicar.addEventListener('submit', function(e) {
-            e.preventDefault();
-            const btn = this.querySelector('#publicar');
-            const originalText = btn.textContent;
-            btn.textContent = '⏳ Publicando...';
-            btn.disabled = true;
-            
-            setTimeout(() => {
-                btn.textContent = '✓ ¡Servicio publicado!';
-                setTimeout(() => {
-                    // Guardar los datos en localStorage
-                    const nuevServicio = {
-                        id: Date.now(),
-                        titulo: document.getElementById('titulo').value,
-                        descripcion: document.getElementById('descripcion').value,
-                        categoria: document.getElementById('categoria').value,
-                        precio: document.getElementById('precio').value,
-                        universidad: document.getElementById('universidad').value,
-                        contacto: document.getElementById('contacto').value,
-                        modalidad: document.querySelector('input[name="modalidad"]:checked').value,
-                        disponibilidad: document.querySelector('input[name="disponibilidad"]:checked').value,
-                        fechaPublicacion: new Date().toLocaleDateString('es-ES'),
-                        estrellas: [],
-                        avatar: 'ME',
-                        icono: '📚',
-                        publicador: 'Mi nombre'
-                    };
-                    
-                    const servicios = JSON.parse(localStorage.getItem('logstore_servicios')) || [];
-                    servicios.push(nuevServicio);
-                    localStorage.setItem('logstore_servicios', JSON.stringify(servicios));
-                    
-                    btn.textContent = originalText;
-                    btn.disabled = false;
-                    formPublicar.reset();
-                    
-                    // Scroll a servicios recientes
-                    document.getElementById('recientes').scrollIntoView({ behavior: 'smooth' });
-                }, 1500);
-            }, 800);
-        });
-    }
 </script>
 
 <script src="../Js/Servicios.js"></script>

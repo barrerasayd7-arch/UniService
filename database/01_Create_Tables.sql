@@ -18,7 +18,7 @@ CREATE TABLE usuarios (
     estado BIT DEFAULT 0, -- 1 Activo, 0 Inactivo
     fecha_registro DATETIME2 DEFAULT GETDATE(),
     universidad BIT DEFAULT 0,
-    avatar NVARCHAR(255) DEFAULT 'default_avatar.png'
+    avatar NVARCHAR(MAX) DEFAULT 'img/default_avatar.png'
 );
 
 SET QUOTED_IDENTIFIER ON;

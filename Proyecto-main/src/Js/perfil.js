@@ -2,64 +2,116 @@
 // perfil.js - Lógica del Perfil de Usuario
 // ═══════════════════════════════════════════
 
-// Datos dinámicos del usuario
-const userData = {
-    id: 1,
-    name: 'Usuario Demo',
-    username: 'usuariodemo',
-    email: 'usuario@ejemplo.com',
-    avatar: 'https://api.dicebear.com/7.x/avataaars/svg?seed=Felix&backgroundColor=b6e3f4',
-    bio: 'Desarrollador apasionado por la tecnología y el diseño. Creando experiencias digitales increíbles.',
-    university: 'U. Nacional',
-    reputation: 4.9,
-    status: 'online',
-    stats: {
-        posts: 128,
-        followers: 2500,
-        following: 450
-    },
-    createdAt: '2024-01-15'
+let userData = {
+    id: null,
+    name: 'Cargando...',
+    avatar: 'img/default_avatar.png', // Usa tu imagen por defecto del servidor
+    stats: { posts: 0, followers: 0, following: 0 }
 };
 
-// Estados disponibles
-const statuses = [
-    { value: 'online', label: 'En línea', color: '#10b981', icon: '🟢', class: 'online' },
-    { value: 'busy', label: 'Ocupado', color: '#ef4444', icon: '🔴', class: 'busy' },
-    { value: 'away', label: 'Ausente', color: '#f59e0b', icon: '🟡', class: 'away' },
-    { value: 'offline', label: 'Invisible', color: '#6b7280', icon: '⚫', class: 'offline' }
-];
+// ═══════════════════════════════════════════
+// FUNCIONES DE UTILIDAD
+// ═══════════════════════════════════════════
 
-let currentStatusIndex = 0;
-
-// Función para cargar datos del usuario
-function cargarPerfil(usuario) {
-    document.getElementById('userName').textContent = usuario.name;
-    document.getElementById('userHandle').textContent = '@' + usuario.username;
-    document.getElementById('userAvatar').src = usuario.avatar;
-    document.getElementById('userBio').textContent = usuario.bio;
-    document.getElementById('userEmail').textContent = usuario.email;
-    document.getElementById('userUniversity').textContent = usuario.university;
-    document.getElementById('userReputation').textContent = usuario.reputation + '/5.0';
-
-    // Formatear fecha de registro
-    const fecha = new Date(usuario.createdAt);
-    const opciones = { month: 'long', year: 'numeric' };
-    document.getElementById('userJoinDate').textContent = fecha.toLocaleDateString('es-ES', opciones);
-
-    // Formatear números grandes
-    document.getElementById('statPosts').textContent = usuario.stats.posts;
-    document.getElementById('statFollowers').textContent = formatearNumero(usuario.stats.followers);
-    document.getElementById('statFollowing').textContent = usuario.stats.following;
-}
-
-// Formatear números
 function formatearNumero(num) {
     if (num >= 1000000) return (num / 1000000).toFixed(1) + 'M';
     if (num >= 1000) return (num / 1000).toFixed(1) + 'k';
     return num;
 }
 
-// Editar perfil
+// ═══════════════════════════════════════════
+// FUNCIONES DE IMAGEN DE PERFIL
+// ═══════════════════════════════════════════
+
+function abrirMenuImagen() {
+    document.getElementById('imageMenuOverlay').classList.add('active');
+}
+
+function closeImageMenu() {
+    document.getElementById('imageMenuOverlay').classList.remove('active');
+}
+
+function cambiarAvatar(url) {
+    userData.avatar = url;
+    const avatar = document.getElementById('userAvatar');
+    avatar.src = url;
+    avatar.style.transition = 'all 0.3s ease';
+    avatar.style.transform = 'scale(1.1)';
+    setTimeout(() => { avatar.style.transform = 'scale(1)'; }, 150);
+    closeImageMenu();
+    alert('✨ Imagen de perfil actualizada!');
+}
+
+function subirImagenLocal() {
+    const input = document.getElementById('imageInput');
+    input.click();
+    input.onchange = async () => {
+        const file = input.files[0];
+        if (!file) return;
+
+        const id_usuario = localStorage.getItem("usuarioId");
+        
+        // Usamos FormData para enviar el archivo real, no el texto Base64
+        const formData = new FormData();
+        formData.append("file", file);
+        formData.append("id_usuario", id_usuario);
+
+        try {
+            const response = await fetch("http://localhost/api/crud/usuario_crud.php", {
+                method: "POST", // El bloque de archivos en tu PHP está en POST
+                body: formData
+            });
+
+            const result = await response.json();
+            if (result.ok) {
+                // Forzamos la recarga para ver la nueva imagen desde el servidor
+                location.reload(); 
+            } else {
+                alert("❌ Error: " + result.error);
+            }
+        } catch (error) {
+            console.error("Error en la subida:", error);
+        }
+    };
+}
+
+async function usarImagenURL() {
+    const url = prompt('Ingresa la URL directa de la imagen (.jpg, .png, .webp):');
+    
+    // Validación básica de URL
+    if (!url || !url.trim()) return;
+    
+    try {
+        new URL(url); // Verifica que sea una URL válida
+        const id_usuario = localStorage.getItem("usuarioId");
+
+        // ENVIAR A LA BASE DE DATOS
+        const response = await fetch("http://localhost/api/crud/usuario_crud.php", {
+            method: "PUT",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ 
+                id_usuario: id_usuario, 
+                avatar: url.trim() 
+            })
+        });
+
+        const result = await response.json();
+
+        if (result.ok) {
+            cambiarAvatar(url.trim());
+            // Opcional: location.reload(); para asegurar que todo se sincronice
+        } else {
+            alert("❌ Error al guardar URL: " + result.error);
+        }
+    } catch (e) {
+        alert('❌ Por favor, ingresa una URL válida y completa (incluyendo http/https).');
+    }
+}
+
+// ═══════════════════════════════════════════
+// FUNCIONES DE PERFIL
+// ═══════════════════════════════════════════
+
 function editarPerfil() {
     const nuevoNombre = prompt('Nuevo nombre:', userData.name);
     if (nuevoNombre) {
@@ -68,85 +120,47 @@ function editarPerfil() {
     }
 }
 
-// Compartir perfil
 function compartirPerfil() {
     const url = window.location.href;
     if (navigator.share) {
-        navigator.share({
-            title: 'Mi Perfil - UniServicios',
-            text: 'Mira mi perfil en UniServicios!',
-            url: url
-        });
+        navigator.share({ title: 'Mi Perfil - UniServicios', url });
     } else {
         navigator.clipboard.writeText(url);
         alert('✓ Enlace copiado al portapapeles!');
     }
 }
 
-// Cambiar estado
-function cambiarEstado() {
-    currentStatusIndex = (currentStatusIndex + 1) % statuses.length;
-    const status = statuses[currentStatusIndex];
-
-    const statusTag = document.getElementById('userStatus');
-    statusTag.textContent = status.label;
-    statusTag.className = 'status-tag ' + status.class;
-
-    const statusIndicator = document.getElementById('statusIndicator');
-    statusIndicator.style.background = status.color;
-    statusIndicator.className = 'status-badge ' + status.class;
-
-    // Actualizar icono del menú
-    const menuItems = document.querySelectorAll('.menu-item');
-    if (menuItems[0]) {
-        const menuIcon = menuItems[0].querySelector('.menu-icon');
-        menuIcon.textContent = status.icon;
-    }
-}
-
-// Ver actividad
-function verActividad() {
-    const modal = document.getElementById('activityModal');
-    modal.classList.add('active');
-    document.body.style.overflow = 'hidden';
-
-    // Crear gráficas después de que el modal esté visible
-    setTimeout(() => {
-        initCharts();
-        animateProgressBars();
-    }, 100);
-}
-
-// Ver publicaciones
 function verPublicaciones() {
     alert('📝 Tienes ' + userData.stats.posts + ' publicaciones');
 }
 
-// Ver seguidores
 function verSeguidores() {
     alert('👥 Tienes ' + formatearNumero(userData.stats.followers) + ' seguidores');
 }
 
-// Ver siguiendo
 function verSiguiendo() {
     alert('➡️ Sigues a ' + userData.stats.following + ' usuarios');
 }
 
-// Configuración
 function configuracion() {
     alert('⚙️ Panel de configuración (por implementar)');
 }
 
-// Seguridad
 function seguridad() {
     alert('🔒 Configuración de seguridad (por implementar)');
 }
 
-// Cerrar sesión
 function cerrarSesion() {
     if (confirm('¿Seguro que quieres cerrar sesión?')) {
-        localStorage.removeItem("logueado");
-        window.location.href = 'HomeGuest.html';
+        const id = localStorage.getItem("usuarioId");
+        fetch("http://localhost/api/crud/usuario_crud.php", {
+            method: "PUT",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ id_usuario: id, estado: 0 })
+        }).finally(() => {
+            localStorage.removeItem("logueado");
+            window.location.href = 'HomeGuest.html';
+        });
     }
 }
 
@@ -154,10 +168,8 @@ function cerrarSesion() {
 // GRÁFICAS Y ESTADÍSTICAS
 // ═══════════════════════════════════════════
 
-// Variables para las gráficas
 let postsChart, categoryChart, trendChart;
 
-// Datos de actividad
 const activityData = {
     postsByMonth: [8, 12, 6, 15, 10, 12],
     categories: {
@@ -170,287 +182,155 @@ const activityData = {
     }
 };
 
-// Función para cerrar el modal
+function verActividad() {
+    const modal = document.getElementById('activityModal');
+    modal.classList.add('active');
+    document.body.style.overflow = 'hidden';
+    setTimeout(() => { initCharts(); animateProgressBars(); }, 100);
+}
+
 function closeActivityModal(event) {
     if (event && event.target !== event.currentTarget) return;
     const modal = document.getElementById('activityModal');
     modal.classList.remove('active');
     document.body.style.overflow = '';
-
-    // Destruir gráficas para liberar memoria
     if (postsChart) postsChart.destroy();
     if (categoryChart) categoryChart.destroy();
     if (trendChart) trendChart.destroy();
 }
 
-// Inicializar gráficas
 function initCharts() {
     const months = ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun'];
-
-    // Gráfica de publicaciones por mes
     const postsCtx = document.getElementById('postsChart').getContext('2d');
     postsChart = new Chart(postsCtx, {
         type: 'bar',
-        data: {
-            labels: months,
-            datasets: [{
-                label: 'Publicaciones',
-                data: activityData.postsByMonth,
-                backgroundColor: 'rgba(14, 165, 160, 0.6)',
-                borderColor: 'rgba(14, 165, 160, 1)',
-                borderWidth: 2,
-                borderRadius: 8
-            }]
-        },
-        options: {
-            responsive: true,
-            maintainAspectRatio: false,
-            plugins: {
-                legend: { display: false }
-            },
-            scales: {
-                y: {
-                    beginAtZero: true,
-                    grid: { color: 'rgba(26, 46, 72, 0.5)' },
-                    ticks: { color: '#8fa3bf' }
-                },
-                x: {
-                    grid: { display: false },
-                    ticks: { color: '#8fa3bf' }
-                }
-            }
-        }
+        data: { labels: months, datasets: [{ label: 'Publicaciones', data: activityData.postsByMonth, backgroundColor: 'rgba(14, 165, 160, 0.6)', borderColor: 'rgba(14, 165, 160, 1)', borderWidth: 2, borderRadius: 8 }] },
+        options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { y: { beginAtZero: true, grid: { color: 'rgba(26, 46, 72, 0.5)' }, ticks: { color: '#8fa3bf' } }, x: { grid: { display: false }, ticks: { color: '#8fa3bf' } } } }
     });
-
-    // Gráfica de categorías (donut)
     const categoryCtx = document.getElementById('categoryChart').getContext('2d');
     categoryChart = new Chart(categoryCtx, {
         type: 'doughnut',
-        data: {
-            labels: activityData.categories.labels,
-            datasets: [{
-                data: activityData.categories.data,
-                backgroundColor: [
-                    'rgba(14, 165, 160, 0.8)',
-                    'rgba(245, 200, 66, 0.8)',
-                    'rgba(139, 92, 246, 0.8)',
-                    'rgba(16, 185, 129, 0.8)',
-                    'rgba(100, 116, 139, 0.8)'
-                ],
-                borderColor: '#0e1929',
-                borderWidth: 3
-            }]
-        },
-        options: {
-            responsive: true,
-            maintainAspectRatio: false,
-            plugins: {
-                legend: {
-                    position: 'right',
-                    labels: {
-                        color: '#e8eef8',
-                        font: { size: 11 },
-                        padding: 10
-                    }
-                }
-            }
-        }
+        data: { labels: activityData.categories.labels, datasets: [{ data: activityData.categories.data, backgroundColor: ['rgba(14,165,160,0.8)', 'rgba(245,200,66,0.8)', 'rgba(139,92,246,0.8)', 'rgba(16,185,129,0.8)', 'rgba(100,116,139,0.8)'], borderColor: '#0e1929', borderWidth: 3 }] },
+        options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'right', labels: { color: '#e8eef8', font: { size: 11 }, padding: 10 } } } }
     });
-
-    // Gráfica de tendencia (línea)
     const trendCtx = document.getElementById('trendChart').getContext('2d');
     trendChart = new Chart(trendCtx, {
         type: 'line',
-        data: {
-            labels: months,
-            datasets: [
-                {
-                    label: 'Ingresos ($)',
-                    data: activityData.trends.income,
-                    borderColor: 'rgba(14, 165, 160, 1)',
-                    backgroundColor: 'rgba(14, 165, 160, 0.1)',
-                    fill: true,
-                    tension: 0.4,
-                    yAxisID: 'y'
-                },
-                {
-                    label: 'Respuestas (%)',
-                    data: activityData.trends.responses,
-                    borderColor: 'rgba(245, 200, 66, 1)',
-                    backgroundColor: 'rgba(245, 200, 66, 0.1)',
-                    fill: true,
-                    tension: 0.4,
-                    yAxisID: 'y1'
-                }
-            ]
-        },
-        options: {
-            responsive: true,
-            maintainAspectRatio: false,
-            interaction: {
-                mode: 'index',
-                intersect: false
-            },
-            plugins: {
-                legend: {
-                    labels: { color: '#e8eef8' }
-                }
-            },
-            scales: {
-                y: {
-                    type: 'linear',
-                    display: true,
-                    position: 'left',
-                    grid: { color: 'rgba(26, 46, 72, 0.5)' },
-                    ticks: { color: '#8fa3bf' }
-                },
-                y1: {
-                    type: 'linear',
-                    display: true,
-                    position: 'right',
-                    grid: { drawOnChartArea: false },
-                    ticks: { color: '#f5c842' },
-                    min: 0,
-                    max: 100
-                },
-                x: {
-                    grid: { display: false },
-                    ticks: { color: '#8fa3bf' }
-                }
-            }
-        }
+        data: { labels: months, datasets: [{ label: 'Ingresos ($)', data: activityData.trends.income, borderColor: 'rgba(14,165,160,1)', backgroundColor: 'rgba(14,165,160,0.1)', fill: true, tension: 0.4, yAxisID: 'y' }, { label: 'Respuestas (%)', data: activityData.trends.responses, borderColor: 'rgba(245,200,66,1)', backgroundColor: 'rgba(245,200,66,0.1)', fill: true, tension: 0.4, yAxisID: 'y1' }] },
+        options: { responsive: true, maintainAspectRatio: false, interaction: { mode: 'index', intersect: false }, plugins: { legend: { labels: { color: '#e8eef8' } } }, scales: { y: { type: 'linear', position: 'left', grid: { color: 'rgba(26,46,72,0.5)' }, ticks: { color: '#8fa3bf' } }, y1: { type: 'linear', position: 'right', grid: { drawOnChartArea: false }, ticks: { color: '#f5c842' }, min: 0, max: 100 }, x: { grid: { display: false }, ticks: { color: '#8fa3bf' } } } }
     });
 }
 
-// Animar barras de progreso
 function animateProgressBars() {
-    const progressFills = document.querySelectorAll('.progress-fill');
-    progressFills.forEach(fill => {
+    document.querySelectorAll('.progress-fill').forEach(fill => {
         const width = fill.style.width;
         fill.style.width = '0%';
-        setTimeout(() => {
-            fill.style.width = width;
-        }, 100);
+        setTimeout(() => { fill.style.width = width; }, 100);
     });
 }
 
 // ═══════════════════════════════════════════
-// INICIALIZACIÓN Y EVENT LISTENERS
+// INICIALIZACIÓN
 // ═══════════════════════════════════════════
 
-// Ejecutar cuando el DOM esté listo
 document.addEventListener('DOMContentLoaded', function() {
-    // Cargar perfil al iniciar
-    cargarPerfil(userData);
+    const id_usuario = localStorage.getItem("usuarioId");
 
-    // Abrir menú de imagen al hacer click en el avatar
-    const avatar = document.getElementById('userAvatar');
-    if (avatar) {
-        avatar.addEventListener('click', function(e) {
-            e.stopPropagation();
-            abrirMenuImagen();
-        });
-    }
+    // Cargar perfil desde la base
+    fetch(`http://localhost/api/crud/UserPerfil.php?id=${id_usuario}`)
+    .then(res => res.json())
+    .then(data => {
+        if (data.error) { console.error("Error:", data.error); return; }
 
-    // Input de archivo para subir imágenes
-    const imageInput = document.getElementById('imageInput');
-    if (imageInput) {
-        imageInput.addEventListener('change', function(e) {
-            if (e.target.files && e.target.files[0]) {
-                const reader = new FileReader();
-                reader.onload = function(event) {
-                    cambiarAvatar(event.target.result);
-                };
-                reader.readAsDataURL(e.target.files[0]);
-            }
-        });
+        if (data.nombre) {
+            document.getElementById('userName').textContent = data.nombre;
+            document.getElementById('userHandle').textContent = '@' + data.nombre.toLowerCase().replace(/\s/g, '');
+            userData.name = data.nombre;
+        }
+
+       if (data.avatar) {
+    let avatarUrl;
+    if (data.avatar.startsWith('http') || data.avatar.startsWith('data:')) {
+        avatarUrl = data.avatar;
+    } else {
+        avatarUrl = 'http://localhost/' + data.avatar;
     }
+    document.getElementById('userAvatar').src = avatarUrl;
+    userData.avatar = avatarUrl;
+}
+
+        if (data.descripcion) {
+            document.getElementById('userBio').textContent = data.descripcion;
+        }
+
+        if (data.correo) {
+            document.getElementById('userEmail').textContent = data.correo;
+        }
+
+        document.getElementById('userUniversity').textContent =
+            data.universidad ? 'Universidad Popular Del Cesar' : 'No universitario';
+
+        if (data.fecha_registro) {
+            const fecha = new Date(data.fecha_registro);
+            document.getElementById('userJoinDate').textContent =
+                fecha.toLocaleDateString('es-ES', { month: 'long', year: 'numeric' });
+        }
+
+        // Reputación con 1 decimal
+        const rep = parseFloat(data.reputacion);
+        document.getElementById('userReputation').textContent =
+            !isNaN(rep) ? rep.toFixed(1) + '/5.0' : 'Sin calificaciones';
+
+        document.getElementById('statPosts').textContent = data.total_publicaciones;
+        document.getElementById('statFollowers').textContent = formatearNumero(data.total_seguidores);
+        document.getElementById('statFollowing').textContent = data.total_siguiendo;
+
+        // Estado fijo desde la base — no clickeable
+        const statusTag       = document.getElementById('userStatus');
+        const statusIndicator = document.getElementById('statusIndicator');
+        const menuEstado      = document.querySelector('.menu-item');
+        if (data.estado == 1) {
+            statusTag.textContent     = 'En línea';
+            statusTag.className       = 'status-tag online';
+            statusIndicator.className = 'status-badge online';
+            if (menuEstado) menuEstado.querySelector('.menu-icon').textContent = '🟢';
+        } else {
+            statusTag.textContent     = 'Desconectado';
+            statusTag.className       = 'status-tag busy';
+            statusIndicator.className = 'status-badge busy';
+            if (menuEstado) menuEstado.querySelector('.menu-icon').textContent = '🔴';
+        }
+        // Quitar onclick del estado para que no sea clickeable
+        if (menuEstado) menuEstado.removeAttribute('onclick');
+    })
+    .catch(err => console.error("Error cargando perfil:", err));
+
+    // Avatar click
+    document.getElementById('userAvatar').addEventListener('click', function(e) {
+        e.stopPropagation();
+        abrirMenuImagen();
+    });
+
+    // Cerrar modal imagen al hacer click fuera
+    document.getElementById('imageMenuOverlay').addEventListener('click', function(e) {
+        if (e.target === this) closeImageMenu();
+    });
+
+    // Botones modal imagen
+    document.getElementById('btnSubirImagen').addEventListener('click', subirImagenLocal);
+    document.getElementById('btnUsarURL').addEventListener('click', usarImagenURL);
+
+    // Input archivo
+    document.getElementById('imageInput').addEventListener('change', function(e) {
+        if (e.target.files && e.target.files[0]) {
+            const reader = new FileReader();
+            reader.onload = function(event) { cambiarAvatar(event.target.result); };
+            reader.readAsDataURL(e.target.files[0]);
+        }
+    });
 });
 
-// ═══════════════════════════════════════════
-// FUNCIONES PARA CAMBIAR IMAGEN DE PERFIL
-// ═══════════════════════════════════════════
-
-// Abrir menú de imagen
-function abrirMenuImagen() {
-    const overlay = document.getElementById('imageMenuOverlay');
-    overlay.classList.add('active');
-}
-
-// Cerrar menú de imagen
-function closeImageMenu(event) {
-    if (event && event.target !== event.currentTarget) return;
-    const overlay = document.getElementById('imageMenuOverlay');
-    overlay.classList.remove('active');
-}
-
-// Cambiar avatar
-function cambiarAvatar(url) {
-    userData.avatar = url;
-    const avatar = document.getElementById('userAvatar');
-    avatar.src = url;
-    avatar.style.transition = 'all 0.3s ease';
-    avatar.style.transform = 'scale(1.1)';
-    setTimeout(() => {
-        avatar.style.transform = 'scale(1)';
-    }, 150);
-    closeImageMenu();
-    alert('✨ Imagen de perfil actualizada!');
-}
-
-// Subir imagen local
-function subirImagenLocal() {
-    const input = document.getElementById('imageInput');
-    input.click();
-
-    input.onchange = async () => {
-        const file = input.files[0];
-        if (!file) return;
-
-        const formData = new FormData();
-        formData.append("file", file);
-
-        // Enviar al servidor
-        const response = await fetch("UserPhoto.php", {
-            method: "POST",
-            body: formData
-        });
-
-        const result = await response.json();
-        if (result.success) {
-            cambiarAvatar(result.url); // actualiza la imagen en pantalla
-        } else {
-            alert("❌ Error al subir la imagen: " + result.message);
-        }
-    };
-}
-
-// Generar avatar aleatorio con Dicebear
-function cambiarAvatarDicebear() {
-    const seeds = ['Felix', 'Luna', 'Max', 'Alex', 'Sam', 'Jordan', 'Taylor', 'Morgan', 'Casey', 'Riley'];
-    const randomSeed = seeds[Math.floor(Math.random() * seeds.length)];
-    const newUrl = `https://api.dicebear.com/7.x/avataaars/svg?seed=${randomSeed}&backgroundColor=b6e3f4`;
-    cambiarAvatar(newUrl);
-}
-
-// Usar imagen desde URL
-function usarImagenURL() {
-    const url = prompt('Ingresa la URL de la imagen:');
-    if (url && url.trim()) {
-        // Validar que sea una URL válida
-        try {
-            new URL(url);
-            cambiarAvatar(url);
-        } catch (e) {
-            alert('❌ URL inválida. Por favor, ingresa una URL válida.');
-        }
-    }
-}
-
-// Cerrar modales con tecla Escape
+// Escape cierra modales
 document.addEventListener('keydown', function(e) {
-    if (e.key === 'Escape') {
-        closeActivityModal();
-        closeImageMenu();
-    }
+    if (e.key === 'Escape') { closeActivityModal(); closeImageMenu(); }
 });
