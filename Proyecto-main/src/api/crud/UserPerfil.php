@@ -28,7 +28,7 @@ if ($resultado === false) {
     exit();
 }
 
-// Result set 1 — datos básicos
+// Obtener los datos — todo viene en un solo result set
 $perfil = sqlsrv_fetch_array($resultado, SQLSRV_FETCH_ASSOC);
 if (!$perfil) {
     echo json_encode(["error" => "Usuario no encontrado"]);
@@ -39,27 +39,6 @@ if (!$perfil) {
 if ($perfil["fecha_registro"] instanceof DateTime) {
     $perfil["fecha_registro"] = $perfil["fecha_registro"]->format("Y-m-d");
 }
-
-// Result set 2 — seguidores
-sqlsrv_next_result($resultado);
-$row = sqlsrv_fetch_array($resultado, SQLSRV_FETCH_ASSOC);
-$perfil["total_seguidores"] = $row["total_seguidores"] ?? 0;
-
-// Result set 3 — siguiendo
-sqlsrv_next_result($resultado);
-$row = sqlsrv_fetch_array($resultado, SQLSRV_FETCH_ASSOC);
-$perfil["total_siguiendo"] = $row["total_siguiendo"] ?? 0;
-
-// Result set 4 — publicaciones
-sqlsrv_next_result($resultado);
-$row = sqlsrv_fetch_array($resultado, SQLSRV_FETCH_ASSOC);
-$perfil["total_publicaciones"] = $row["total_publicaciones"] ?? 0;
-
-// Result set 5 — reputación
-sqlsrv_next_result($resultado);
-$row = sqlsrv_fetch_array($resultado, SQLSRV_FETCH_ASSOC);
-$perfil["reputacion"]            = $row["reputacion"] ?? "N/A";
-$perfil["total_calificaciones"]  = $row["total_calificaciones"] ?? 0;
 
 echo json_encode($perfil);
 

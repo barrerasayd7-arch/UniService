@@ -21,7 +21,15 @@ if ($method === "POST") {
         $id_usuario = $_POST["id_usuario"] ?? null;
         if (!$id_usuario) { echo json_encode(["error" => "ID requerido"]); exit(); }
 
-        $targetDir = "../../img/";
+        $targetDir = "../../PHP/UserPerfilFotos/";
+        
+        // Crear directorio si no existe
+        if (!is_dir($targetDir)) {
+            if (!mkdir($targetDir, 0777, true)) {
+                echo json_encode(["error" => "No se pudo crear el directorio de destino"]); 
+                exit();
+            }
+        }
 
         $targetFile = $targetDir . uniqid() . "_" . basename($_FILES["file"]["name"]);
         $imageFileType = strtolower(pathinfo($targetFile, PATHINFO_EXTENSION));
@@ -30,12 +38,12 @@ if ($method === "POST") {
         if (!in_array($imageFileType, $allowed)) {
             echo json_encode(["error" => "Formato no permitido"]); exit();
         }
-        if ($_FILES["file"]["size"] > 2000000) {
+        if ($_FILES["file"]["size"] > 20971520) { // 20MB
             echo json_encode(["error" => "Archivo demasiado grande"]); exit();
         }
 
         if (move_uploaded_file($_FILES["file"]["tmp_name"], $targetFile)) {
-            $rutaCompleta = "img/" . basename($targetFile);
+            $rutaCompleta = "PHP/UserPerfilFotos/" . basename($targetFile);
             $query     = "EXEC sp_ActualizarUsuario @id_usuario=?, @avatar=?";
             $params    = [(int)$id_usuario, $rutaCompleta];
             $resultado = sqlsrv_query($conexion, $query, $params);
