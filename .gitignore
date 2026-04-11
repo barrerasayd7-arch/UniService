@@ -17,3 +17,8 @@ Desktop.ini
 # --- Web (si usas librerías) ---
 node_modules/
 .env
+
+# --- (Fotos de perfil en la base de datos) ---
+PHP/UserPerfilFotos/
+PHP/UserPerfilFotos/*
+!PHP/UserPerfilFotos/.gitkeep
