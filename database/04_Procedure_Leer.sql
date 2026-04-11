@@ -1,4 +1,14 @@
-CREATE OR ALTER PROCEDURE sp_ObtenerUsuarioPorId
+--------------------SCRIPT PROCEDURES LEER------------------------------
+USE Uniservice;
+GO
+
+-- Eliminar si existe
+IF OBJECT_ID('sp_ObtenerUsuarioPorId', 'P') IS NOT NULL
+    DROP PROCEDURE sp_ObtenerUsuarioPorId;
+GO
+
+-- Crear procedimiento
+CREATE PROCEDURE sp_ObtenerUsuarioPorId
     @id_usuario INT
 AS
 BEGIN
@@ -26,10 +36,15 @@ BEGIN
         RAISERROR ('Usuario no encontrado.', 16, 1);
     END
 END;
-
 GO
 
-CREATE OR ALTER PROCEDURE sp_ObtenerPerfilCompleto
+-- Eliminar si existe
+IF OBJECT_ID('sp_ObtenerPerfilCompleto', 'P') IS NOT NULL
+    DROP PROCEDURE sp_ObtenerPerfilCompleto;
+GO
+
+-- Crear procedimiento
+CREATE PROCEDURE sp_ObtenerPerfilCompleto
     @id_usuario INT
 AS
 BEGIN
@@ -41,33 +56,25 @@ BEGIN
         RETURN;
     END
 
-    -- Datos básicos del usuario
+    -- Datos básicos del usuario con estadísticas en un solo SELECT
     SELECT 
-        id_usuario, nombre, descripcion, correo,
-        estado, fecha_registro, universidad, avatar
-    FROM usuarios
-    WHERE id_usuario = @id_usuario;
-
-    -- Conteo de seguidores (quien lo sigue)
-    SELECT COUNT(*) AS total_seguidores
-    FROM seguidores
-    WHERE id_seguido = @id_usuario;
-
-    -- Conteo de siguiendo (a quien sigue)
-    SELECT COUNT(*) AS total_siguiendo
-    FROM seguidores
-    WHERE id_seguidor = @id_usuario;
-
-    -- Conteo de publicaciones (servicios)
-    SELECT COUNT(*) AS total_publicaciones
-    FROM servicios
-    WHERE id_proveedor = @id_usuario;
-
-    -- Reputación promedio
-    SELECT 
+        u.id_usuario, 
+        u.nombre, 
+        u.descripcion, 
+        u.correo,
+        u.estado, 
+        u.fecha_registro, 
+        u.universidad, 
+        u.avatar,
+        (SELECT COUNT(*) FROM seguidores WHERE id_seguido = @id_usuario) AS total_seguidores,
+        (SELECT COUNT(*) FROM seguidores WHERE id_seguidor = @id_usuario) AS total_siguiendo,
+        (SELECT COUNT(*) FROM servicios WHERE id_proveedor = @id_usuario) AS total_publicaciones,
         ISNULL(CAST(AVG(CAST(c.puntuacion AS DECIMAL(3,1))) AS NVARCHAR(10)), 'N/A') AS reputacion,
         COUNT(c.id_calificacion) AS total_calificaciones
-    FROM servicios s
+    FROM usuarios u
+    LEFT JOIN servicios s ON s.id_proveedor = u.id_usuario
     LEFT JOIN calificaciones c ON c.id_servicio = s.id_servicio
-    WHERE s.id_proveedor = @id_usuario;
+    WHERE u.id_usuario = @id_usuario
+    GROUP BY u.id_usuario, u.nombre, u.descripcion, u.correo, u.estado, u.fecha_registro, u.universidad, u.avatar;
 END;
+GO

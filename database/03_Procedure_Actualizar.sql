@@ -1,4 +1,14 @@
-CREATE OR ALTER PROCEDURE sp_ActualizarUsuario
+--------------------SCRIPT PROCEDURES ACTUALIZAR------------------------------
+USE Uniservice;
+GO
+
+-- Eliminar si existe
+IF OBJECT_ID('sp_ActualizarUsuario', 'P') IS NOT NULL
+    DROP PROCEDURE sp_ActualizarUsuario;
+GO
+
+-- Crear procedimiento
+CREATE PROCEDURE sp_ActualizarUsuario
     @id_usuario INT,
     @telefono NVARCHAR(13) = NULL,
     @password_hash NVARCHAR(255) = NULL,
@@ -49,3 +59,4 @@ BEGIN
         RAISERROR (@ErrorMessage, 16, 1);
     END CATCH
 END;
+GO
