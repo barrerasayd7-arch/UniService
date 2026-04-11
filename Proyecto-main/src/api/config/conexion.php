@@ -8,6 +8,7 @@ $conexion = sqlsrv_connect($servidor, [
     "Database" => $baseDatos,
     "UID"      => $usuario,
     "PWD"      => $password,
+    "CharacterSet" => "UTF-8",
     "TrustServerCertificate" => true,
     "QuotedId" => true
 ]);
