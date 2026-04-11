@@ -28,12 +28,39 @@ case "GET":
 
     }else{
 
-        $sql = "SELECT * FROM servicios";
+        $sql = "SELECT 
+                s.id_servicio,
+                s.titulo,
+                s.descripcion,
+                s.precio_hora,
+                s.icono,
+                s.fecha_publicacion,
+
+                u.nombre AS proveedor,
+                u.avatar,
+                u.universidad,
+
+                c.nombre_categoria
+
+                FROM servicios s
+
+                JOIN usuarios u 
+                ON s.id_proveedor = u.id_usuario
+
+                LEFT JOIN categorias c 
+                ON s.id_categoria = c.id_categoria
+
+                ORDER BY s.fecha_publicacion DESC";
         $stmt = sqlsrv_query($conexion, $sql);
 
         $servicios = [];
 
         while($row = sqlsrv_fetch_array($stmt, SQLSRV_FETCH_ASSOC)){
+
+            if($row["fecha_publicacion"]){
+                $row["fecha_publicacion"] = $row["fecha_publicacion"]->format("Y-m-d");
+            }
+
             $servicios[] = $row;
         }
 

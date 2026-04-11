@@ -5,7 +5,9 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>UniServicios</title>
-    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;800&family=DM+Serif+Display:ital@0;1&display=swap" rel="stylesheet">
+    <link
+        href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;800&family=DM+Serif+Display:ital@0;1&display=swap"
+        rel="stylesheet">
     <link rel="stylesheet" href="../Templates/styleHome.css">
     <link rel="stylesheet" href="../Templates/styleCalificacion.css">
 </head>
@@ -45,7 +47,7 @@
                 habitaciones — todo para la comunidad universitaria.
             </p>
             <div class="hero-btns">
-                <a href="#buscar"   class="btn btn-verde">🔍 Explorar servicios</a>
+                <a href="#buscar" class="btn btn-verde">🔍 Explorar servicios</a>
                 <a href="#publicar servicio" class="btn btn-borde">➕ Publicar mi servicio</a>
             </div>
         </div>
@@ -97,49 +99,6 @@
 
 
             <div id="contenedor-tarjetas" class="cards-3d-container"></div>
-            <script>
-                function renderServiciosRecientes() {
-                    const contenedor = document.getElementById("contenedor-tarjetas");
-                    const data = JSON.parse(localStorage.getItem("logstore_servicios")) || [];
-                    contenedor.innerHTML = "";
-
-                    data.reverse().slice(0, 8).forEach(servicio => {
-                      const estrellasTexto = typeof calcularEstrellas === 'function'
-                        ? calcularEstrellas(servicio.estrellas)
-                        : (servicio.estrellas || "☆☆☆☆☆ (0)");
-
-                        const numReseñas = servicio.estrellas ? servicio.estrellas.length : 0;
-                      const tarjeta = `
-                        <a href="Servicio.html?id=${servicio.id}" class="card-servicio card-3d">
-                          <div class="card-icono card-icono-azul">${servicio.icono}</div>
-                          <div class="card-body-custom">
-                            <span class="etiqueta et-azul">${servicio.categoria}</span>
-                            <p class="card-meta">${servicio.universidad}</p>
-                            <h5>${servicio.titulo}</h5>
-                            <p class="texto-muted">${servicio.descripcion}</p>
-                            <div class="card-autor">
-                              <div class="avatar avatar-azul">${servicio.avatar}</div>
-                              <span class="texto-muted">${servicio.publicador}</span>
-                            </div>
-                            <div class="texto-fecha">${servicio.fechaPublicacion}</div>
-                            <div class="card-footer">
-                              <div>
-                                <hr class="card-divider">
-                                <div class="estrellas">${estrellasTexto}</div>
-                                <div class="texto-muted">${numReseñas} reseñas</div>
-                              </div>
-                              <div class="precio">${servicio.precio}$</div>
-                            </div>
-                          </div>
-                        </a>
-                      `;
-
-                      contenedor.innerHTML += tarjeta;
-                    });
-                }
-
-                window.addEventListener("load", renderServiciosRecientes);
-            </script>
         </div>
     </section>
 
@@ -193,15 +152,18 @@
                         <div class="form-grid cols-3">
                             <div class="form-grupo col-span-2">
                                 <label for="busqueda" class="form-label">🔍 Palabras clave</label>
-                                <input type="text" class="form-input" id="busqueda" placeholder="Ej: tutoría cálculo, ensayo APA...">
+                                <input type="text" class="form-input" id="busqueda"
+                                    placeholder="Ej: tutoría cálculo, ensayo APA...">
                             </div>
                             <div class="form-grupo">
                                 <label for="materia" class="form-label">📖 Materia</label>
-                                <input type="text" class="form-input" id="materia" placeholder="Ej: Cálculo, Derecho...">
+                                <input type="text" class="form-input" id="materia"
+                                    placeholder="Ej: Cálculo, Derecho...">
                             </div>
                             <div class="form-grupo">
                                 <label for="universidad-buscar" class="form-label">🏫 Universidad</label>
-                                <input type="text" class="form-input" id="universidad-buscar" placeholder="Ej: U. Nacional...">
+                                <input type="text" class="form-input" id="universidad-buscar"
+                                    placeholder="Ej: U. Nacional...">
                             </div>
                             <div class="form-grupo">
                                 <label for="categoria-buscar" class="form-label">📂 Categoría</label>
@@ -233,14 +195,15 @@
 
                         <div class="form-btns">
                             <a href="ServiciosTotales.html" class="btn btn-verde">🔍 Buscar</a>
-                            <button type="reset"  class="btn btn-borde">🗑️ Limpiar filtros</button>
+                            <button type="reset" class="btn btn-borde">🗑️ Limpiar filtros</button>
                         </div>
                     </fieldset>
                 </form>
             </div>
 
             <div class="sort-bar">
-                <p class="texto-muted">Mostrando <strong class="texto-claro">x resultados</strong> ordenados por calificación</p>
+                <p class="texto-muted">Mostrando <strong class="texto-claro">x resultados</strong> ordenados por
+                    calificación</p>
                 <select class="form-select select-ordenar">
                     <option>Mejor calificados primero</option>
                     <option>Más recientes</option>
@@ -257,7 +220,8 @@
                             <div class="card-emoji">📚</div>
                         </div>
                         <h5>Física mecánica y termodinámica</h5>
-                        <p class="texto-muted">U. Nacional · Resolución de problemas con enfoque en exámenes finales.</p>
+                        <p class="texto-muted">U. Nacional · Resolución de problemas con enfoque en exámenes finales.
+                        </p>
                         <div class="card-footer">
                             <div>
                                 <div class="estrellas">★★★★★</div>
@@ -273,14 +237,14 @@
 
 
     <!-- ── PUBLICAR ── -->
-        <section class="seccion seccion-oscura section-dynamic" id="publicar">
-            <div class="dynamic-bg">
-                <canvas class="particles-canvas" id="particles-publicar"></canvas>
-                <div class="floating-shapes-small">
-                    <div class="shape-sm shape-sm-1"></div>
-                    <div class="shape-sm shape-sm-2"></div>
-                </div>
+    <section class="seccion seccion-oscura section-dynamic" id="publicar">
+        <div class="dynamic-bg">
+            <canvas class="particles-canvas" id="particles-publicar"></canvas>
+            <div class="floating-shapes-small">
+                <div class="shape-sm shape-sm-1"></div>
+                <div class="shape-sm shape-sm-2"></div>
             </div>
+        </div>
         <div class="container">
             <div class="publicar-wrapper">
                 <p class="label-seccion">Nuevo servicio</p>
@@ -299,7 +263,8 @@
                                         <span>Título del servicio</span>
                                         <span style="color: var(--teal); margin-left: auto;">*</span>
                                     </label>
-                                    <input type="text" class="form-input" id="titulo" placeholder="Ej: Tutoría de Cálculo Diferencial para ingeniería" required>
+                                    <input type="text" class="form-input" id="titulo"
+                                        placeholder="Ej: Tutoría de Cálculo Diferencial para ingeniería" required>
                                 </div>
                                 <div class="form-grupo">
                                     <label for="descripcion" class="form-label">
@@ -307,7 +272,9 @@
                                         <span>Descripción completa</span>
                                         <span style="color: var(--teal); margin-left: auto;">*</span>
                                     </label>
-                                    <textarea class="form-input" id="descripcion" placeholder="Describe tu servicio: qué ofreces, cómo trabajas, qué incluye el precio, experiencia, metodología..." required></textarea>
+                                    <textarea class="form-input" id="descripcion"
+                                        placeholder="Describe tu servicio: qué ofreces, cómo trabajas, qué incluye el precio, experiencia, metodología..."
+                                        required></textarea>
                                 </div>
                             </div>
 
@@ -335,7 +302,8 @@
                                         <span>Precio (COP/hora)</span>
                                         <span style="color: var(--teal);">*</span>
                                     </label>
-                                    <input type="number" class="form-input" id="precio" placeholder="Ej: 30000" min="1000" required>
+                                    <input type="number" class="form-input" id="precio" placeholder="Ej: 30000"
+                                        min="1000" required>
                                 </div>
                                 <div class="form-grupo">
                                     <label for="universidad" class="form-label">
@@ -343,7 +311,8 @@
                                         <span>Tu universidad</span>
                                         <span style="color: var(--teal);">*</span>
                                     </label>
-                                    <input type="text" class="form-input" id="universidad" placeholder="Ej: Universidad Nacional de Colombia" required>
+                                    <input type="text" class="form-input" id="universidad"
+                                        placeholder="Ej: Universidad Nacional de Colombia" required>
                                 </div>
                                 <div class="form-grupo">
                                     <label for="contacto" class="form-label">
@@ -351,7 +320,8 @@
                                         <span>Contacto (WhatsApp/Email)</span>
                                         <span style="color: var(--teal);">*</span>
                                     </label>
-                                    <input type="text" class="form-input" id="contacto" placeholder="Ej: +57 300 123 4567 o correo@email.com" required>
+                                    <input type="text" class="form-input" id="contacto"
+                                        placeholder="Ej: +57 300 123 4567 o correo@email.com" required>
                                 </div>
                             </div>
 
@@ -414,27 +384,28 @@
 
 
     <!-- =============================== 4. MIS SERVICIOS =============================== -->
-    <br><div class="bloque-pagina" id="mis-servicios">
-    <div class="container">
-        <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-4">
-            <div>
-                <p class="insignia-seccion mb-1">💼 Panel personal</p>
-                <h2 class="mb-0">Mis servicios</h2>
+    <br>
+    <div class="bloque-pagina" id="mis-servicios">
+        <div class="container">
+            <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-4">
+                <div>
+                    <p class="insignia-seccion mb-1">💼 Panel personal</p>
+                    <h2 class="mb-0">Mis servicios</h2>
+                </div>
+                <a href="#publicar" class="btn boton-principal">➕ Nuevo servicio</a>
+            </div><br>
+
+            <div id="contenedor-mis-servicios">
             </div>
-            <a href="#publicar" class="btn boton-principal">➕ Nuevo servicio</a>
         </div><br>
-
-        <div id="contenedor-mis-servicios">
-            </div>
-    </div><br>
-</div>
+    </div>
 
 
 
 
-  <!-- =============================== 5. SOLICITUDES =============================== -->
-   
-    
+    <!-- =============================== 5. SOLICITUDES =============================== -->
+
+
 
 
     <section class="seccion seccion-oscura section-dynamic" id="solicitudes">
@@ -449,7 +420,7 @@
             <p class="etiqueta-seccion">🔔 Bandeja</p>
             <h2>Mis solicitudes</h2>
             <p style="color:#8896ae;">Personas interesadas en tus servicios</p>
- 
+
             <!-- Solicitud 1 -->
             <div class="fila-pedido">
                 <div class="row align-items-start g-3">
@@ -459,8 +430,10 @@
                     <div class="col">
                         <strong>Karen Patiño</strong>
                         <span class="texto-gris ms-2">hace 30 min</span>
-                        <p class="mb-1 mt-1" style="font-size:0.88rem;">Quiere contratar: <strong>Tutoría cálculo diferencial</strong></p>
-                        <p class="texto-gris mb-0">"Hola! Necesito ayuda urgente para mi parcial del viernes. ¿Tienes disponibilidad esta semana?"</p>
+                        <p class="mb-1 mt-1" style="font-size:0.88rem;">Quiere contratar: <strong>Tutoría cálculo
+                                diferencial</strong></p>
+                        <p class="texto-gris mb-0">"Hola! Necesito ayuda urgente para mi parcial del viernes. ¿Tienes
+                            disponibilidad esta semana?"</p>
                     </div>
                     <div class="col-auto d-flex gap-2">
                         <button class="btn boton-principal btn-sm">✔ Aceptar</button>
@@ -468,7 +441,7 @@
                     </div>
                 </div>
             </div>
- 
+
             <!-- Solicitud 2 -->
             <div class="fila-pedido">
                 <div class="row align-items-start g-3">
@@ -478,8 +451,10 @@
                     <div class="col">
                         <strong>Santiago Torres</strong>
                         <span class="texto-gris ms-2">hace 2 h</span>
-                        <p class="mb-1 mt-1" style="font-size:0.88rem;">Quiere contratar: <strong>Desarrollo web React + Node</strong></p>
-                        <p class="texto-gris mb-0">"Necesito desarrollar una API REST para mi proyecto de grado. Presupuesto flexible."</p>
+                        <p class="mb-1 mt-1" style="font-size:0.88rem;">Quiere contratar: <strong>Desarrollo web React +
+                                Node</strong></p>
+                        <p class="texto-gris mb-0">"Necesito desarrollar una API REST para mi proyecto de grado.
+                            Presupuesto flexible."</p>
                     </div>
                     <div class="col-auto d-flex gap-2">
                         <button class="btn boton-principal btn-sm">✔ Aceptar</button>
@@ -487,7 +462,7 @@
                     </div>
                 </div>
             </div>
- 
+
             <!-- Solicitud completada — pendiente calificación -->
             <div class="fila-pedido" style="border-color:rgba(245,200,66,.3);">
                 <div class="row align-items-start g-3">
@@ -497,24 +472,28 @@
                     <div class="col">
                         <strong>María López</strong>
                         <span class="insignia insignia-verde ms-2">Completado</span>
-                        <p class="mb-1 mt-1" style="font-size:0.88rem;">Contrató: <strong>Ensayo argumentativo</strong></p>
-                        <p style="color:#f5c842; font-size:0.82rem; margin-bottom:0;">⭐ ¡Este servicio fue completado! Puedes calificarlo más abajo.</p>
+                        <p class="mb-1 mt-1" style="font-size:0.88rem;">Contrató: <strong>Ensayo argumentativo</strong>
+                        </p>
+                        <p style="color:#f5c842; font-size:0.82rem; margin-bottom:0;">⭐ ¡Este servicio fue completado!
+                            Puedes calificarlo más abajo.</p>
                     </div>
                     <div class="col-auto">
-                        <a href="#calificar" class="btn btn-sm" style="background:rgba(245,200,66,.15); color:#f5c842; border:1px solid rgba(245,200,66,.3);">⭐ Calificar</a>
+                        <a href="#calificar" class="btn btn-sm"
+                            style="background:rgba(245,200,66,.15); color:#f5c842; border:1px solid rgba(245,200,66,.3);">⭐
+                            Calificar</a>
                     </div>
                 </div>
             </div>
- 
+
         </div>
-    </div>
- </section>
+        </div>
+    </section>
 
 
-   <!-- =============================== 6. CALIFICAR SERVICIO =============================== -->
+    <!-- =============================== 6. CALIFICAR SERVICIO =============================== -->
 
 
-       <section class="seccion seccion-oscura section-dynamic" id="calificar-servicio">
+    <section class="seccion seccion-oscura section-dynamic" id="calificar-servicio">
         <div class="dynamic-bg">
             <div class="floating-shapes-small">
                 <div class="shape-sm shape-sm-1"></div>
@@ -528,11 +507,14 @@
                         <p class="label-seccion">⭐ Sistema de valoración</p>
                         <h2>Calificar servicios</h2>
                         <p class="seccion-desc">Tu opinión ayuda a otros estudiantes a elegir mejor</p>
-                        
-                        <div style="margin-top: 50px; padding: 40px; background: rgba(14, 165, 160, 0.08); border-radius: 16px; border: 2px solid rgba(14, 165, 160, 0.2);">
+
+                        <div
+                            style="margin-top: 50px; padding: 40px; background: rgba(14, 165, 160, 0.08); border-radius: 16px; border: 2px solid rgba(14, 165, 160, 0.2);">
                             <div style="font-size: 3.5rem; margin-bottom: 20px;">⭐</div>
                             <h3 style="color: var(--teal2); margin-bottom: 15px;">Sistema de Calificación Flotante</h3>
-                            <p style="color: var(--texto2); margin-bottom: 20px;">Ahora puedes calificar cualquier servicio en cualquier momento usando el botón flotante que aparece en la esquina inferior derecha de la pantalla.</p>
+                            <p style="color: var(--texto2); margin-bottom: 20px;">Ahora puedes calificar cualquier
+                                servicio en cualquier momento usando el botón flotante que aparece en la esquina
+                                inferior derecha de la pantalla.</p>
                             <p style="color: var(--texto3); font-size: 0.9rem;">
                                 <strong>Características:</strong><br>
                                 ✨ Selecciona estrellas interactivas<br>
@@ -541,119 +523,122 @@
                                 ✨ Ayuda a la comunidad
                             </p>
                         </div>
-                        
-                        <button onclick="openRatingModal()" style="margin-top: 30px; padding: 14px 32px; background: linear-gradient(135deg, var(--teal) 0%, var(--teal2) 100%); border: none; color: var(--bg); border-radius: 10px; cursor: pointer; font-weight: 600; transition: all 0.3s ease; font-size: 1rem;">
+
+                        <button onclick="openRatingModal()"
+                            style="margin-top: 30px; padding: 14px 32px; background: linear-gradient(135deg, var(--teal) 0%, var(--teal2) 100%); border: none; color: var(--bg); border-radius: 10px; cursor: pointer; font-weight: 600; transition: all 0.3s ease; font-size: 1rem;">
                             Abrir Sistema de Calificación
                         </button>
                     </div>
                 </div>
             </div>
         </div>
-        </section>
-    
+    </section>
 
 
 
 
-   <!-- =============================== FOOTER =============================== -->
-<footer id="soporte">
-    <div class="container">
-        <div class="row g-4">
-            
-            <div class="col-md-4">
-                <p class="logo">
-                    Uni<span>Servicios</span>
-                </p>
-                <p>
-                    La plataforma de intercambio de servicios entre estudiantes universitarios de Colombia.
-                </p>
-            </div>
 
-            <div class="col-6 col-md-2">
-                <h5>Plataforma</h5>
-                <div class="links-grid">
-                    <a href="#inicio">Inicio</a>
-                    <a href="#buscar">Buscar servicios</a>
-                    <a href="#publicar servicio">Publicar servicio</a>
+    <!-- =============================== FOOTER =============================== -->
+    <footer id="soporte">
+        <div class="container">
+            <div class="row g-4">
+
+                <div class="col-md-4">
+                    <p class="logo">
+                        Uni<span>Servicios</span>
+                    </p>
+                    <p>
+                        La plataforma de intercambio de servicios entre estudiantes universitarios de Colombia.
+                    </p>
                 </div>
-            </div>
 
-            <div class="col-6 col-md-2">
-                <h5>Mi cuenta</h5>
-                <div class="links-grid">
-                    <a href="#mis-servicios">Mis servicios</a>
-                    <a href="#solicitudes">Solicitudes</a>
-                    <a href="#perfil">Perfil</a>
+                <div class="col-6 col-md-2">
+                    <h5>Plataforma</h5>
+                    <div class="links-grid">
+                        <a href="#inicio">Inicio</a>
+                        <a href="#buscar">Buscar servicios</a>
+                        <a href="#publicar servicio">Publicar servicio</a>
+                    </div>
                 </div>
-            </div>
 
-            <div class="col-6 col-md-2">
-                <h5>Categorías</h5>
-                <div class="links-grid">
-                    <a href="#">Tutorías</a>
-                    <a href="#">Ensayos</a>
-                    <a href="#">Programación</a>
-                    <a href="#">Diseño</a>
-                    <a href="#">Arriendo</a>
+                <div class="col-6 col-md-2">
+                    <h5>Mi cuenta</h5>
+                    <div class="links-grid">
+                        <a href="#mis-servicios">Mis servicios</a>
+                        <a href="#solicitudes">Solicitudes</a>
+                        <a href="#perfil">Perfil</a>
+                    </div>
                 </div>
-            </div>
 
-            <div class="col-6 col-md-2">
-                <h5>Soporte</h5>
-                <div class="links-grid">
-                    <a href="#">Centro de ayuda</a>
-                    <a href="#">Términos de uso</a>
-                    <a href="#">Privacidad</a>
-                    <a href="#">Contacto</a>
+                <div class="col-6 col-md-2">
+                    <h5>Categorías</h5>
+                    <div class="links-grid">
+                        <a href="#">Tutorías</a>
+                        <a href="#">Ensayos</a>
+                        <a href="#">Programación</a>
+                        <a href="#">Diseño</a>
+                        <a href="#">Arriendo</a>
+                    </div>
                 </div>
+
+                <div class="col-6 col-md-2">
+                    <h5>Soporte</h5>
+                    <div class="links-grid">
+                        <a href="#">Centro de ayuda</a>
+                        <a href="#">Términos de uso</a>
+                        <a href="#">Privacidad</a>
+                        <a href="#">Contacto</a>
+                    </div>
+                </div>
+
             </div>
 
+            <hr>
+
+            <p class="footer-copy">
+                © 2025 UniServicios — Hecho por y para estudiantes 🎓
+            </p>
         </div>
+    </footer>
 
-        <hr>
+    <!-- =============================== SCRIPTS =============================== -->
 
-        <p class="footer-copy">
-            © 2025 UniServicios — Hecho por y para estudiantes 🎓
-        </p>
-    </div>
-</footer>
+    <script>
+        //Verificar si el usuario está logueado al cargar la página
+        document.addEventListener("DOMContentLoaded", () => {
+            const logueado = localStorage.getItem("logueado");
+            if (logueado !== "true") {
+                // Si no está logueado, redirige al login
+                window.location.href = "login.html";
+            }
+        });
+    </script>
 
- <!-- =============================== SCRIPTS =============================== -->
+    <script>
+        document.addEventListener("DOMContentLoaded", () => {
+            const cerrarSesion = document.querySelector(".nav-Cerrar");
+            cerrarSesion.addEventListener("click", function (e) {
+                e.preventDefault();
 
-<script>
-    //Verificar si el usuario está logueado al cargar la página
-document.addEventListener("DOMContentLoaded", () => {
-  const logueado = localStorage.getItem("logueado");
-  if (logueado !== "true") {
-    // Si no está logueado, redirige al login
-    window.location.href = "login.html";
-  }
-});
-</script>
+                const id = localStorage.getItem("usuarioId");
 
-<script>
-document.addEventListener("DOMContentLoaded", () => {
-  const cerrarSesion = document.querySelector(".nav-Cerrar");
-  cerrarSesion.addEventListener("click", function(e) {
-    e.preventDefault();
+                // Marcar como inactivo en la base
+                fetch("http://localhost/api/crud/usuario_crud.php", {
+                    method: "PUT",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ id_usuario: id, estado: 0 })
+                }).finally(() => {
+                    localStorage.removeItem("logueado");
+                    window.location.href = "HomeGuest.html";
+                });
+            });
+        });
+    </script>
 
-    const id = localStorage.getItem("usuarioId");
-
-    // Marcar como inactivo en la base
-    fetch("http://localhost/api/crud/usuario_crud.php", {
-      method: "PUT",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ id_usuario: id, estado: 0 })
-    }).finally(() => {
-      localStorage.removeItem("logueado");
-      window.location.href = "HomeGuest.html";
-    });
-  });
-});
-</script>
-
-<script src="../Js/PublicarServicios.js"></script>
-<script src="../Js/calificacion.js"></script>
+    <script src="../Js/PublicarServicios.js"></script>
+    <script src="../Js/calificacion.js"></script>
+    <script src="../Js/CargarServicios.js"></script>
 
 </body>
+
 </html>
