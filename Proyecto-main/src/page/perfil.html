@@ -6,6 +6,7 @@
     <title>Perfil de Usuario - UniServicios</title>
     <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;800&family=DM+Serif+Display:ital@0;1&display=swap" rel="stylesheet">
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <link rel="stylesheet" href="../Templates/styleHome.css">
     <link rel="stylesheet" href="../Templates/stylePerfil.css">
 </head>
 <body>
@@ -19,16 +20,22 @@
     </div>
 
     <!-- NAVBAR -->
-    <nav class="navbar-custom">
+    <nav class="navbar-custom" id="navbar">
         <div class="container">
-            <a href="HomePrincipal.html" class="navbar-brand-custom">Uni<span>Servicios</span></a>
-            <div class="navbar-links">
+            <a href="HomePrincipal.html" class="navbar-brand-custom">UniService</a>
+            <div class="navbar-links" id="navbarLinks">
                 <a href="HomePrincipal.html#inicio" class="nav-link-custom">Inicio</a>
                 <a href="HomePrincipal.html#publicar" class="nav-link-custom">Publicar servicio</a>
                 <a href="HomePrincipal.html#mis-servicios" class="nav-link-custom">Mis servicios</a>
-                <a href="perfil.html" class="nav-link-custom nav-active">Perfil</a>
+                <a href="HomePrincipal.html#solicitudes" class="nav-link-custom">Mis solicitudes</a>
+                <a href="HomePrincipal.html#soporte" class="nav-link-custom">Soporte</a>
                 <a href="HomeGuest.html" class="nav-link-custom nav-Cerrar">Cerrar Sesión</a>
             </div>
+            <button class="nav-toggle" id="navToggle">
+                <span></span>
+                <span></span>
+                <span></span>
+            </button>
         </div>
     </nav>
 

@@ -334,3 +334,26 @@ document.addEventListener('DOMContentLoaded', function() {
 document.addEventListener('keydown', function(e) {
     if (e.key === 'Escape') { closeActivityModal(); closeImageMenu(); }
 });
+
+// ═══════════════════════════════════════════
+// MOBILE NAV TOGGLE
+// ═══════════════════════════════════════════
+document.addEventListener('DOMContentLoaded', function() {
+    const navToggle = document.getElementById('navToggle');
+    const navbarLinks = document.getElementById('navbarLinks');
+    const navLinks = document.querySelectorAll('.nav-link-custom');
+
+    if (navToggle) {
+        navToggle.addEventListener('click', function() {
+            this.classList.toggle('active');
+            navbarLinks.classList.toggle('active');
+        });
+
+        navLinks.forEach(link => {
+            link.addEventListener('click', function() {
+                navToggle.classList.remove('active');
+                navbarLinks.classList.remove('active');
+            });
+        });
+    }
+});
