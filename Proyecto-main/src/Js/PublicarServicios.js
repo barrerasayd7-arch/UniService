@@ -1,6 +1,22 @@
 /* ================================
    PUBLICAR SERVICIO
 ================================ */
+const contactoInput = document.getElementById("contacto");
+
+contactoInput.addEventListener("input", function () {
+
+    let valor = contactoInput.value;
+
+    // Si son solo números (teléfono)
+    if (/^\d+$/.test(valor)) {
+
+        if (valor.length > 10) {
+            contactoInput.value = valor.slice(0, 10);
+        }
+
+    }
+
+});
 
 const formPublicar = document.getElementById("form-publicar-servicio");
 
