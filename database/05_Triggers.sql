@@ -1,4 +1,4 @@
-USE Uniservice;
+USE UniService;
 GO
 
 -- =============================================
@@ -11,17 +11,17 @@ IF EXISTS (SELECT * FROM sys.triggers WHERE name = 'tr_servicio_asignar_imagen_d
 GO
 
 CREATE TRIGGER tr_servicio_asignar_imagen_default
-ON servicios
+ON dbo.servicios
 AFTER INSERT
 AS
 BEGIN
     SET NOCOUNT ON;
-    -- Insertamos el registro 'molde' automáticamente para cada nuevo servicio
-    INSERT INTO servicios_imagenes (id_servicio, url_imagen, es_principal)
+    -- Insertamos una imagen por defecto para cada nuevo servicio creado
+    INSERT INTO dbo.servicios_imagenes (id_servicio, url_imagen, es_principal)
     SELECT 
         id_servicio,
-        N'img/default_servicio.png', -- Tu imagen base
-        1 -- La primera siempre es la principal por defecto
+        'img/default_servicio.png', -- imagen por defecto
+        1 -- Siempre es la imagen principal
     FROM inserted;
 END
 GO

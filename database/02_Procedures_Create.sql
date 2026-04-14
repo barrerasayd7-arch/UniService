@@ -1,5 +1,5 @@
 --------------------SCRIPT PROCEDURES CREAR------------------------------
-USE Uniservice;
+USE UniService;
 GO
 
 CREATE OR ALTER PROCEDURE sp_CrearUsuario

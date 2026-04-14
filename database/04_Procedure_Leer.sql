@@ -1,5 +1,5 @@
 --------------------SCRIPT PROCEDURES LEER------------------------------
-USE Uniservice;
+USE UniService;
 GO
 
 -- Eliminar si existe

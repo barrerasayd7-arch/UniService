@@ -1,5 +1,5 @@
 --------------------SCRIPT PROCEDURES ACTUALIZAR------------------------------
-USE Uniservice;
+USE UniService;
 GO
 
 -- Eliminar si existe
