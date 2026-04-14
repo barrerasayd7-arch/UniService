@@ -21,7 +21,7 @@ CREATE PROCEDURE sp_ActualizarUsuario
 AS
 BEGIN
     SET NOCOUNT ON;
-
+    SET QUOTED_IDENTIFIER ON;       
     -- Validar si el usuario existe antes de intentar actualizar
     IF NOT EXISTS (SELECT 1 FROM usuarios WHERE id_usuario = @id_usuario)
     BEGIN

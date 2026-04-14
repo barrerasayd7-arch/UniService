@@ -53,7 +53,7 @@ VALUES (2, 1, 1, 0);
 -- Nota: id_solicitud es 1 (la de Sayd contratando a Lenin)
 -- Lenin (ID 2) califica el servicio de Sayd (ID 1)
 INSERT INTO calificaciones (id_solicitud, id_cliente, id_servicio, puntuacion, comentario)
-VALUES (1, 2, 1, 4, N'¡gran servicio!');
+VALUES (1, 1, 2, 4, N'¡gran servicio!');
 
 -- =============================================
 -- 7. ASPECTOS DESTACADOS
@@ -64,3 +64,5 @@ VALUES
 (1, 'Calidad'),
 (1, 'Comunicación'),
 (1, 'Precio justo');
+
+GO
