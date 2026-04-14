@@ -18,7 +18,7 @@ CREATE TABLE usuarios (
     estado BIT DEFAULT 0, -- 1 Activo, 0 Inactivo
     fecha_registro DATETIME2 DEFAULT GETDATE(),
     universidad BIT DEFAULT 0,
-    avatar NVARCHAR(MAX) DEFAULT 'img/default_avatar.png'
+    avatar NVARCHAR(255) DEFAULT 'img/default_avatar.png'
 );
 
 SET QUOTED_IDENTIFIER ON;
@@ -68,6 +68,19 @@ CREATE TABLE servicios (
     CONSTRAINT fk_servicio_usuario FOREIGN KEY (id_proveedor) REFERENCES usuarios(id_usuario) ON DELETE CASCADE,
     CONSTRAINT fk_servicio_categoria FOREIGN KEY (id_categoria) REFERENCES categorias(id_categoria) ON DELETE SET NULL
 );
+GO
+
+CREATE TABLE servicios_imagenes (
+        id_imagen INT IDENTITY(1,1) PRIMARY KEY,
+        id_servicio INT NOT NULL,
+        url_imagen NVARCHAR(255) NOT NULL,
+        es_principal BIT DEFAULT 0, -- 1 = Portada, 0 = Galería
+        fecha_subida DATETIME2 DEFAULT GETDATE(),
+
+        CONSTRAINT fk_imagen_servicio FOREIGN KEY (id_servicio) 
+            REFERENCES servicios(id_servicio) ON DELETE CASCADE
+    );
+
 GO
 
 -- 5. TABLA DE SOLICITUDES (Versión Minimalista)
