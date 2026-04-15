@@ -54,39 +54,8 @@
     </section>
 
 
-    <!-- ── CHIPS ── -->
-    <div class="chips-bar">
-        <div class="container chips-container">
-            <a href="#" class="chip chip-interactive activo" data-category="tutorias">
-                <span class="chip-icon">📚</span>
-                <span class="chip-text">Tutorías</span>
-            </a>
-            <a href="#" class="chip chip-interactive" data-category="ensayos">
-                <span class="chip-icon">✍️</span>
-                <span class="chip-text">Ensayos</span>
-            </a>
-            <a href="#" class="chip chip-interactive" data-category="proyectos">
-                <span class="chip-icon">🗂️</span>
-                <span class="chip-text">Proyectos</span>
-            </a>
-            <a href="#" class="chip chip-interactive" data-category="programacion">
-                <span class="chip-icon">💻</span>
-                <span class="chip-text">Programación</span>
-            </a>
-            <a href="#" class="chip chip-interactive" data-category="diseno">
-                <span class="chip-icon">🎨</span>
-                <span class="chip-text">Diseño</span>
-            </a>
-            <a href="#" class="chip chip-interactive" data-category="arriendo">
-                <span class="chip-icon">🏠</span>
-                <span class="chip-text">Arriendo</span>
-            </a>
-            <a href="#" class="chip chip-interactive" data-category="otros">
-                <span class="chip-icon">🌐</span>
-                <span class="chip-text">Otros</span>
-            </a>
-        </div>
-    </div>
+   <!-- ── BUSCAR ── -->
+     <section class="section" id="buscar">
 
 
 
@@ -136,9 +105,7 @@ document.addEventListener("DOMContentLoaded", () => {
     window.location.href = "login.html";
   }
 });
-</script>
 
-<script>
     // Manejar cierre de sesión (Borrar variable de login y redirigir a página pública)
 document.addEventListener("DOMContentLoaded", () => {
   const cerrarSesion = document.querySelector(".nav-Cerrar");
@@ -149,6 +116,11 @@ document.addEventListener("DOMContentLoaded", () => {
   });
 });
 </script>
+
+
+        
+     </section>
+    
     
 
 
@@ -200,90 +172,8 @@ document.addEventListener("DOMContentLoaded", () => {
     </section>
 
 
-    <!-- ── BUSCAR ── -->
-    <section class="seccion" id="buscar">
-        <div class="container">
-            <p class="label-seccion">🔍 Búsqueda</p>
-            <h2>Buscar servicios</h2>
-            <p class="seccion-desc">Encuentra exactamente lo que necesitas</p>
+ 
 
-            <div class="caja-formulario">
-                <form action="#">
-                    <fieldset>
-                        <legend class="legend-custom">Filtros de búsqueda</legend>
-
-                        <div class="form-grid cols-3">
-                            <div class="form-grupo col-span-2">
-                                <label for="busqueda" class="form-label">🔍 Palabras clave</label>
-                                <input type="text" class="form-input" id="busqueda"
-                                    placeholder="Ej: tutoría cálculo, ensayo APA...">
-                            </div>
-                            <div class="form-grupo">
-                                <label for="materia" class="form-label">📖 Materia</label>
-                                <input type="text" class="form-input" id="materia"
-                                    placeholder="Ej: Cálculo, Derecho...">
-                            </div>
-                            <div class="form-grupo">
-                                <label for="universidad-buscar" class="form-label">🏫 Universidad</label>
-                                <input type="text" class="form-input" id="universidad-buscar"
-                                    placeholder="Ej: U. Nacional...">
-                            </div>
-                            <div class="form-grupo">
-                                <label for="categoria-buscar" class="form-label">📂 Categoría</label>
-                                <select class="form-select" id="categoria-buscar">
-                                    <option value="">Todas las categorías</option>
-                                    <option value="tutorias">📚 Tutorías</option>
-                                    <option value="ensayos">✍️ Ensayos</option>
-                                    <option value="proyectos">🗂️ Proyectos</option>
-                                    <option value="programacion">💻 Programación</option>
-                                    <option value="diseno">🎨 Diseño</option>
-                                    <option value="arriendo">🏠 Arriendo de habitaciones</option>
-                                    <option value="otros">🌐 Otros servicios</option>
-                                </select>
-                            </div>
-                            <div class="form-grupo">
-                                <label for="precio-max" class="form-label">💰 Precio máximo (COP)</label>
-                                <input type="number" class="form-input" id="precio-max" placeholder="Ej: 50000">
-                            </div>
-                            <div class="form-grupo">
-                                <label for="calificacion" class="form-label">⭐ Calificación mínima</label>
-                                <select class="form-select" id="calificacion">
-                                    <option value="">Cualquier calificación</option>
-                                    <option value="5">★★★★★ 5.0 únicamente</option>
-                                    <option value="4">★★★★☆ 4.0 o más</option>
-                                    <option value="3">★★★☆☆ 3.0 o más</option>
-                                </select>
-                            </div>
-                        </div>
-
-                        <div class="form-btns">
-                            <a href="ServiciosTotales.html" class="btn btn-verde">🔍 Buscar</a>
-                            <button type="reset" class="btn btn-borde">🗑️ Limpiar filtros</button>
-                        </div>
-                    </fieldset>
-                </form>
-            </div>
-
-            <div class="sort-bar">
-                <p class="texto-muted">Mostrando <strong class="texto-claro">x resultados</strong> ordenados por
-                    calificación</p>
-                <select class="form-select select-ordenar" id="ordenar-servicios">
-                    <option>Mejor calificados primero</option>
-                    <option>Más recientes</option>
-                    <option>Precio: menor a mayor</option>
-                    <option>Precio: mayor a menor</option>
-                </select>
-            </div>
-            Mostrando <strong class="texto-claro" id="total-resultados">0</strong> resultados
-
-            <div class="cards-grid" id="contenedor-servicios">
-              
-            </div>
-            <div id="btn-mostrar-mas" style="text-align:center; margin-top:30px;">
-                <button class="btn btn-verde">Mostrar más servicios</button>
-            </div>
-        </div>
-    </section>
 
 
     <!-- ── PUBLICAR ── -->
