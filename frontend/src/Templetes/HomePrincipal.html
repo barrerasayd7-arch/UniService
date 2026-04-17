@@ -8,8 +8,8 @@
     <link
         href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;800&family=DM+Serif+Display:ital@0;1&display=swap"
         rel="stylesheet">
-    <link rel="stylesheet" href="../Templates/styleHome.css">
-    <link rel="stylesheet" href="../Templates/styleCalificacion.css">
+    <link rel="stylesheet" href="../styles/StylePage/styleHome.css">
+    <link rel="stylesheet" href="../styles/StylePage/styleCalificacion.css">
 </head>
 
 <body>
@@ -120,7 +120,7 @@ document.addEventListener("DOMContentLoaded", () => {
   const logueado = localStorage.getItem("logueado");
   if (logueado !== "true") {
     // Si no está logueado, redirige al login
-    window.location.href = "login.html";
+    window.location.href = "Login.html";
   }
 });
 
@@ -564,7 +564,7 @@ document.addEventListener("DOMContentLoaded", () => {
             const logueado = localStorage.getItem("logueado");
             if (logueado !== "true") {
                 // Si no está logueado, redirige al login
-                window.location.href = "login.html";
+                window.location.href = "Login.html";
             }
         });
     </script>
@@ -590,11 +590,11 @@ document.addEventListener("DOMContentLoaded", () => {
         });
     </script>
 
-    <script src="../Js/servicios/PublicarServicios.js"></script>
-    <script src="../Js/calificacion.js"></script>
-    <script src="../Js/servicios/LoadService.js"></script>
-    <script src="../Js/servicios/LoadAllService.js"></script>
-    <script src="../Js/Servicios/explorarServicios.js"></script>
+    <script src="../Pages/servicios/PublicarServicios.js"></script>
+    <script src="../Pages/calificacion.js"></script>
+    <script src="../Pages/servicios/LoadService.js"></script>
+    <script src="../Pages/servicios/LoadAllService.js"></script>
+    <script src="../Pages/servicios/explorarServicios.js"></script>
 
 </body>
 
