@@ -172,7 +172,7 @@ fieldset { border: none; padding: 0; }
   content: '';
   position: absolute;
   inset: 0;
-  background-image: url(../../img/fondo1.png);
+  background-image: url(../img/fondo1.png);
   background-size: cover;
   background-position: center;
   opacity: 0.35;        /* ajusta entre 0.1 y 0.25 a tu gusto */
