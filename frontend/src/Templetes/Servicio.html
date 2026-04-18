@@ -7,6 +7,10 @@
     <title>Detalles del Servicio - UniService</title>
     <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;800&family=DM+Serif+Display:ital@0;1&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="../styles/StylePage/styleHome.css">
+    <script type="module">
+        import { cerrarSesion } from "../lib/logoutHandler.js";
+        window.cerrarSesion = cerrarSesion;
+    </script>
     <style>
         /* ── ESTILOS ESPECÍFICOS PARA VISTA DE SERVICIO ── */
 
@@ -486,7 +490,10 @@
             }
         }
     </style>
-</head>
+    <script type="module">
+        import { cerrarSesion } from "../lib/logoutHandler.js";
+        window.cerrarSesion = cerrarSesion;
+    </script>
 
 <body>
 
@@ -499,7 +506,7 @@
                 <a href="HomePrincipal.html#recientes" class="nav-link-custom">Servicios</a>
                 <a href="HomePrincipal.html#publicar" class="nav-link-custom">Publicar servicio</a>
                 <a href="perfil.html" class="nav-link-custom">Perfil</a>
-                <a href="HomeGuest.html" class="nav-link-custom nav-Cerrar">Cerrar Sesión</a>
+                <a href="javascript:void(0)" onclick="cerrarSesion()" class="nav-link-custom nav-Cerrar">Cerrar Sesión</a>
             </div>
         </div>
     </nav>

@@ -8,8 +8,7 @@
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <link rel="stylesheet" href="../styles/styleHome.css">
     <link rel="stylesheet" href="../styles/StylePage/stylePerfil.css">
-
-</head>
+    
 <body>
     <!-- Fondo dinámico -->
     <div class="dynamic-bg">
@@ -25,10 +24,7 @@
         <div class="container">
             <a href="HomePrincipal.html" class="navbar-brand-custom">UniService</a>
             <div class="navbar-links" id="navbarLinks">
-                <a href="HomePrincipal.html#inicio" class="nav-link-custom">Inicio</a>
-                <a href="HomePrincipal.html#publicar" class="nav-link-custom">Publicar servicio</a>
-                <a href="HomePrincipal.html#mis-servicios" class="nav-link-custom">Mis servicios</a>
-                <a href="HomePrincipal.html#solicitudes" class="nav-link-custom">Mis solicitudes</a>
+                <a href="HomePrincipal.html#inicio" class="nav-link-custom">Regresar</a>
                 <a href="HomePrincipal.html#soporte" class="nav-link-custom">Soporte</a>
                 <a href="javascript:void(0)" onclick="cerrarSesion()" class="nav-link-custom nav-Cerrar">Cerrar Sesión</a>
             </div>
@@ -385,27 +381,6 @@ document.addEventListener("DOMContentLoaded", () => {
     // Si no está logueado, redirige al login
     window.location.href = "Login.html";
   }
-});
-</script>
-
-<script>
-document.addEventListener("DOMContentLoaded", () => {
-  const cerrarSesion = document.querySelector(".nav-Cerrar");
-  cerrarSesion.addEventListener("click", function(e) {
-    e.preventDefault();
-
-    const id = localStorage.getItem("usuarioId");
-
-    // Marcar como inactivo en la base
-    fetch("http://localhost/api/crud/usuario_crud.php", {
-      method: "PUT",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ id_usuario: id, estado: 0 })
-    }).finally(() => {
-      localStorage.removeItem("logueado");
-      window.location.href = "HomeGuest.html";
-    });
-  });
 });
 </script>
 

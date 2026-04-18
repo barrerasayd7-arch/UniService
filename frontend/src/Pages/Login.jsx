@@ -1,14 +1,13 @@
 import { useState, useEffect } from "react";
 import "../styles/StylePage/StyleLogin.css";
 import { useNavigate } from "react-router-dom";
+import { logoutUser } from "../lib/authApi.js";
 
 
 export default function Login() {
   const navigate = useNavigate();
-   const handleInvitado = () => {
-    localStorage.removeItem("logueado");
-    localStorage.removeItem("usuario");
-    localStorage.removeItem("usuarioTelefono");
+   const handleInvitado = async () => {
+    await logoutUser();
     navigate("/home-guest");
   };
   // ===== STATES =====

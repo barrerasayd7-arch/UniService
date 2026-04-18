@@ -10,6 +10,7 @@
         rel="stylesheet">
     <link rel="stylesheet" href="../styles/styleHome.css">
     <link rel="stylesheet" href="../styles/StylePage/styleCalificacion.css">
+
 </head>
 
 <body>
@@ -26,7 +27,7 @@
                 <a href="#solicitudes" class="nav-link-custom">Mis solicitudes</a>
                 <a href="perfil.html" class="nav-link-custom">Perfil</a>
                 <a href="#soporte" class="nav-link-custom">Soporte</a>
-                <a href="HomeGuest.html" class="nav-link-custom nav-Cerrar">Cerrar Sesión</a>
+                <a href="javascript:void(0)" onclick="cerrarSesion()" class="nav-link-custom nav-Cerrar">Cerrar Sesión</a>
             </div>
             <button class="nav-toggle" id="navToggle">
                 <span></span>
@@ -588,6 +589,11 @@ document.addEventListener("DOMContentLoaded", () => {
                 });
             });
         });
+    </script>
+
+    <script type="module">
+        import { cerrarSesion } from "../lib/logoutHandler.js";
+        window.cerrarSesion = cerrarSesion;
     </script>
 
     <script src="../Pages/servicios/PublicarServicios.js"></script>
