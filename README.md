@@ -1,18 +1,18 @@
 <p align="center">
-  <img src="../Proyecto/frontend/src/img/Logo+name_color_git.png" alt="UniServices Logo" width="350">
+  <img src="./Proyecto/frontend/src/img/Logo+name_color_git.png" alt="Logo UniService" width="750">
 </p>
 
 <p align="center">
-  <a href="#-sobre-uniservices"><img src="[https://img.shields.io/badge/version-1.2.5-blue.svg?style=flat-square](https://img.shields.io/badge/version-1.2.5-blue.svg?style=flat-square)" alt="version"></a>
-  <a href="#-estructura-del-repositorio"><img src="[https://img.shields.io/badge/Frontend-React_JSX-cyan.svg?style=flat-square](https://img.shields.io/badge/Frontend-React_JSX-cyan.svg?style=flat-square)" alt="React"></a>
-  <a href="#-tecnologías"><img src="[https://img.shields.io/badge/Database-SQL_Server_2025-red.svg?style=flat-square](https://img.shields.io/badge/Database-SQL_Server_2025-red.svg?style=flat-square)" alt="SQL Server"></a>
-  <a href="#-instalación-y-uso"><img src="[https://img.shields.io/badge/Infrastructure-Docker-2496ED.svg?style=flat-square](https://img.shields.io/badge/Infrastructure-Docker-2496ED.svg?style=flat-square)" alt="Docker"></a>
+  <a href="#"><img src="https://img.shields.io/badge/version-1.2.5-blue.svg?style=flat-square" alt="version"></a>
+  <a href="#"><img src="https://img.shields.io/badge/Frontend-React_&_JSX-cyan.svg?style=flat-square" alt="React"></a>
+  <a href="#"><img src="https://img.shields.io/badge/Database-SQL_Server_2025-red.svg?style=flat-square" alt="SQL Server"></a>
+  <a href="#"><img src="https://img.shields.io/badge/Infrastructure-Docker-2496ED.svg?style=flat-square" alt="Docker"></a>
 </p>
 
 <p align="center"><b>Convierte tu conocimiento en oportunidades. La plataforma segura para el intercambio estudiantil.</b></p>
 
 <p align="center">
-  <img src="./frontend/src/img/Img_Read_me.png" alt="UniService Banner" width="750" style="border-radius: 10px;">
+  <img src="./frontend/src/img/Img_Read_me.png" alt="UniService Banner" width="750" style="corner-radius: 10px;">
 </p>
 
 ---
@@ -65,13 +65,19 @@ Arquitectura: Contenedores con Docker & Docker Compose
 
 1. Clonar el repositorio
 
+1️⃣
+```bash
 git clone https://github.com/tu-usuario/UniServices.git
+```
+2️⃣
+```bash
 cd UniServices
-
+```
 2. Despliegue con Docker
 
+ ```bash
 docker-compose up --build
-
+```
 <h2 id="-contribuir">🤝 Contribuir</h2>
 
 Si quieres ayudar a mejorar UniService:
@@ -86,6 +92,9 @@ Haz un Push a la rama (git push origin feature/MejoraIncreible).
 
 Abre un Pull Request.
 
-<p align="center">
+---
+---
+
+<h2 align="center">
 Hecho con ❤️ por y para estudiantes 🎓
-</p>
+</h2>
