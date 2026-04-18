@@ -56,8 +56,19 @@
 
 
    <!-- ── BUSCAR ── -->
-     <section class="section" id="buscar">
+    <section class="seccion seccion-oscura" id="buscar">
 
+    <div class="container chips-container" id="filtros-categorias">
+        <button class="chip activo" onclick="filtrarPorCategoria('todos', this)">🌐 Todos</button>
+        <button class="chip" onclick="filtrarPorCategoria('tutorias', this)">📚 Tutorías</button>
+        <button class="chip" onclick="filtrarPorCategoria('ensayos', this)">✍️ Ensayos</button>
+        <button class="chip" onclick="filtrarPorCategoria('proyectos', this)">🗂️ Proyectos</button>
+        <button class="chip" onclick="filtrarPorCategoria('programacion', this)">💻 Programación</button>
+        <button class="chip" onclick="filtrarPorCategoria('diseno', this)">🎨 Diseño</button>
+        <button class="chip" onclick="filtrarPorCategoria('arriendo', this)">🏠 Arriendo</button>
+    </div>
+    <br>
+  
     <header class="seccion" style="padding-bottom: 0;">
         <div class="container text-center">
             <p class="label-seccion">Marketplace  Universitario</p>
@@ -70,22 +81,13 @@
             </div>
         </div>
     </header>
+    <br>
 
- 
-        <div class="container chips-container" id="filtros-categorias">
-            <button class="chip activo" onclick="filtrarPorCategoria('todos', this)">🌐 Todos</button>
-            <button class="chip" onclick="filtrarPorCategoria('tutorias', this)">📚 Tutorías</button>
-            <button class="chip" onclick="filtrarPorCategoria('ensayos', this)">✍️ Ensayos</button>
-            <button class="chip" onclick="filtrarPorCategoria('proyectos', this)">🗂️ Proyectos</button>
-            <button class="chip" onclick="filtrarPorCategoria('programacion', this)">💻 Programación</button>
-            <button class="chip" onclick="filtrarPorCategoria('diseno', this)">🎨 Diseño</button>
-            <button class="chip" onclick="filtrarPorCategoria('arriendo', this)">🏠 Arriendo</button>
-        </div>
-  
         <div class="container">
             <div class="sort-bar">
-                <p class="texto-muted">Resultados: <strong id="total-resultados" class="texto-claro">0</strong></p>
-                    <div class="container">
+                <p class="texto-muted">Resultados: <strong id="total-resultados" class="texto-claro">0</strong>
+                </p>
+                <div class="container">
 
         <div class="sort-bar">
             <!-- COMBO BOX DE ORDEN -->
