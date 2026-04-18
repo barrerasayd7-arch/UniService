@@ -394,7 +394,7 @@ fieldset { border: none; padding: 0; }
   filter: blur(50px);
 }
 
-.seccion-negra  { background-color: #000; }
+.seccion-negra  { background: linear-gradient(135deg, var(--bg2) 0%, #030a12 50%, var(--bg2) 100%); }
 
 .label-seccion {
   font-size: 0.72rem;
@@ -934,7 +934,7 @@ textarea.form-input {
 
 .select-ordenar { width: auto; }
 
-.publicar-wrapper { max-width: 720px; margin: 0 auto; }
+.publicar-wrapper { max-width: 1200px; margin: 0 auto; }
 
 /* ══════════════════════════════
    RESPONSIVE
