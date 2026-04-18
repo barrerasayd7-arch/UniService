@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="./Proyecto/frontend/src/img/Logo+name_color_git.png" alt="Logo UniService" width="750">
+  <img src="./frontend/src/img/Logo+name_color_git.png" alt="Logo UniService" width="750">
 </p>
 
 <p align="center">
