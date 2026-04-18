@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="./frontend/src/img/Logo+name_color_git.png" alt="Logo UniService" width="750">
+  <img src="./frontend/src/img/Logo+name_color_git.png" alt="Logo UniService" width="450">
 </p>
 
 <p align="center">
@@ -10,10 +10,6 @@
 </p>
 
 <p align="center"><b>Convierte tu conocimiento en oportunidades. La plataforma segura para el intercambio estudiantil.</b></p>
-
-<p align="center">
-  <img src="./frontend/src/img/Img_Read_me.png" alt="UniService Banner" width="750" style="corner-radius: 10px;">
-</p>
 
 ---
 
@@ -28,6 +24,10 @@ A diferencia de los grupos informales en redes sociales, ofrece un entorno **seg
 - **Repositorio Académico:** Acceso a material y guías actualizadas.
 - **Sistema de Calificaciones:** Retroalimentación real entre usuarios.
 - **Interfaz Moderna:** Experiencia optimizada para jóvenes universitarios.
+
+<p align="center">
+  <img src="./frontend/src/img/Img_Read_me.png" alt="UniService Banner" width="750" style="corner-radius: 10px;">
+</p>
 
 ---
 
