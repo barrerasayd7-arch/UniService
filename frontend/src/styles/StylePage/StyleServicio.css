@@ -4,6 +4,13 @@
    ═══════════════════════════════════════════ */
 
 /* ── HERO BREADCRUMB ── */
+
+body {
+  background-color: #070d16;
+  color: #e8eef8;
+  font-family: 'Poppins', sans-serif;
+  min-height: 100vh;
+}
 .detalle-hero {
   background: linear-gradient(135deg, rgba(14, 165, 160, 0.08) 0%, rgba(14, 165, 160, 0.02) 100%);
   border-bottom: 1px solid var(--borde);
@@ -46,7 +53,7 @@
 .imagen-grande {
   width: 100%;
   height: 360px;
-  background: linear-gradient(135deg, rgba(14, 165, 160, 0.12), rgba(14, 165, 160, 0.03));
+  background: linear-gradient(135deg, #0b1420 0%, #0f1c2e 100%);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -205,7 +212,7 @@
 
 /* ── TARJETA PROVEEDOR ── */
 .card-proveedor {
-  background: linear-gradient(135deg, var(--card) 0%, rgba(14, 165, 160, 0.04) 100%);
+  background: linear-gradient(135deg, #0e1929 0%, rgba(14, 165, 160, 0.08) 100%);
   border: 2px solid var(--borde);
   border-radius: 16px;
   padding: 32px 24px;
