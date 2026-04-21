@@ -1,5 +1,4 @@
 import React from "react";
-import "../styles/StylePage/styleHome.css";
 import "../styles/StylePage/styleTerms.css";
 
 const TermsPage = () => {

@@ -3,6 +3,8 @@ import Login from "./Pages/Login.jsx";
 import HomeGuest from "./Pages/HomeGuest.jsx";
 import HomePrincipal from "./Pages/HomePrincipal.jsx";
 import Servicio from "./Pages/Servicio.jsx";
+import PrivacyPage from "./Pages/Privacy.jsx";
+import TermsPage from "./Pages/Terms.jsx";
 
 export default function App() {
   return (
@@ -12,7 +14,9 @@ export default function App() {
         <Route path="/login"       element={<Login />} />
         <Route path="/home-guest"  element={<HomeGuest />} />
         <Route path="/home"        element={<HomePrincipal />} />
-        <Route path="/servicio" element={<Servicio />} />
+        <Route path="/servicio"    element={<Servicio />} />
+        <Route path="/privacidad"  element={<PrivacyPage />} />
+        <Route path="/terminos"    element={<TermsPage />} />
       </Routes>
     </BrowserRouter>
   );
