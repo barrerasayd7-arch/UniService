@@ -1,11 +1,15 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import Navbar from '../Components/Navbar_Perfil'; // Asegúrate de que la ruta a tu componente Navbar sea correcta
+import Navbar from '../Components/Navbar_Perfil'; 
 import '../styles/StylePage/styleHome.css';
 import '../styles/StylePage/stylePerfil.css';
 
 const Perfil = () => {
+    // Hook para redireccionar a otras rutas (como el home-guest al cerrar sesión)
     const navigate = useNavigate();
+
+    // Estado principal que almacena toda la información del usuario
+    // Se inicializa con valores por defecto para evitar errores de "undefined" mientras carga la API
     const [userData, setUserData] = useState({
         nombre: 'Cargando...',
         avatar: '../src/img/default-avatar.png',
@@ -19,26 +23,19 @@ const Perfil = () => {
         reputacion: '4.9'
     });
 
-    const handleCerrarSesion = async () => {
-        const id = localStorage.getItem("usuarioId");
-        try {
-            await fetch("http://localhost/api/crud/usuario_crud.php", {
-                method: "PUT",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ id_usuario: id, estado: 0 })
-            });
-        } catch (error) {
-            console.error("Error:", error);
-        } finally {
-            localStorage.clear();      // Limpia todo el login
-            navigate("/home-guest");   // Redirige a Home Guest
-        }
-    };
-
+    // Estado para controlar qué modal está abierto (ej: 'info', 'imagen', 'actividad' o null)
     const [activeModal, setActiveModal] = useState(null);
+
+    // Obtención del ID del usuario desde el almacenamiento local del navegador
     const id_usuario = localStorage.getItem("usuarioId");
 
+    /**
+     * EFECTO SECUNDARIO (useEffect):
+     * 1. Carga los datos del perfil desde el servidor al entrar a la página.
+     * 2. Escucha la tecla 'Escape' para cerrar cualquier modal abierto.
+     */
     useEffect(() => {
+        // Petición GET al script de PHP para obtener los datos del usuario por ID
         if (id_usuario) {
             fetch(`http://localhost/api/crud/UserPerfil.php?id=${id_usuario}`)
                 .then(res => res.json())
@@ -48,13 +45,21 @@ const Perfil = () => {
                 .catch(err => console.error("Error al cargar perfil:", err));
         }
 
+        // Manejador de eventos para cerrar modales con la tecla ESC
         const handleKeyDown = (e) => {
             if (e.key === 'Escape') setActiveModal(null);
         };
         window.addEventListener('keydown', handleKeyDown);
+        
+        // Limpieza del evento cuando el componente se desmonta para evitar fugas de memoria
         return () => window.removeEventListener('keydown', handleKeyDown);
     }, [id_usuario]);
 
+    /**
+     * FUNCIÓN: handleUpdate
+     * Actualiza un campo específico (nombre, correo, etc.) en la base de datos
+     * mediante el método PUT y actualiza el estado local para reflejar los cambios.
+     */
     const handleUpdate = async (campo, valor) => {
         try {
             const res = await fetch("http://localhost/api/crud/usuario_crud.php", {
@@ -64,6 +69,7 @@ const Perfil = () => {
             });
             const result = await res.json();
             if (result.ok) {
+                // Actualiza solo el campo modificado en el estado local
                 setUserData(prev => ({ ...prev, [campo]: valor }));
                 setActiveModal(null);
             }
@@ -72,27 +78,52 @@ const Perfil = () => {
         }
     };
 
-const handleShare = async () => {
-  const shareData = {
-    title: 'UniServices - Perfil de ' + userData.nombre,
-    text: '¡Mira mi perfil en UniServices!',
-    url: window.location.href, 
-  };
+    /**
+     * FUNCIÓN: handleCerrarSesion
+     * Cambia el estado del usuario a offline en la DB, limpia el localStorage
+     * y redirige al usuario a la página de bienvenida.
+     */
+    const handleCerrarSesion = async () => {
+        const id = localStorage.getItem("usuarioId");
+        try {
+            await fetch("http://localhost/api/crud/usuario_crud.php", {
+                method: "PUT",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ id_usuario: id, estado: 0 }) // estado 0 = Desconectado
+            });
+        } catch (error) {
+            console.error("Error:", error);
+        } finally {
+            localStorage.clear();      // Borra datos de sesión
+            navigate("/home-guest");   // Salida forzada a la página de invitados
+        }
+    };
 
-  try {
-    if (navigator.share) {
-      // Menú nativo en móviles
-      await navigator.share(shareData);
-    } else {
-      // Fallback para PC: Copiar al portapapeles
-      await navigator.clipboard.writeText(window.location.href);
-      alert('¡Enlace de perfil copiado al portapapeles!');
-    }
-  } catch (err) {
-    console.error('Error al compartir:', err);
-  }
-};
+    /**
+     * FUNCIÓN: handleShare
+     * Utiliza la API nativa de los navegadores para compartir el enlace del perfil.
+     * Si el navegador no soporta el menú de compartir, copia el link al portapapeles.
+     */
+    const handleShare = async () => {
+        const shareData = {
+            title: 'UniServices - Perfil de ' + userData.nombre,
+            text: '¡Mira mi perfil en UniServices!',
+            url: window.location.href, 
+        };
 
+        try {
+            if (navigator.share) {
+                await navigator.share(shareData); // Abre menú en móviles/tablets
+            } else {
+                await navigator.clipboard.writeText(window.location.href); // Fallback para PC
+                alert('¡Enlace de perfil copiado al portapapeles!');
+            }
+        } catch (err) {
+            console.error('Error al compartir:', err);
+        }
+    };
+
+    // ... Continúa el return (JSX)
     return (
         <>
             <Navbar onCerrarSesion={handleCerrarSesion} />
