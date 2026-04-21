@@ -1,0 +1,427 @@
+/* ═══════════════════════════════════════════
+   UniServicios — styleServicio.css
+   Colores consistentes con styleHome.css
+   ═══════════════════════════════════════════ */
+
+/* ── HERO BREADCRUMB ── */
+.detalle-hero {
+  background: linear-gradient(135deg, rgba(14, 165, 160, 0.08) 0%, rgba(14, 165, 160, 0.02) 100%);
+  border-bottom: 1px solid var(--borde);
+  padding: 28px 0;
+  margin-bottom: 48px;
+}
+
+.breadcrumb {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  font-size: 0.85rem;
+}
+
+.breadcrumb a {
+  color: var(--teal);
+  transition: var(--trans);
+}
+
+.breadcrumb a:hover { color: var(--teal2); }
+.breadcrumb span    { color: var(--texto2); }
+
+/* ── GRID PRINCIPAL ── */
+.grid-detalle {
+  display: grid;
+  grid-template-columns: 2fr 1fr;
+  gap: 40px;
+  margin-bottom: 60px;
+}
+
+/* ── GALERÍA ── */
+.galeria-principal {
+  background: var(--card);
+  border: 1px solid var(--borde);
+  border-radius: 16px;
+  overflow: hidden;
+  margin-bottom: 24px;
+}
+
+.imagen-grande {
+  width: 100%;
+  height: 360px;
+  background: linear-gradient(135deg, rgba(14, 165, 160, 0.12), rgba(14, 165, 160, 0.03));
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 5rem;
+  transition: var(--trans);
+}
+
+.galeria-miniaturas {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 8px;
+  padding: 12px;
+  background: var(--bg2);
+}
+
+.miniatura {
+  aspect-ratio: 1;
+  background: var(--card);
+  border: 2px solid var(--borde);
+  border-radius: 8px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.5rem;
+  transition: var(--trans);
+  outline: none;
+}
+
+.miniatura:hover { border-color: var(--teal); background: var(--teal-dim); }
+.miniatura.activa { border-color: var(--teal); background: rgba(14, 165, 160, 0.15); }
+
+/* ── INFO PRINCIPAL ── */
+.info-principal {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  margin-bottom: 24px;
+}
+
+.header-servicio {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 16px;
+}
+
+.titulo-servicio h1 {
+  font-size: 1.9rem;
+  margin-bottom: 10px;
+  color: var(--texto);
+  line-height: 1.2;
+}
+
+.rating-grande {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+}
+
+.estrellas-grande {
+  color: var(--amarillo);
+  font-size: 1.3rem;
+  letter-spacing: 2px;
+}
+
+.texto-rating {
+  color: var(--texto2);
+  font-size: 0.9rem;
+  line-height: 1.6;
+}
+
+.texto-rating strong { color: var(--texto); }
+
+.desc-completa {
+  color: var(--texto);
+  line-height: 1.8;
+  font-size: 0.95rem;
+  background: var(--card);
+  padding: 24px;
+  border-radius: 12px;
+  border: 1px solid var(--borde);
+}
+
+/* ── SECCIONES INFO ── */
+.seccion-info {
+  background: var(--card);
+  border: 1px solid var(--borde);
+  border-radius: 12px;
+  padding: 24px;
+  margin-bottom: 24px;
+}
+
+.seccion-info h3 {
+  font-size: 1rem;
+  font-weight: 700;
+  margin-bottom: 16px;
+  color: var(--texto);
+  border-bottom: 2px solid var(--teal);
+  padding-bottom: 12px;
+}
+
+.info-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 12px 0;
+  border-bottom: 1px solid var(--borde);
+}
+
+.info-row:last-child { border-bottom: none; }
+
+.info-label { color: var(--texto2); font-size: 0.88rem; font-weight: 500; }
+.info-valor { color: var(--teal);   font-size: 0.88rem; font-weight: 700; }
+
+/* ── RESEÑAS ── */
+.resenas-container { display: flex; flex-direction: column; gap: 16px; }
+
+.resena {
+  background: var(--bg2);
+  border: 1px solid var(--borde);
+  border-radius: 12px;
+  padding: 16px 20px;
+  transition: var(--trans);
+}
+
+.resena:hover { border-color: var(--borde2); }
+
+.resena-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 12px;
+}
+
+.resena-autor { display: flex; align-items: center; gap: 12px; }
+
+.avatar-resena {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, var(--teal), var(--teal2));
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 700;
+  font-size: 0.85rem;
+  color: #070d16;
+  flex-shrink: 0;
+}
+
+.resena-info h4 { font-size: 0.92rem; margin-bottom: 2px; color: var(--texto); }
+.resena-fecha   { color: var(--texto3); font-size: 0.78rem; }
+.resena-rating  { color: var(--amarillo); font-size: 0.88rem; letter-spacing: 1px; }
+.resena-texto   { color: var(--texto2); line-height: 1.6; font-size: 0.88rem; }
+
+/* ── TARJETA PROVEEDOR ── */
+.card-proveedor {
+  background: linear-gradient(135deg, var(--card) 0%, rgba(14, 165, 160, 0.04) 100%);
+  border: 2px solid var(--borde);
+  border-radius: 16px;
+  padding: 32px 24px;
+  text-align: center;
+  margin-bottom: 24px;
+  transition: all 0.3s ease;
+}
+
+.card-proveedor:hover {
+  border-color: var(--teal);
+  box-shadow: 0 8px 24px rgba(14, 165, 160, 0.1);
+}
+
+.avatar-grande {
+  width: 80px;
+  height: 80px;
+  border-radius: 50%;
+  margin: 0 auto 16px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.6rem;
+  font-weight: 800;
+  color: #fff;
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.3);
+}
+
+.ag-azul    { background: linear-gradient(135deg, #3b82f6, #60a5fa); }
+.ag-morado  { background: linear-gradient(135deg, #8b5cf6, #a78bfa); }
+.ag-verde   { background: linear-gradient(135deg, #0ea5a0, #14c7c1); }
+.ag-naranja { background: linear-gradient(135deg, #f97316, #fb923c); }
+
+.nombre-proveedor   { font-size: 1.15rem; font-weight: 700; color: var(--texto); margin-bottom: 4px; }
+.ubicacion-proveedor { color: var(--texto2); font-size: 0.88rem; margin-bottom: 20px; }
+
+/* ── BOTONES ── */
+.btn-primary {
+  display: inline-block;
+  width: 100%;
+  padding: 13px 24px;
+  background: var(--teal);
+  color: #070d16;
+  border: none;
+  border-radius: 12px;
+  font-family: 'Poppins', sans-serif;
+  font-size: 0.95rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: var(--trans);
+  margin-bottom: 12px;
+  text-decoration: none;
+  box-shadow: 0 4px 12px rgba(14, 165, 160, 0.2);
+}
+
+.btn-primary:hover {
+  background: var(--teal2);
+  transform: translateY(-2px);
+  box-shadow: 0 8px 20px rgba(14, 165, 160, 0.3);
+}
+
+.btn-primary:disabled {
+  opacity: 0.7;
+  cursor: wait;
+  transform: none;
+}
+
+.btn-secondary {
+  display: inline-block;
+  width: 100%;
+  padding: 13px 24px;
+  background: transparent;
+  color: var(--texto);
+  border: 2px solid var(--borde);
+  border-radius: 12px;
+  font-family: 'Poppins', sans-serif;
+  font-size: 0.95rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: var(--trans);
+  text-decoration: none;
+}
+
+.btn-secondary:hover {
+  border-color: var(--teal);
+  color: var(--teal);
+  background: rgba(14, 165, 160, 0.05);
+}
+
+/* ── FORMULARIO SOLICITUD ── */
+.form-solicitud {
+  background: linear-gradient(135deg, var(--card) 0%, rgba(14, 165, 160, 0.02) 100%);
+  border: 1px solid var(--borde);
+  border-radius: 16px;
+  padding: 28px 24px;
+}
+
+.form-solicitud h3 {
+  font-size: 1rem;
+  font-weight: 700;
+  margin-bottom: 24px;
+  color: var(--texto);
+  border-bottom: 2px solid var(--teal);
+  padding-bottom: 12px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.form-grupo-custom {
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+  margin-bottom: 18px;
+}
+
+.form-label-custom {
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--texto2);
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  transition: var(--trans);
+}
+
+.form-grupo-custom.filled .form-label-custom { color: var(--teal); }
+
+.form-input-custom,
+.form-select-custom,
+textarea.form-input-custom {
+  width: 100%;
+  padding: 12px 14px;
+  background: var(--bg2);
+  border: 2px solid var(--borde);
+  border-radius: 10px;
+  color: var(--texto);
+  font-family: 'Poppins', sans-serif;
+  font-size: 0.88rem;
+  outline: none;
+  transition: all 0.3s ease;
+  appearance: none;
+  -webkit-appearance: none;
+}
+
+.form-input-custom::placeholder,
+textarea.form-input-custom::placeholder { color: var(--texto3); }
+
+.form-input-custom:hover,
+.form-select-custom:hover,
+textarea.form-input-custom:hover {
+  border-color: var(--borde2);
+}
+
+.form-input-custom:focus,
+.form-select-custom:focus,
+textarea.form-input-custom:focus {
+  border-color: var(--teal);
+  background: var(--bg3);
+  box-shadow: 0 0 0 3px rgba(14, 165, 160, 0.12);
+}
+
+.form-grupo-custom.filled .form-input-custom,
+.form-grupo-custom.filled .form-select-custom { border-color: rgba(14, 165, 160, 0.4); }
+
+textarea.form-input-custom {
+  resize: vertical;
+  min-height: 110px;
+  line-height: 1.6;
+}
+
+.form-select-custom {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath fill='%230ea5a0' d='M6 8L0 0h12z'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 14px center;
+  background-color: var(--bg2);
+  padding-right: 36px;
+  cursor: pointer;
+}
+
+.form-select-custom option { background: var(--bg2); color: var(--texto); }
+
+/* ── SKELETON LOADER ── */
+.skeleton-wrapper { padding: 40px 0; }
+
+.skeleton {
+  background: linear-gradient(90deg, var(--bg2) 25%, var(--bg3) 50%, var(--bg2) 75%);
+  background-size: 200% 100%;
+  animation: shimmer 1.5s infinite;
+  border-radius: 8px;
+  margin-bottom: 16px;
+}
+
+.sk-title { height: 40px; width: 60%; }
+.sk-text  { height: 20px; width: 90%; }
+.sk-short { width: 40%; }
+
+@keyframes shimmer {
+  0%   { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
+}
+
+/* ── RESPONSIVE ── */
+@media (max-width: 1024px) {
+  .grid-detalle { grid-template-columns: 1fr; gap: 24px; }
+  .imagen-grande { height: 280px; }
+}
+
+@media (max-width: 768px) {
+  .titulo-servicio h1 { font-size: 1.5rem; }
+  .header-servicio    { flex-direction: column; }
+  .galeria-miniaturas { grid-template-columns: repeat(3, 1fr); }
+  .detalle-hero       { margin-bottom: 28px; }
+}
+
+@media (max-width: 540px) {
+  .form-solicitud    { padding: 20px 16px; }
+  .card-proveedor    { padding: 24px 16px; }
+  .seccion-info      { padding: 16px; }
+}
