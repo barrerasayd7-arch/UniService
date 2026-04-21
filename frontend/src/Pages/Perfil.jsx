@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import "../styles/StylePage/StylePerfil.css"; // Ajusta la ruta según tu carpeta styles
+import "../styles/StylePage/StylePerfil.css";
 import logoIcon from "../img/logo_color_noBG.png";
 
 export default function Perfil() {

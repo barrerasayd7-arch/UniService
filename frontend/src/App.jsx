@@ -18,7 +18,7 @@ export default function App() {
         <Route path="/servicio"    element={<Servicio />} />
         <Route path="/privacidad"  element={<PrivacyPage />} />
         <Route path="/terminos"    element={<TermsPage />} />
-        <Route path="/perfil/:id" element={<PerfilExterno />} />
+        <Route path="/perfil/:id"  element={<PerfilExterno />} />
       </Routes>
     </BrowserRouter>
   );

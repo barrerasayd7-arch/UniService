@@ -85,7 +85,6 @@ function Navbar({ scrolled }) {
               {label}
             </a>
           ))}
-          <a href="/login" className="nav-link-custom">Perfil</a>
           <a href="/login" className="nav-link-custom nav-iniciar">Iniciar Sesión</a>
         </div>
       </div>

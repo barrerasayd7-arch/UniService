@@ -101,12 +101,12 @@ function Navbar({ scrolled, onCerrarSesion }) {
             <a key={href} href={href} className="nav-link-custom"
                onClick={() => setMenuAbierto(false)}>{label}</a>
           ))}
-          <a href="/perfil" className="nav-link-custom">
+          <a href="/profile" className="nav-link-custom nav-iniciar">
             👤 {nombreUsuario}
           </a>
           <button
             type="button"
-            className="nav-link-custom nav-Cerrar"
+            className="nav-Cerrar"
             onClick={onCerrarSesion}
           >
             Cerrar Sesión

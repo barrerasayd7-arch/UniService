@@ -138,32 +138,34 @@ fieldset { border: none; padding: 0; }
 }
 
 .nav-link-custom:hover { color: var(--texto); background: var(--teal-dim); }
-.nav-iniciar            { 
-    color: var(--verde);   
-    background: rgba(14, 165, 160, 0.15);
+
+.nav-iniciar{ 
+  color: var(--verde);   
+  background: rgba(14, 165, 160, 0.15);
   border: 1px solid rgba(14, 165, 160, 0.35);
   border-radius: 8px;
   font-weight: 600;}
-.nav-iniciar:hover      {  
-    background: var(--teal);
+
+.nav-iniciar:hover{  
+  background: var(--teal);
   color: #070d16;
   border-color: var(--teal);}
 
 .nav-Cerrar { 
-    color: #f87171; /* rojo suave */
-    background: rgba(239, 68, 68, 0.15);
-    border: 1px solid rgba(239, 68, 68, 0.35);
-    border-radius: 8px;
-    font-weight: 600;
-    transition: 0.2s;
-    margin-left: 24px;
-    padding: 6px 12px;
+  color: #f87171; /* rojo suave */
+  background: rgba(239, 68, 68, 0.15);
+  border: 1px solid rgba(239, 68, 68, 0.35);
+  border-radius: 8px;
+  font-weight: 600;
+  transition: 0.2s;
+  margin-left: 24px;
+  padding: 6px 12px;
 }
 
 .nav-Cerrar:hover {  
-    background: #ef4444; /* rojo principal */
-    color: #ffffff;
-    border-color: #ef4444;
+  background: #ef4444; /* rojo principal */
+  color: #ffffff;
+  border-color: #ef4444;
 }
   
 
