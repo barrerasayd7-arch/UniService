@@ -3,9 +3,9 @@ import { useNavigate, useSearchParams, Link } from "react-router-dom";
 import "../styles/StylePage/styleHome.css";
 import "../styles/StylePage/StyleServicio.css";
 
-const API          = "http://localhost/api/crud/Servicios_Crud.php";
-const API_USUARIO  = "http://localhost/api/crud/usuario_crud.php";
-const API_SOLICITUD = "http://localhost/api/crud/Solicitudes_Crud.php";
+const API = "http://localhost:3000/api/services";
+const API_USUARIO = "http://localhost:3000/api/users";
+const API_SOLICITUD = "http://localhost:3000/api/solicitudes";
 
 const MODALIDAD_MAP    = { 0: "Presencial", 1: "Virtual", 2: "Mixta" };
 const DISPONIBILIDAD_MAP = { 0: "Entre semana", 1: "Fines de semana", 2: "Siempre disponible" };
@@ -90,14 +90,10 @@ function FormSolicitud({ servicioId, proveedorNombre }) {
     setEstado("enviando");
 
     const payload = {
-      id_servicio:  servicioId,
-      id_solicitante: Number(solicitanteId),
-      tipo_servicio: tipo,
-      fecha_preferida: fecha,
-      hora_preferida: hora,
-      duracion,
-      mensaje: form.mensaje,
-    };
+      id_cliente: Number(solicitanteId),
+      id_proveedor: servicio.id_proveedor,
+      id_servicio: servicioId
+    };  
 
     try {
       const res  = await fetch(API_SOLICITUD, {
@@ -211,9 +207,12 @@ export default function Servicio() {
   useEffect(() => {
     if (!idServicio) { setError(true); setCargando(false); return; }
 
-    fetch(`${API}?id=${idServicio}`)
+    fetch(`${API}/${idServicio}`)
       .then(res => res.json())
       .then(data => {
+
+        console.log("🔥 DATA DEL BACKEND:", data);
+        
         // la API puede devolver array o objeto
         const s = Array.isArray(data) ? data[0] : data;
         if (!s) { setError(true); return; }

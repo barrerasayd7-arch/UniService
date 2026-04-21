@@ -1,10 +1,15 @@
-import dotenv from "dotenv";
-dotenv.config();
+import express from "express";
+import servicesRoutes from "./src/routes/service.routes.js";
+import { connectDB } from "./src/config/db.js";
 
-import app from "./src/app.js";
 
-app.listen(process.env.PORT, () => {
-  console.log("🚀 Servidor en puerto " + process.env.PORT);
+const app = express();
+connectDB();
+
+app.use(express.json());
+
+app.use("/api/services", servicesRoutes);
+
+app.listen(3000, () => {
+  console.log("🚀 Servidor en puerto 3000");
 });
-
-console.log(process.env.DB_SERVER);
