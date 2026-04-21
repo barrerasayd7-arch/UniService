@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
-import "../styles/styleHome.css";
+import "../styles/StylePage/styleHome.css";
 import "../styles/StylePage/StyleServicio.css";
 
 const API          = "http://localhost/api/crud/Servicios_Crud.php";

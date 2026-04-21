@@ -443,8 +443,8 @@ export default function Login() {
                 />
 
                 <p>
-                  Acepto los <a href="Terms.html">Términos y Condiciones</a> y la
-                  <a href="Privacy.html">Política de Privacidad</a>.
+                  Acepto los <a href="/terminos"> Términos y Condiciones</a> y la
+                  <a href="/privacidad"> Política de Privacidad</a>.
                   Mis datos serán tratados de forma segura.
                 </p>
               </div>

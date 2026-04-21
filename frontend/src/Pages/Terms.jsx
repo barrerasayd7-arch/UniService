@@ -11,7 +11,7 @@ const TermsPage = () => {
             UniService
           </a>
           <div className="navbar-links">
-            <a href="Login.html" className="nav-link-custom nav-iniciar">
+            <a href="/login" className="nav-link-custom nav-iniciar">
               Regresar al login
             </a>
           </div>
