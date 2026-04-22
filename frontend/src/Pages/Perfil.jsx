@@ -160,7 +160,29 @@ const Perfil = () => {
         }
     };
 
-    
+    /**
+     * FUNCIÓN: handleUsarImagenURL
+     * Solicita una URL al usuario y la guarda en la base de datos.
+     * Reutiliza handleUpdate ya que es un cambio de texto en la DB (PUT).
+     */
+
+    const handleUsarImagenURL = async () => {
+        const url = prompt('Ingresa la URL directa de la imagen (.jpg, .png, .webp):');
+        
+        // Validación básica
+        if (!url || !url.trim()) return;
+
+        try {
+            // Validamos que el formato de URL sea correcto
+            new URL(url); 
+            
+            // Llamamos a la función genérica para actualizar el campo 'avatar'
+            await handleUpdate('avatar', url.trim());
+            alert('✨ ¡Avatar actualizado con éxito!');
+        } catch (e) {
+            alert('❌ Por favor, ingresa una URL válida y completa (incluyendo http/https).');
+        }
+    };
 
     // ... Continúa el return (JSX)
     return (
