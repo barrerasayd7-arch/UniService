@@ -1,10 +1,14 @@
 import { Router } from "express";
 import sql from "mssql";
 import { pool } from "../config/db.js";
+import { getServices, createService } from "../controllers/service.controller.js";
 
 const router = Router();
 
 // 🔹 TODOS LOS SERVICIOS
+
+router.post("/", createService);
+
 router.get("/", async (req, res) => {
   try {
     const result = await pool.request().query(`
