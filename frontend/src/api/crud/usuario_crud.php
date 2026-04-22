@@ -48,7 +48,9 @@ if ($method === "POST") {
         }
 
         if (move_uploaded_file($_FILES["file"]["tmp_name"], $targetFile)) {
-            $rutaCompleta = "PHP/UserPerfilFotos/" . basename($targetFile);
+            $baseUrl = "http://localhost/tu-proyecto";
+            $rutaCompleta = "http://localhost/PHP/UserPerfilFotos/" . basename($targetFile);
+            $baseUrl = "http://localhost";
             $query     = "EXEC sp_ActualizarUsuario @id_usuario=?, @avatar=?";
             $params    = [(int)$id_usuario, $rutaCompleta];
             $resultado = sqlsrv_query($conexion, $query, $params);
@@ -57,7 +59,7 @@ if ($resultado === false) {
     $errores = sqlsrv_errors();
     echo json_encode(["error" => $errores[0]["message"] ?? "Error al actualizar"]);
 } else {
-    echo json_encode(["ok" => true]);
+    echo json_encode(["ok" => true, "avatarUrl" => $rutaCompleta]);
 }
         } else {
             echo json_encode(["error" => "Error al mover archivo"]);

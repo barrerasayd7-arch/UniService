@@ -150,9 +150,8 @@ const Perfil = () => {
 
             const result = await response.json();
             if (result.ok) {
-                alert("✨ ¡Imagen de perfil actualizada!");
-                // Recargamos para que el servidor sirva la nueva imagen física
-                window.location.reload(); 
+                setUserData(prev => ({ ...prev, avatar: result.avatarUrl }));
+                setActiveModal(null);
             } else {
                 alert("❌ Error al subir: " + result.error);
             }
