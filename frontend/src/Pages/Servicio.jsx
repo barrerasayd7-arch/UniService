@@ -361,7 +361,7 @@ export default function Servicio() {
               </div>
               <div className="info-row">
                 <span className="info-label">Publicado</span>
-                <span className="info-valor">{formatearFecha(services.fecha_publicacion) || "—"}</span>
+                <span className="info-valor">{formatearFecha(servicio.fecha_publicacion) || "—"}</span>
               </div>
               {servicio.contacto && (
                 <div className="info-row">

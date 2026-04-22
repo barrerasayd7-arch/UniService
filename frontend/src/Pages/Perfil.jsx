@@ -4,6 +4,7 @@ import Navbar from '../Components/Navbar_Perfil';
 import '../styles/StylePage/styleHome.css';
 import '../styles/StylePage/stylePerfil.css';
 
+
 const Perfil = () => {
     // Hook para redireccionar a otras rutas (como el home-guest al cerrar sesión)
     const navigate = useNavigate();
@@ -38,7 +39,9 @@ const Perfil = () => {
     useEffect(() => {
         // Petición GET al script de PHP para obtener los datos del usuario por ID
         if (id_usuario) {
-            fetch(`http://localhost/api/crud/UserPerfil.php?id=${id_usuario}`)
+fetch(`/api/users/${id_usuario}`, {
+  headers: { Authorization: `Bearer ${localStorage.getItem("token")}` }
+})
                 .then(res => res.json())
                 .then(data => {
                     if (!data.error) setUserData(data);
@@ -63,11 +66,14 @@ const Perfil = () => {
      */
     const handleUpdate = async (campo, valor) => {
         try {
-            const res = await fetch("http://localhost/api/crud/usuario_crud.php", {
-                method: "PUT",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ id_usuario, [campo]: valor })
-            });
+const res = await fetch(`/api/users/${id_usuario}`, {
+    method: "PUT",
+    headers: { 
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${localStorage.getItem("token")}`
+    },
+    body: JSON.stringify({ [campo]: valor })
+});
             const result = await res.json();
             if (result.ok) {
                 // Actualiza solo el campo modificado en el estado local
@@ -87,11 +93,14 @@ const Perfil = () => {
     const handleCerrarSesion = async () => {
         const id = localStorage.getItem("usuarioId");
         try {
-            await fetch("http://localhost/api/crud/usuario_crud.php", {
-                method: "PUT",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ id_usuario: id, estado: 0 }) // estado 0 = Desconectado
-            });
+           await fetch(`/api/users/${id}`, {
+    method: "PUT",
+    headers: { 
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${localStorage.getItem("token")}`
+    },
+    body: JSON.stringify({ estado: 0 })
+});
         } catch (error) {
             console.error("Error:", error);
         } finally {

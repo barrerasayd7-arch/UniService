@@ -116,6 +116,40 @@ export const login = async (req, res) => {
   }
 };
 
+
+/* =========================
+   GET USUARIO POR ID
+========================= */
+export const getUsuarioById = async (req, res) => {
+  const { id } = req.params;
+  try {
+    const conn = await pool;
+    const result = await conn.request()
+      .input("id", sql.Int, id)
+      .query(`
+        SELECT 
+          id_usuario,
+          nombre,
+          descripcion,
+          correo,
+          estado,
+          fecha_registro,
+          avatar,
+          universidad
+        FROM usuarios
+        WHERE id_usuario = @id
+      `);
+
+    if (result.recordset.length === 0) {
+      return res.status(404).json({ error: "Usuario no encontrado" });
+    }
+
+    res.json(result.recordset[0]);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+};
+
 /* =========================
    VERIFY TOKEN (MIDDLEWARE)
 ========================= */
@@ -134,5 +168,27 @@ export const verifyToken = (req, res, next) => {
     next();
   } catch (err) {
     return res.status(403).json({ message: "Token inválido" });
+  }
+};
+
+
+export const updateUsuario = async (req, res) => {
+  const { id } = req.params;
+  const campos = req.body; // { nombre, correo, descripcion, avatar, estado }
+
+  const columnas = Object.keys(campos)
+    .map(k => `${k} = @${k}`)
+    .join(", ");
+
+  try {
+    const conn = await pool;
+    const request = conn.request().input("id", sql.Int, id);
+    for (const [k, v] of Object.entries(campos)) {
+      request.input(k, v);
+    }
+    await request.query(`UPDATE usuarios SET ${columnas} WHERE id_usuario = @id`);
+    res.json({ ok: true });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
   }
 };
