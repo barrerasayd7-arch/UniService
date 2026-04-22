@@ -4,13 +4,14 @@ import { useNavigate } from "react-router-dom";
 import { logoutUser } from "../lib/authApi.js";
 import logoIcon from '../img/logo_color_noBG.png';
 
-
 export default function Login() {
   const navigate = useNavigate();
-   const handleInvitado = async () => {
+
+  const handleInvitado = async () => {
     await logoutUser();
     navigate("/home-guest");
   };
+
   // ===== STATES =====
   const [telefono, setTelefono] = useState("");
   const [pass, setPass] = useState("");
@@ -26,7 +27,7 @@ export default function Login() {
   const [modal, setModal] = useState({
     visible: false,
     mensaje: "",
-    tipo: "error", // puedes usar: error, success, info
+    tipo: "error",
   });
 
   // ===== VALIDACIONES =====
@@ -35,15 +36,12 @@ export default function Login() {
 
     if (tipo === "login") {
       setTelefono(limpio);
-
       setErrores((prev) => ({
         ...prev,
         telefonoLogin: limpio.length !== 10 ? "Debe tener 10 dígitos" : "",
       }));
-
     } else {
       setTelefonoReg(limpio);
-
       setErrores((prev) => ({
         ...prev,
         telefonoReg: limpio.length !== 10 ? "Debe tener 10 dígitos" : "",
@@ -53,11 +51,10 @@ export default function Login() {
 
   const validarPassLogin = (value) => {
     setPass(value);
-    if (value.length < 8) {
-      setErrores((prev) => ({ ...prev, pass: "Mínimo 8 caracteres" }));
-    } else {
-      setErrores((prev) => ({ ...prev, pass: "" }));
-    }
+    setErrores((prev) => ({
+      ...prev,
+      pass: value.length < 8 ? "Mínimo 8 caracteres" : "",
+    }));
   };
 
   const validarNombre = (value) => {
@@ -73,35 +70,19 @@ export default function Login() {
 
   const validarPassReg = (value) => {
     setPassReg(value);
-
-    if (value.length < 8) {
-      setErrores((prev) => ({ ...prev, passReg: "Mínimo 8 caracteres" }));
-    } else {
-      setErrores((prev) => ({ ...prev, passReg: "" }));
-    }
-
-    if (passReg2) {
-      if (value !== passReg2) {
-        setErrores((prev) => ({
-          ...prev,
-          passReg2: "Las contraseñas no coinciden",
-        }));
-      } else {
-        setErrores((prev) => ({ ...prev, passReg2: "" }));
-      }
-    }
+    setErrores((prev) => ({
+      ...prev,
+      passReg: value.length < 8 ? "Mínimo 8 caracteres" : "",
+      ...(passReg2 && { passReg2: value !== passReg2 ? "Las contraseñas no coinciden" : "" }),
+    }));
   };
 
   const validarPassReg2 = (value) => {
     setPassReg2(value);
-
     if (value.length < 8) {
       setErrores((prev) => ({ ...prev, passReg2: "Mínimo 8 caracteres" }));
     } else if (value !== passReg) {
-      setErrores((prev) => ({
-        ...prev,
-        passReg2: "Las contraseñas no coinciden",
-      }));
+      setErrores((prev) => ({ ...prev, passReg2: "Las contraseñas no coinciden" }));
     } else {
       setErrores((prev) => ({ ...prev, passReg2: "" }));
     }
@@ -112,41 +93,50 @@ export default function Login() {
     if (telefono.length !== 10 || pass.length < 8) {
       setModal({
         visible: true,
-        mensaje: "❌ Los Datos estan incompletos o son inválidos  ",
+        mensaje: "❌ Los datos están incompletos o son inválidos",
         tipo: "error",
       });
       return;
     }
 
     try {
-      const res = await fetch(
-        `http://localhost/api/crud/usuario_crud.php?telefono=${telefono}&password=${pass}`
-      );
+      const res = await fetch("http://localhost:3000/api/users/login", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ telefono, password: pass }),
+      });
+
       const data = await res.json();
 
-      if (data.ok) {
-        localStorage.setItem("logueado", "true");
-        localStorage.setItem("usuarioId", data.id);
-        localStorage.setItem("usuario", data.nombre);
-        localStorage.setItem("usuarioTelefono", data.telefono);
-
-        await fetch("http://localhost/api/crud/usuario_crud.php", {
-          method: "PUT",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ id_usuario: data.id, estado: 1 }),
-        });
+      if (data.token) {
+        // ✅ Guardar todo antes de navegar
+        localStorage.setItem("token", data.token);
+        localStorage.setItem("usuarioId", data.user.id_usuario);
+        localStorage.setItem("usuario", data.user.nombre);
+        localStorage.setItem("usuarioTelefono", data.user.telefono);
+        localStorage.setItem("logueado", "true"); 
 
         setModal({
           visible: true,
-          mensaje: "✅ Bienvenido " + data.nombre,
-          tipo: "info",
+          mensaje: "✅ Bienvenido " + data.user.nombre,
+          tipo: "success",
         });
-         setTimeout(() => navigate("/home"), 1500);
+
+        // ✅ replace: true evita que "atrás" regrese al login
+        setTimeout(() => navigate("/home", { replace: true }), 1500);
       } else {
-        alert("❌ Credenciales incorrectas");
+        setModal({
+          visible: true,
+          mensaje: "❌ " + (data.message || "Credenciales incorrectas"),
+          tipo: "error",
+        });
       }
-    } catch {
-      alert("❌ Error de conexión");
+    } catch (err) {
+      setModal({
+        visible: true,
+        mensaje: "❌ Error de conexión",
+        tipo: "error",
+      });
     }
   };
 
@@ -161,23 +151,21 @@ export default function Login() {
     ) {
       setModal({
         visible: true,
-        mensaje: "❌ Datos inválidos, Porfavor revisa los errores en el formulario",
+        mensaje: "❌ Datos inválidos, por favor revisa los errores en el formulario",
         tipo: "error",
       });
       return;
     }
 
-    const nuevoUsuario = {
-      telefono: telefonoReg,
-      password: passReg,
-      nombre: nombre.trim(),
-    };
-
     try {
-      const res = await fetch("http://localhost/api/crud/usuario_crud.php", {
+      const res = await fetch("http://localhost:3000/api/users/register", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(nuevoUsuario),
+        body: JSON.stringify({
+          telefono: telefonoReg,
+          password: passReg,
+          nombre: nombre.trim(),
+        }),
       });
 
       const data = await res.json();
@@ -191,17 +179,18 @@ export default function Login() {
       } else {
         setModal({
           visible: true,
-          mensaje: "✅ Cuenta creada correctamente",
+          mensaje: "✅ Cuenta creada correctamente, ya puedes iniciar sesión",
           tipo: "success",
         });
 
+        // ✅ Limpiar formulario de registro
         setNombre("");
         setTelefonoReg("");
         setPassReg("");
         setPassReg2("");
         setTerminos(false);
+        setErrores({});
       }
-
     } catch {
       setModal({
         visible: true,
@@ -210,14 +199,12 @@ export default function Login() {
       });
     }
   };
+
   // ===== SCROLL EFFECT =====
   useEffect(() => {
     document.body.classList.remove("home-guest-page");
     document.body.classList.add("login-page");
-
-    return () => {
-      document.body.classList.remove("login-page");
-    };
+    return () => document.body.classList.remove("login-page");
   }, []);
 
   useEffect(() => {
@@ -225,11 +212,8 @@ export default function Login() {
       const bg = document.querySelector(".dynamic-bg");
       if (!bg) return;
 
-      const scrollHeight =
-        document.documentElement.scrollHeight - window.innerHeight;
-
-      const progress =
-        scrollHeight > 0 ? window.scrollY / scrollHeight : 0;
+      const scrollHeight = document.documentElement.scrollHeight - window.innerHeight;
+      const progress = scrollHeight > 0 ? window.scrollY / scrollHeight : 0;
 
       bg.style.opacity = Math.max(0.3, 1 - progress * 0.5);
       bg.style.transform = `scale(${1 + progress * 0.1})`;
@@ -251,8 +235,9 @@ export default function Login() {
 
           <div className="auth-lateral">
             <div className="lateral-contenido">
-
-              <div className="lateral-icono"><img src={logoIcon} alt="UniServices Logo" style={{ width: '100%', height: 'auto' }} /></div>
+              <div className="lateral-icono">
+                <img src={logoIcon} alt="UniServices Logo" style={{ width: '100%', height: 'auto' }} />
+              </div>
 
               <h2>
                 Uni<span style={{ color: '#ffdd57', fontWeight: 'bold' }}>Service</span>
@@ -271,19 +256,15 @@ export default function Login() {
                 <span className="lateral-chip">⚡ Productos</span>
                 <span className="lateral-chip">🏠 Arriendo</span>
               </div>
-
             </div>
           </div>
 
           <div className="auth-formulario">
-
             <div className="auth-logo">
               <p className="auth-pretitle">Bienvenido 👋</p>
-
               <h1 className="auth-title">
                 Accede a la <span>plataforma</span>
               </h1>
-
               <p className="auth-subtitle">
                 Convierte tu conocimiento en oportunidades y encuentra ayuda cuando la necesites.
               </p>
@@ -296,16 +277,13 @@ export default function Login() {
 
             {/* LOGIN */}
             <div className="form-panel" id="panel-login">
-
               <div className="campo">
                 <label className="campo-label" htmlFor="l-telefono">Teléfono</label>
-
                 <div className="input-wrap">
                   <div className="prefijo">
                     <i className="icon-flag"></i>
                     <span>+57</span>
                   </div>
-
                   <input
                     type="tel"
                     id="l-telefono"
@@ -315,14 +293,12 @@ export default function Login() {
                     value={telefono}
                     onChange={(e) => validarTelefono(e.target.value, "login")}
                   />
-
                   <small className="error-msg">{errores.telefonoLogin}</small>
                 </div>
               </div>
 
               <div className="campo">
                 <label className="campo-label" htmlFor="l-pass">Contraseña</label>
-
                 <input
                   type="password"
                   id="l-pass"
@@ -331,7 +307,6 @@ export default function Login() {
                   value={pass}
                   onChange={(e) => validarPassLogin(e.target.value)}
                 />
-
                 <small className="error-msg">{errores.pass}</small>
               </div>
 
@@ -343,15 +318,17 @@ export default function Login() {
                 <button
                   className="btn-principal"
                   type="button"
-                  onClick={handleLogin}>Entrar →
+                  onClick={handleLogin}
+                >
+                  Entrar →
                 </button>
-               <button
-  className="btn-secundario"
-  id="btn-invitado"
-  onClick={handleInvitado}
->
-  Entrar como invitado
-</button>
+                <button
+                  className="btn-secundario"
+                  id="btn-invitado"
+                  onClick={handleInvitado}
+                >
+                  Entrar como invitado
+                </button>
               </div>
 
               <p className="pie">
@@ -362,10 +339,8 @@ export default function Login() {
 
             {/* REGISTRO */}
             <div className="form-panel" id="panel-reg">
-
               <div className="campo">
                 <label className="campo-label" htmlFor="r-nombre">Nombre completo</label>
-
                 <input
                   type="text"
                   id="r-nombre"
@@ -374,19 +349,16 @@ export default function Login() {
                   value={nombre}
                   onChange={(e) => validarNombre(e.target.value)}
                 />
-
                 <span className="error-msg">{errores.nombre}</span>
               </div>
 
               <div className="campo">
                 <label className="campo-label" htmlFor="r-telefono">Teléfono</label>
-
                 <div className="input-wrap">
                   <div className="prefijo">
                     <i className="icon-flag"></i>
                     <span>+57</span>
                   </div>
-
                   <input
                     type="tel"
                     id="r-telefono"
@@ -398,14 +370,12 @@ export default function Login() {
                     onChange={(e) => validarTelefono(e.target.value, "registro")}
                   />
                 </div>
-
                 <span className="error-msg">{errores.telefonoReg}</span>
                 <div className="hint">Solo móviles colombianos · 10 dígitos</div>
               </div>
 
               <div className="campo">
                 <label className="campo-label" htmlFor="r-pass">Contraseña</label>
-
                 <input
                   type="password"
                   id="r-pass"
@@ -415,13 +385,11 @@ export default function Login() {
                   value={passReg}
                   onChange={(e) => validarPassReg(e.target.value)}
                 />
-
                 <span className="error-msg">{errores.passReg}</span>
               </div>
 
               <div className="campo">
                 <label className="campo-label" htmlFor="r-pass2">Confirmar contraseña</label>
-
                 <input
                   type="password"
                   id="r-pass2"
@@ -431,7 +399,6 @@ export default function Login() {
                   value={passReg2}
                   onChange={(e) => validarPassReg2(e.target.value)}
                 />
-
                 <span className="error-msg">{errores.passReg2}</span>
               </div>
 
@@ -441,9 +408,8 @@ export default function Login() {
                   checked={terminos}
                   onChange={(e) => setTerminos(e.target.checked)}
                 />
-
                 <p>
-                  Acepto los <a href="/terminos"> Términos y Condiciones</a> y la
+                  Acepto los <a href="/terminos">Términos y Condiciones</a> y la
                   <a href="/privacidad"> Política de Privacidad</a>.
                   Mis datos serán tratados de forma segura.
                 </p>
@@ -453,7 +419,8 @@ export default function Login() {
                 type="button"
                 className="btn-principal"
                 id="crear_acc"
-                onClick={handleRegister}>
+                onClick={handleRegister}
+              >
                 Crear cuenta →
               </button>
 
@@ -461,22 +428,18 @@ export default function Login() {
                 ¿Ya tienes cuenta?
                 <label className="pie-link" htmlFor="r-login">Inicia sesión</label>
               </p>
-
             </div>
-
           </div>
         </div>
       </div>
+
       {modal.visible && (
         <div className="modal-overlay">
           <div className={`modal-box ${modal.tipo}`}>
-
             <p>{modal.mensaje}</p>
-
             <button onClick={() => setModal({ ...modal, visible: false })}>
               Cerrar
             </button>
-
           </div>
         </div>
       )}

@@ -10,27 +10,27 @@ const API_USUARIO = "http://localhost:3000/api/users"
 const CANTIDAD_POR_PAGINA = 8;
 
 const CATEGORIAS = [
-  { valor: "",             label: "Todas las categorías" },
-  { valor: "tutorias",    label: "📚 Tutorías" },
-  { valor: "ensayos",     label: "✍️ Ensayos y redacción" },
-  { valor: "proyectos",   label: "🗂️ Proyectos" },
-  { valor: "programacion",label: "💻 Programación" },
-  { valor: "diseno",      label: "🎨 Diseño" },
-  { valor: "arriendo",    label: "🏠 Arriendo de habitaciones" },
-  { valor: "otros",       label: "🌐 Otros servicios" },
+  { valor: "", label: "Todas las categorías" },
+  { valor: "tutorias", label: "📚 Tutorías" },
+  { valor: "ensayos", label: "✍️ Ensayos y redacción" },
+  { valor: "proyectos", label: "🗂️ Proyectos" },
+  { valor: "programacion", label: "💻 Programación" },
+  { valor: "diseno", label: "🎨 Diseño" },
+  { valor: "arriendo", label: "🏠 Arriendo de habitaciones" },
+  { valor: "otros", label: "🌐 Otros servicios" },
 ];
 
-const MODALIDADES    = ["🏫 Presencial", "💻 Virtual", "🔄 Mixta"];
+const MODALIDADES = ["🏫 Presencial", "💻 Virtual", "🔄 Mixta"];
 const DISPONIBILIDAD = ["📆 Entre semana", "🎉 Fines de semana", "⏰ Siempre disponible"];
 
 const CHIPS_CATEGORIA = [
-  { label: "🌐 Todos",        valor: "todos" },
-  { label: "📚 Tutorías",     valor: "tutorias" },
-  { label: "✍️ Ensayos",      valor: "ensayos" },
-  { label: "🗂️ Proyectos",    valor: "proyectos" },
+  { label: "🌐 Todos", valor: "todos" },
+  { label: "📚 Tutorías", valor: "tutorias" },
+  { label: "✍️ Ensayos", valor: "ensayos" },
+  { label: "🗂️ Proyectos", valor: "proyectos" },
   { label: "💻 Programación", valor: "programacion" },
-  { label: "🎨 Diseño",       valor: "diseno" },
-  { label: "🏠 Arriendo",     valor: "arriendo" },
+  { label: "🎨 Diseño", valor: "diseno" },
+  { label: "🏠 Arriendo", valor: "arriendo" },
 ];
 
 const initialPublicar = {
@@ -92,16 +92,16 @@ function Navbar({ scrolled, onCerrarSesion }) {
 
         <div className={`navbar-links${menuAbierto ? " active" : ""}`}>
           {[
-            ["#inicio",             "Inicio"],
-            ["#buscar",             "Buscar servicios"],
-            ["#mejor-calificados",  "Top⭐"],
-            ["#publicar",           "Publicar servicio"],
-            
-            ["#solicitudes",        "Mis solicitudes"],
-            ["#soporte",            "Soporte"],
+            ["#inicio", "Inicio"],
+            ["#buscar", "Buscar servicios"],
+            ["#mejor-calificados", "Top⭐"],
+            ["#publicar", "Publicar servicio"],
+
+            ["#solicitudes", "Mis solicitudes"],
+            ["#soporte", "Soporte"],
           ].map(([href, label]) => (
             <a key={href} href={href} className="nav-link-custom"
-               onClick={() => setMenuAbierto(false)}>{label}</a>
+              onClick={() => setMenuAbierto(false)}>{label}</a>
           ))}
           <a href="/perfil" className="nav-link-custom nav-iniciar">
             👤 {nombreUsuario}
@@ -133,7 +133,7 @@ function Hero() {
           habitaciones — todo para la comunidad universitaria.
         </p>
         <div className="hero-btns">
-          <a href="#buscar"  className="btn btn-verde">🔍 Explorar servicios</a>
+          <a href="#buscar" className="btn btn-verde">🔍 Explorar servicios</a>
           <a href="#publicar" className="btn btn-borde">➕ Publicar mi servicio</a>
         </div>
       </div>
@@ -142,7 +142,7 @@ function Hero() {
 }
 
 function TarjetaServicio({ servicio }) {
-  const estrellas  = calcularEstrellas(servicio.estrellas);
+  const estrellas = calcularEstrellas(servicio.estrellas);
   const numReseñas = Array.isArray(servicio.estrellas) ? servicio.estrellas.length : 0;
   const universidad = servicio.universidad === 1 || servicio.universidad === "1"
     ? "Universidad Popular del Cesar"
@@ -164,9 +164,9 @@ function TarjetaServicio({ servicio }) {
             width: "32px", height: "32px", borderRadius: "50%",
             fontSize: "0.75rem", fontWeight: "700", flexShrink: 0
           }}>
-  {(servicio.proveedor || "?").charAt(0).toUpperCase()}
-</div>
-<span className="texto-muted">{servicio.proveedor || "Proveedor anónimo"}</span>
+            {(servicio.proveedor || "?").charAt(0).toUpperCase()}
+          </div>
+          <span className="texto-muted">{servicio.proveedor || "Proveedor anónimo"}</span>
         </div>
         <div className="texto-fecha">{formatearFecha(servicio.fecha_publicacion) || ""}</div>
         <div className="card-footer">
@@ -255,11 +255,11 @@ function SeccionTop({ top3 }) {
 }
 
 function SeccionBuscar({ serviciosTotales }) {
-  const [busqueda,       setBusqueda]       = useState("");
-  const [categoriaActual,setCategoriaActual] = useState("todos");
-  const [orden,          setOrden]          = useState("recientes");
-  const [mostrados,      setMostrados]      = useState(CANTIDAD_POR_PAGINA);
-  const [resultados,     setResultados]     = useState([]);
+  const [busqueda, setBusqueda] = useState("");
+  const [categoriaActual, setCategoriaActual] = useState("todos");
+  const [orden, setOrden] = useState("recientes");
+  const [mostrados, setMostrados] = useState(CANTIDAD_POR_PAGINA);
+  const [resultados, setResultados] = useState([]);
 
   useEffect(() => {
     aplicarFiltros(busqueda, categoriaActual, orden, CANTIDAD_POR_PAGINA);
@@ -333,7 +333,7 @@ function SeccionBuscar({ serviciosTotales }) {
     <section className="seccion seccion-oscura" id="buscar">
 
       {/* Header búsqueda */}
-      <header className="seccion" style={{ paddingBottom: 0,paddingTop: 0, background: "transparent" }}>
+      <header className="seccion" style={{ paddingBottom: 0, paddingTop: 0, background: "transparent" }}>
         <div className="container" style={{ textAlign: "center" }}>
           <p className="label-seccion">Marketplace Universitario</p>
           <h1 style={{ fontSize: "2.5rem" }}>
@@ -350,10 +350,10 @@ function SeccionBuscar({ serviciosTotales }) {
           </div>
         </div>
       </header>
-      
+
       {/* Chips de categoría */}
       <div className="container chips-container" id="filtros-categorias"
-           style={{ marginBottom: "24px" }}>
+        style={{ marginBottom: "24px" }}>
         {CHIPS_CATEGORIA.map(chip => (
           <button
             key={chip.valor}
@@ -390,7 +390,7 @@ function SeccionBuscar({ serviciosTotales }) {
         <div className="cards-grid" id="contenedor-explorar">
           {resultados.length === 0 ? (
             <p className="texto-muted"
-               style={{ gridColumn: "1 / -1", textAlign: "center", padding: "32px 0" }}>
+              style={{ gridColumn: "1 / -1", textAlign: "center", padding: "32px 0" }}>
               No se encontraron servicios.
             </p>
           ) : (
@@ -416,7 +416,7 @@ function SeccionBuscar({ serviciosTotales }) {
 }
 
 function SeccionPublicar() {
-  const [form,    setForm]    = useState(initialPublicar);
+  const [form, setForm] = useState(initialPublicar);
   const [loading, setLoading] = useState(false);
 
   const handleChange = (e) => {
@@ -427,10 +427,10 @@ function SeccionPublicar() {
   const handleSubmit = async (e) => {
     e.preventDefault();
     const { titulo, descripcion, categoria, precio,
-            universidad, contacto, modalidad, disponibilidad } = form;
+      universidad, contacto, modalidad, disponibilidad } = form;
 
     if (!titulo || !descripcion || !categoria || !precio ||
-        !universidad || !contacto || !modalidad || !disponibilidad) {
+      !universidad || !contacto || !modalidad || !disponibilidad) {
       alert("❌ Completa todos los campos");
       return;
     }
@@ -442,22 +442,22 @@ function SeccionPublicar() {
     }
 
     const modalidadDB = { "🏫 Presencial": 0, "💻 Virtual": 1, "🔄 Mixta": 2 }[modalidad] ?? 0;
-    const dispDB      = { "📆 Entre semana": 0, "🎉 Fines de semana": 1, "⏰ Siempre disponible": 2 }[disponibilidad] ?? 0;
+    const dispDB = { "📆 Entre semana": 0, "🎉 Fines de semana": 1, "⏰ Siempre disponible": 2 }[disponibilidad] ?? 0;
 
     const nuevoServicio = {
       id_proveedor: Number(proveedor),
       titulo, descripcion,
       id_categoria: mapaCategoriaId[categoria] || 7,
-      precio_hora:  Number(precio),
+      precio_hora: Number(precio),
       contacto, universidad,
-      modalidad:     modalidadDB,
+      modalidad: modalidadDB,
       disponibilidad: dispDB,
       icono: mapaIconos[categoria] || "📌",
     };
 
     setLoading(true);
     try {
-      const res  = await fetch(API, {
+      const res = await fetch(API, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(nuevoServicio),
@@ -661,16 +661,16 @@ function Footer() {
 export default function HomePrincipal() {
   const navigate = useNavigate();
 
-  const [scrolled,         setScrolled]         = useState(false);
+  const [scrolled, setScrolled] = useState(false);
   const [serviciosTotales, setServiciosTotales] = useState([]);
-  const [recientes,        setRecientes]        = useState([]);
-  const [top3,             setTop3]             = useState([]);
-  const [cargando,         setCargando]         = useState(true);
+  const [recientes, setRecientes] = useState([]);
+  const [top3, setTop3] = useState([]);
+  const [cargando, setCargando] = useState(true);
 
   // Protección de ruta — redirige si no está logueado
   useEffect(() => {
-    const logueado = localStorage.getItem("logueado");
-    if (logueado !== "true") {
+    const token = localStorage.getItem("token");
+    if (!token) {
       navigate("/login");
     }
   }, [navigate]);
@@ -712,7 +712,7 @@ export default function HomePrincipal() {
     } catch {
       // si falla igual cerramos sesión
     }
-    localStorage.removeItem("logueado");
+    localStorage.removeItem("token");
     localStorage.removeItem("usuarioId");
     localStorage.removeItem("usuario");
     localStorage.removeItem("usuarioTelefono");

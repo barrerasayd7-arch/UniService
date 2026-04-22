@@ -5,10 +5,11 @@ import { pool } from "../config/db.js";
 export const getServices = async (req, res) => {
   try {
     const { id } = req.params;
+    const conn = await pool; // ✅ resuelve la Promise primero
 
     if (id) {
-      const result = await pool.request()
-        .input("id", sql.Int, id)
+      const result = await conn.request()
+        .input("id", sql.Int, parseInt(id))
         .query(`
           SELECT 
             s.*,
@@ -21,12 +22,10 @@ export const getServices = async (req, res) => {
         `);
 
       const servicio = result.recordset[0];
+      if (!servicio) return res.status(404).json({ error: "Servicio no encontrado" });
 
-      if (!servicio) return res.json(null);
-
-      // 🔥 TRAER RESEÑAS (calificaciones)
-      const resenas = await pool.request()
-        .input("id", sql.Int, id)
+      const resenas = await conn.request()
+        .input("id", sql.Int, parseInt(id))
         .query(`
           SELECT 
             c.puntuacion,
@@ -38,18 +37,15 @@ export const getServices = async (req, res) => {
           WHERE c.id_servicio = @id
         `);
 
-      // 🔥 ARMAR ESTRELLAS
-      const estrellas = resenas.recordset.map(r => r.puntuacion);
-
       return res.json({
         ...servicio,
         resenas: resenas.recordset,
-        estrellas
+        estrellas: resenas.recordset.map(r => r.puntuacion)
       });
     }
 
     // 🔹 TODOS LOS SERVICIOS
-    const result = await pool.request().query(`
+    const result = await conn.request().query(`
       SELECT 
         s.*,
         u.nombre AS proveedor,
@@ -71,37 +67,34 @@ export const getServices = async (req, res) => {
 export const createService = async (req, res) => {
   try {
     const {
-      id_proveedor,
-      titulo,
-      descripcion,
-      id_categoria,
-      precio_hora,
-      contacto,
-      modalidad,
-      icono,
-      disponibilidad
+      id_proveedor, titulo, descripcion,
+      id_categoria, precio_hora, contacto,
+      modalidad, icono, disponibilidad
     } = req.body;
 
-    await pool.request()
+    const conn = await pool; // ✅
+
+    await conn.request()
       .input("id_proveedor", sql.Int, id_proveedor)
       .input("titulo", sql.NVarChar, titulo)
       .input("descripcion", sql.NVarChar, descripcion)
       .input("id_categoria", sql.Int, id_categoria)
-      .input("precio_hora", sql.Decimal(10,2), precio_hora)
+      .input("precio_hora", sql.Decimal(10, 2), precio_hora)
       .input("contacto", sql.NVarChar, contacto)
       .input("modalidad", sql.Int, modalidad)
       .input("icono", sql.NVarChar, icono)
       .input("disponibilidad", sql.Int, disponibilidad)
       .query(`
         INSERT INTO servicios
-        (id_proveedor, titulo, descripcion, id_categoria, precio_hora, contacto, modalidad, icono, disponibilidad)
+          (id_proveedor, titulo, descripcion, id_categoria, precio_hora, contacto, modalidad, icono, disponibilidad)
         VALUES
-        (@id_proveedor, @titulo, @descripcion, @id_categoria, @precio_hora, @contacto, @modalidad, @icono, @disponibilidad)
+          (@id_proveedor, @titulo, @descripcion, @id_categoria, @precio_hora, @contacto, @modalidad, @icono, @disponibilidad)
       `);
 
-    res.json({ ok: true });
+    res.status(201).json({ ok: true });
 
   } catch (error) {
+    console.error(error);
     res.status(500).json({ error: error.message });
   }
 };
