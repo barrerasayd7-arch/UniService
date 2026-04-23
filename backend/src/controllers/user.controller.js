@@ -128,16 +128,19 @@ export const getUsuarioById = async (req, res) => {
       .input("id", sql.Int, id)
       .query(`
         SELECT 
-          id_usuario,
-          nombre,
-          descripcion,
-          correo,
-          estado,
-          fecha_registro,
-          avatar,
-          universidad
-        FROM usuarios
-        WHERE id_usuario = @id
+          u.id_usuario,
+          u.nombre,
+          u.descripcion,
+          u.correo,
+          u.estado,
+          u.fecha_registro,
+          u.avatar,
+          u.universidad,
+          (SELECT COUNT(*) FROM seguidores WHERE id_seguido  = u.id_usuario) AS total_seguidores,
+          (SELECT COUNT(*) FROM seguidores WHERE id_seguidor = u.id_usuario) AS total_siguiendo,
+          (SELECT COUNT(*) FROM servicios  WHERE id_proveedor = u.id_usuario) AS total_publicaciones
+        FROM usuarios u
+        WHERE u.id_usuario = @id
       `);
 
     if (result.recordset.length === 0) {
@@ -149,6 +152,8 @@ export const getUsuarioById = async (req, res) => {
     res.status(500).json({ error: err.message });
   }
 };
+
+
 
 /* =========================
    VERIFY TOKEN (MIDDLEWARE)
