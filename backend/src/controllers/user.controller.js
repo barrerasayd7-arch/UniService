@@ -137,7 +137,8 @@ export const getUsuarioById = async (req, res) => {
           u.universidad,
           (SELECT COUNT(*) FROM seguidores WHERE id_seguido  = u.id_usuario) AS total_seguidores,
           (SELECT COUNT(*) FROM seguidores WHERE id_seguidor = u.id_usuario) AS total_siguiendo,
-          (SELECT COUNT(*) FROM servicios  WHERE id_proveedor = u.id_usuario) AS total_publicaciones
+          (SELECT COUNT(*) FROM servicios  WHERE id_proveedor = u.id_usuario) AS total_publicaciones,
+          (SELECT ISNULL(AVG(CAST(puntuacion AS FLOAT)), 0) FROM calificaciones WHERE id_servicio IN (SELECT id_servicio FROM servicios WHERE id_proveedor = u.id_usuario)) AS reputacion
         FROM usuarios u
         WHERE u.id_usuario = @id
       `);

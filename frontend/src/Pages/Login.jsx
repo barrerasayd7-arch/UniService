@@ -143,6 +143,21 @@ export default function Login() {
         localStorage.setItem("usuario", data.user.nombre);
         localStorage.setItem("usuarioCorreo", data.user.correo);
         localStorage.setItem("logueado", "true");
+
+        try {
+        await fetch(`http://localhost:3000/api/users/${data.user.id_usuario}`, {
+          method: "PUT",
+          headers: {
+            "Content-Type": "application/json",
+            "Authorization": `Bearer ${data.token}`
+          },
+          body: JSON.stringify({ estado: 1 }) 
+        });
+      } catch (errState) {
+        console.error("Error silencioso al cambiar estado:", errState);
+        // No bloqueamos el login si falló solo el cambio de color de la bolita
+      }
+        
         setModal({ visible: true, mensaje: "✅ Bienvenido " + data.user.nombre, tipo: "success" });
         setTimeout(() => navigate("/home", { replace: true }), 1500);
       } else {

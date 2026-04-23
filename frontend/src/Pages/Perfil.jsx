@@ -1,162 +1,164 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useParams } from 'react-router-dom';
 import Navbar from '../Components/Navbar_Perfil'; 
 import '../styles/StylePage/styleHome.css';
 import '../styles/StylePage/stylePerfil.css';
 
-
 const Perfil = () => {
-    // Hook para redireccionar a otras rutas (como el home-guest al cerrar sesión)
     const navigate = useNavigate();
     const FileInputRef = useRef(null);
 
-    // Estado principal que almacena toda la información del usuario
-    // Se inicializa con valores por defecto para evitar errores de "undefined" mientras carga la API
+    // ── Obtener el id de la URL si existe (para perfil externo)
+    // Si no hay id en la URL, asumimos que es el perfil propio
+    const { id: idUrl } = useParams();
+
+    // ── ID del usuario logueado (siempre el mismo desde localStorage)
+    const id_usuario_logueado = localStorage.getItem("usuarioId");
+
+    // ── Si hay id en la URL y es diferente al logueado → perfil externo
+    const esPerfilExterno = idUrl && idUrl !== id_usuario_logueado;
+
+    // ── El ID a consultar: si es externo usa el de la URL, si no el propio
+    const id_a_consultar = esPerfilExterno ? idUrl : id_usuario_logueado;
+
+    // ── Estado de seguimiento (solo aplica en perfil externo)
+    const [siguiendo, setSiguiendo] = useState(false);
+
+    // ── Estado principal con datos del usuario
     const [userData, setUserData] = useState({
         nombre: 'Cargando...',
         avatar: '../src/img/default-avatar.png',
         descripcion: 'Cargando información...',
         correo: 'usuario@ejemplo.com',
         fecha_registro: '2024-01-01',
-        estado: 1,
+        estado: 0, // 0 = desconectado por defecto mientras carga
         total_publicaciones: 0,
         total_seguidores: 0,
         total_siguiendo: 0,
-        reputacion: '4.9'
+        reputacion: null,          // null hasta que llegue el dato real
+        universidad: 'Sin universidad'
     });
 
-    // Estado para controlar qué modal está abierto (ej: 'info', 'imagen', 'actividad' o null)
+    // ── Controla qué modal está abierto
     const [activeModal, setActiveModal] = useState(null);
 
-    // Obtención del ID del usuario desde el almacenamiento local del navegador
-    const id_usuario = localStorage.getItem("usuarioId");
-
-    /**
-     * EFECTO SECUNDARIO (useEffect):
-     * 1. Carga los datos del perfil desde el servidor al entrar a la página.
-     * 2. Escucha la tecla 'Escape' para cerrar cualquier modal abierto.
-     */
+    // ════════════════════════════════
+    // CARGAR DATOS DEL USUARIO
+    // ════════════════════════════════
     useEffect(() => {
-        // Petición GET al script de PHP para obtener los datos del usuario por ID
-        if (id_usuario) {
-fetch(`/api/users/${id_usuario}`, {
-  headers: { Authorization: `Bearer ${localStorage.getItem("token")}` }
-})
-                .then(res => res.json())
-                .then(data => {
-                    if (!data.error) setUserData(data);
-                })
-                .catch(err => console.error("Error al cargar perfil:", err));
-        }
+        if (!id_a_consultar) return;
 
-        // Manejador de eventos para cerrar modales con la tecla ESC
-        const handleKeyDown = (e) => {
-            if (e.key === 'Escape') setActiveModal(null);
-        };
-        window.addEventListener('keydown', handleKeyDown);
+        // Petición al backend Node.js para traer el perfil completo
+        fetch(`/api/users/${id_a_consultar}`, {
+            headers: { Authorization: `Bearer ${localStorage.getItem("token")}` }
+        })
+        .then(res => res.json())
+        .then(data => {
+            if (!data.error){
+                const estadoNormalizado = !!(data.estado === true || data.estado === 1 || data.estado === "1");
         
-        // Limpieza del evento cuando el componente se desmonta para evitar fugas de memoria
-        return () => window.removeEventListener('keydown', handleKeyDown);
-    }, [id_usuario]);
+        setUserData({
+            ...data,
+            estado: estadoNormalizado
+        });
+            }
+        })
+        .catch(err => console.error("Error al cargar perfil:", err));
 
-    /**
-     * FUNCIÓN: handleUpdate
-     * Actualiza un campo específico (nombre, correo, etc.) en la base de datos
-     * mediante el método PUT y actualiza el estado local para reflejar los cambios.
-     */
+        // Cerrar modal con Escape
+        const handleKeyDown = (e) => { if (e.key === 'Escape') setActiveModal(null); };
+        window.addEventListener('keydown', handleKeyDown);
+        return () => window.removeEventListener('keydown', handleKeyDown);
+    }, [id_a_consultar]);
+
+    // ════════════════════════════════
+    // ACTUALIZAR CAMPO EN LA BASE
+    // ════════════════════════════════
     const handleUpdate = async (campo, valor) => {
         try {
-const res = await fetch(`/api/users/${id_usuario}`, {
-    method: "PUT",
-    headers: { 
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${localStorage.getItem("token")}`
-    },
-    body: JSON.stringify({ [campo]: valor })
-});
+            const res = await fetch(`/api/users/${id_usuario_logueado}`, {
+                method: "PUT",
+                headers: { 
+                    "Content-Type": "application/json",
+                    Authorization: `Bearer ${localStorage.getItem("token")}`
+                },
+                body: JSON.stringify({ [campo]: valor })
+            });
             const result = await res.json();
             if (result.ok) {
-                // Actualiza solo el campo modificado en el estado local
                 setUserData(prev => ({ ...prev, [campo]: valor }));
                 setActiveModal(null);
             }
-        } catch (error) {
+        } catch {
             alert("Error al actualizar");
         }
     };
 
-    /**
-     * FUNCIÓN: handleCerrarSesion
-     * Cambia el estado del usuario a offline en la DB, limpia el localStorage
-     * y redirige al usuario a la página de bienvenida.
-     */
+    // ════════════════════════════════
+    // CERRAR SESIÓN
+    // ════════════════════════════════
     const handleCerrarSesion = async () => {
-        const id = localStorage.getItem("usuarioId");
         try {
-           await fetch(`/api/users/${id}`, {
-    method: "PUT",
-    headers: { 
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${localStorage.getItem("token")}`
-    },
-    body: JSON.stringify({ estado: 0 })
-});
-        } catch (error) {
-            console.error("Error:", error);
+            await fetch(`/api/users/${id_usuario_logueado}`, {
+                method: "PUT",
+                headers: { 
+                    "Content-Type": "application/json",
+                    Authorization: `Bearer ${localStorage.getItem("token")}`
+                },
+                body: JSON.stringify({ estado: 0 }) // marca como desconectado
+            });
+        } catch (err) {
+            console.error("Error al cerrar sesión:", err);
         } finally {
-            localStorage.clear();      // Borra datos de sesión
-            navigate("/home-guest");   // Salida forzada a la página de invitados
+            localStorage.clear();
+            navigate("/home-guest");
         }
     };
 
-    /**
-     * FUNCIÓN: handleShare
-     * Utiliza la API nativa de los navegadores para compartir el enlace del perfil.
-     * Si el navegador no soporta el menú de compartir, copia el link al portapapeles.
-     */
+    // ════════════════════════════════
+    // COMPARTIR PERFIL
+    // ════════════════════════════════
     const handleShare = async () => {
-        const shareData = {
-            title: 'UniServices - Perfil de ' + userData.nombre,
-            text: '¡Mira mi perfil en UniServices!',
-            url: window.location.href, 
-        };
-
         try {
             if (navigator.share) {
-                await navigator.share(shareData); // Abre menú en móviles/tablets
+                await navigator.share({
+                    title: 'UniServices - Perfil de ' + userData.nombre,
+                    url: window.location.href,
+                });
             } else {
-                await navigator.clipboard.writeText(window.location.href); // Fallback para PC
-                alert('¡Enlace de perfil copiado al portapapeles!');
+                await navigator.clipboard.writeText(window.location.href);
+                alert('¡Enlace copiado al portapapeles!');
             }
         } catch (err) {
             console.error('Error al compartir:', err);
         }
     };
 
-    // ═══════════════════════════════════════════
-    // HANDLERS PARA IMAGEN DE PERFIL
-    // ═══════════════════════════════════════════
+    // ════════════════════════════════
+    // TOGGLE SEGUIR (solo perfil externo)
+    // ════════════════════════════════
+    const handleSeguir = async () => {
+        // Por ahora solo cambia el estado visual
+        // Aquí irá el fetch al endpoint de seguidores cuando esté listo
+        setSiguiendo(!siguiendo);
+    };
 
-    /**
-     * FUNCIÓN: handleSubirImagenLocal
-     * Se activa cuando el usuario selecciona un archivo desde su PC.
-     * Envía el archivo físico a través de FormData mediante POST.
-     */
+    // ════════════════════════════════
+    // SUBIR IMAGEN LOCAL
+    // ════════════════════════════════
     const handleSubirImagenLocal = async (event) => {
         const file = event.target.files[0];
         if (!file) return;
 
-        // FormData es necesario para enviar archivos binarios al PHP
         const formData = new FormData();
         formData.append("file", file);
-        formData.append("id_usuario", id_usuario);
+        formData.append("id_usuario", id_usuario_logueado);
 
         try {
             const response = await fetch("http://localhost/api/crud/usuario_crud.php", {
-                method: "POST", // Importante: Las subidas de archivos en PHP suelen ir por POST
+                method: "POST",
                 body: formData
             });
-
             const result = await response.json();
             if (result.ok) {
                 setUserData(prev => ({ ...prev, avatar: result.avatarUrl }));
@@ -164,42 +166,41 @@ const res = await fetch(`/api/users/${id_usuario}`, {
             } else {
                 alert("❌ Error al subir: " + result.error);
             }
-        } catch (error) {
-            console.error("Error en la subida local:", error);
+        } catch (err) {
+            console.error("Error en subida:", err);
         }
     };
 
-    /**
-     * FUNCIÓN: handleUsarImagenURL
-     * Solicita una URL al usuario y la guarda en la base de datos.
-     * Reutiliza handleUpdate ya que es un cambio de texto en la DB (PUT).
-     */
-
-    const handleUsarImagenURL = async () => {
-        const url = prompt('Ingresa la URL directa de la imagen (.jpg, .png, .webp):');
-        
-        // Validación básica
-        if (!url || !url.trim()) return;
-
-        try {
-            // Validamos que el formato de URL sea correcto
-            new URL(url); 
-            
-            // Llamamos a la función genérica para actualizar el campo 'avatar'
-            await handleUpdate('avatar', url.trim());
-            alert('✨ ¡Avatar actualizado con éxito!');
-        } catch (e) {
-            alert('❌ Por favor, ingresa una URL válida y completa (incluyendo http/https).');
-        }
+    // ── Helper para formatear fecha
+    const formatearFecha = (fecha) => {
+        if (!fecha) return "Fecha desconocida";
+        return new Date(fecha).toLocaleDateString("es-ES", { month: "long", year: "numeric" });
     };
 
-    // ... Continúa el return (JSX)
+    // ── Helper para formatear números grandes
+    const formatearNumero = (num) => {
+        if (!num) return 0;
+        if (num >= 1000000) return (num / 1000000).toFixed(1) + "M";
+        if (num >= 1000) return (num / 1000).toFixed(1) + "k";
+        return num;
+    };
+
+    // ── Estado del usuario: verde si estado===1, rojo si no
+    const estaConectado = userData.estado === true || userData.estado === 1 || userData.estado === "1";
+
+    // ── Reputación formateada
+    const reputacionTexto = userData.reputacion && userData.reputacion !== "N/A"
+        ? parseFloat(userData.reputacion).toFixed(1) + "/5.0"
+        : "Sin calificaciones";
+
+    // ════════════════════════════════
+    // JSX
+    // ════════════════════════════════
     return (
         <>
             <Navbar onCerrarSesion={handleCerrarSesion} />
 
             <div className="profile-page-wrapper">
-                {/* Fondo dinámico */}
                 <div className="dynamic-bg">
                     <div className="floating-shapes">
                         <div className="shape shape-1"></div>
@@ -210,72 +211,147 @@ const res = await fetch(`/api/users/${id_usuario}`, {
 
                 <main className="main-container">
                     <div className="profile-wrapper">
-                        {/* Tarjeta de perfil */}
+
+                        {/* ══ TARJETA IZQUIERDA ══ */}
                         <div className="profile-card">
                             <div className="profile-header">
-                                <div className="avatar-wrapper" onClick={() => setActiveModal('imagen')}>
+                                {/* Avatar — clickeable solo en perfil propio */}
+                                <div
+                                    className="avatar-wrapper"
+                                    onClick={() => !esPerfilExterno && setActiveModal('imagen')}
+                                    style={{ cursor: esPerfilExterno ? "default" : "pointer" }}
+                                >
                                     <div className="avatar-ring"></div>
                                     <img src={userData.avatar} alt="Avatar" className="avatar" />
-                                    <div className={`status-badge ${userData.estado === 1 ? 'online' : 'busy'}`}></div>
+                                    {/* ── Indicador de estado: verde=conectado, rojo=desconectado ── */}
+                                    <div className={`status-badge ${estaConectado ? 'online' : 'busy'}`}></div>
                                 </div>
                                 <h1 className="profile-name">{userData.nombre}</h1>
-                                <p className="profile-username">@{userData.nombre.toLowerCase().replace(/\s/g, '')}</p>
+                                <p className="profile-username">
+                                    @{userData.nombre?.toLowerCase().replace(/\s/g, '') || "usuario"}
+                                </p>
                             </div>
 
                             <div className="profile-body">
                                 <p className="profile-bio">{userData.descripcion}</p>
+
                                 <div className="stats-grid">
                                     <StatItem value={userData.total_publicaciones} label="Publicaciones" />
-                                    <StatItem value={userData.total_seguidores} label="Seguidores" />
+                                    <StatItem value={formatearNumero(userData.total_seguidores)} label="Seguidores" />
                                     <StatItem value={userData.total_siguiendo} label="Siguiendo" />
                                 </div>
+
                                 <div className="action-buttons">
-                                    <button className="btn btn-primary" onClick={() => setActiveModal('info')}>✏️ Editar Perfil</button>
-                                    <button className="btn btn-secondary" onClick={handleShare}>🔗 Compartir</button>
+                                    {esPerfilExterno ? (
+                                        // ── PERFIL EXTERNO: mostrar Seguir + Compartir ──
+                                        <>
+                                            <button
+                                                className={`btn ${siguiendo ? "btn-secondary" : "btn-primary"}`}
+                                                onClick={handleSeguir}
+                                            >
+                                                {siguiendo ? "✓ Siguiendo" : "➕ Seguir"}
+                                            </button>
+                                            <button className="btn btn-secondary" onClick={handleShare}>
+                                                🔗 Compartir
+                                            </button>
+                                        </>
+                                    ) : (
+                                        // ── PERFIL PROPIO: mostrar Editar + Compartir ──
+                                        <>
+                                            <button className="btn btn-primary" onClick={() => setActiveModal('info')}>
+                                                ✏️ Editar Perfil
+                                            </button>
+                                            <button className="btn btn-secondary" onClick={handleShare}>
+                                                🔗 Compartir
+                                            </button>
+                                        </>
+                                    )}
                                 </div>
                             </div>
                         </div>
 
-                        {/* Panel Derecho */}
+                        {/* ══ PANEL DERECHO ══ */}
                         <div className="right-panel">
+
+                            {/* Estado — verde/rojo según la base de datos */}
                             <section className="menu-section">
                                 <div className="section-title">📊 Estado y Actividad</div>
                                 <div className="menu-list">
-                                    <MenuItem icon="🟢" title="Estado actual" desc="Cambia tu disponibilidad" tag={userData.estado === 1 ? "En línea" : "Ocupado"} />
-                                    <MenuItem icon="📈" title="Mi Actividad" onClick={() => setActiveModal('actividad')} />
+                                    <div className="menu-item" style={{ cursor: "default" }}>
+                                        <div className="menu-icon">{estaConectado ? "🟢" : "🔴"}</div>
+                                        <div className="menu-text">
+                                            <div className="menu-title">Estado actual</div>
+                                            <div className="menu-desc">
+                                                {estaConectado ? "Disponible" : "No disponible"}
+                                            </div>
+                                        </div>
+                                        {/* Tag verde/rojo según estado real */}
+                                        <span className={`status-tag ${estaConectado ? "online" : "busy"}`}>
+                                            {estaConectado ? "Conectado" : "Desconectado"}
+                                        </span>
+                                    </div>
+
+                                    {/* Actividad — solo en perfil propio */}
+                                    {!esPerfilExterno && (
+                                        <div className="menu-item" onClick={() => setActiveModal('actividad')}
+                                             style={{ cursor: "pointer" }}>
+                                            <div className="menu-icon">📈</div>
+                                            <div className="menu-text">
+                                                <div className="menu-title">Mi Actividad</div>
+                                                <div className="menu-desc">Revisa tus estadísticas</div>
+                                            </div>
+                                            <span className="menu-arrow">→</span>
+                                        </div>
+                                    )}
                                 </div>
                             </section>
 
+                            {/* Información del perfil */}
                             <section className="menu-section">
                                 <div className="section-title">📋 Información</div>
                                 <div className="info-grid">
-                                    <InfoItem label="📧 Correo" value={userData.correo} />
-                                    <InfoItem label="🏫 Universidad" value="U. Nacional" />
-                                    <InfoItem label="⭐ Reputación" value={`${userData.reputacion}/5.0`} />
-                                    <InfoItem label="📅 Miembro desde" value={`${userData.reputacion}/5.0`} />
-                                    <InfoItem label="⭐ Reputación" value={`${userData.reputacion}/5.0`} />
-                                    <InfoItem label="⭐ Reputación" value={`${userData.reputacion}/5.0`} />
+                                    <InfoItem label="📧 Correo"         value={userData.correo} />
+                                    <InfoItem label="📅 Miembro desde"  value={formatearFecha(userData.fecha_registro)} />
+                                    <InfoItem label="🏫 Universidad"    value={userData.universidad || "Sin universidad"} />
+                                    {/* Reputación calculada desde calificaciones */}
+                                    <InfoItem label="⭐ Reputación"     value={reputacionTexto} />
                                 </div>
                             </section>
+
+                            {/* Acciones rápidas — solo en perfil propio */}
+                            {!esPerfilExterno && (
+                                <section className="menu-section">
+                                    <div className="section-title">⚡ Acciones Rápidas</div>
+                                    <div className="menu-list">
+                                        <MenuItem icon="💼" title="Seguridad" desc="Gestiona tu cuenta"
+                                            onClick={() => navigate("/home#mis-servicios")} />
+                                        <MenuItem icon="📥" title="Notificaciones" desc="Revisa tus pendientes"
+                                            onClick={() => navigate("/home#solicitudes")} />
+                                        <MenuItem
+                                            icon="🚪" title="Cerrar Sesión" desc="Salir de tu cuenta"
+                                            onClick={handleCerrarSesion}
+                                            danger
+                                        />
+                                    </div>
+                                </section>
+                            )}
                         </div>
                     </div>
                 </main>
 
-                {/* Modales */}
+                {/* ══ MODAL: Editar información del perfil (solo perfil propio) ══ */}
                 {activeModal === 'info' && (
                     <div className="image-menu-overlay active" onClick={() => setActiveModal(null)}>
                         <div className="image-menu" onClick={e => e.stopPropagation()}>
                             <h3 className="image-menu-title">✍️ Editar Perfil</h3>
                             <div className="image-menu-options">
-
                                 <button className="image-option" onClick={() => {
                                     const n = prompt("Nuevo nombre:", userData.nombre);
                                     if (n) handleUpdate('nombre', n);
                                 }}>
                                     <span className="image-option-icon">✏️</span>
-                                    <div className="image-option-text"><b>Cambiar Username</b></div>
+                                    <div className="image-option-text"><b>Cambiar Nombre</b></div>
                                 </button>
-
                                 <button className="image-option" onClick={() => {
                                     const d = prompt("Nueva descripción:", userData.descripcion);
                                     if (d) handleUpdate('descripcion', d);
@@ -283,39 +359,33 @@ const res = await fetch(`/api/users/${id_usuario}`, {
                                     <span className="image-option-icon">📖</span>
                                     <div className="image-option-text"><b>Cambiar Descripción</b></div>
                                 </button>
-
                                 <button className="image-option" onClick={() => {
                                     const c = prompt("Nuevo correo:", userData.correo);
                                     if (c) handleUpdate('correo', c);
-                                }}> {/* <-- Aquí estaba el error, sobraba un ")" */}
+                                }}>
                                     <span className="image-option-icon">📧</span>
-                                    <div className="image-option-text"><b>Cambiar Correo electrónico</b></div>
+                                    <div className="image-option-text"><b>Cambiar Correo</b></div>
                                 </button>
-
                             </div>
                         </div>
                     </div>
                 )}
 
+                {/* ══ MODAL: Cambiar avatar (solo perfil propio) ══ */}
                 {activeModal === 'imagen' && (
                     <div className="image-menu-overlay active" onClick={() => setActiveModal(null)}>
                         <div className="image-menu" onClick={e => e.stopPropagation()}>
                             <h3 className="image-menu-title">📸 Cambiar Avatar</h3>
-
-                            {/* El input se coloca dentro del modal (esto recibe la imagen del usuario)*/}
-                            <input 
-                                type="file" 
+                            <input
+                                type="file"
                                 ref={FileInputRef}
                                 accept="image/*"
-                                style={{display: 'none'}}
+                                style={{ display: 'none' }}
                                 onChange={handleSubirImagenLocal}
                             />
-
-                            {/*opciones visibles en el html*/}
-
                             <div className="image-menu-options">
                                 <button className="image-option" onClick={() => {
-                                    const url = prompt("URL de la nueva imagen:");
+                                    const url = prompt("URL de la imagen:");
                                     if (url) handleUpdate('avatar', url);
                                 }}>
                                     <span className="image-option-icon">🌐</span>
@@ -330,7 +400,7 @@ const res = await fetch(`/api/users/${id_usuario}`, {
                     </div>
                 )}
 
-                {/* Modal de Actividad */}
+                {/* ══ MODAL: Actividad (solo perfil propio) ══ */}
                 {activeModal === 'actividad' && (
                     <div className="activity-overlay active" onClick={() => setActiveModal(null)}>
                         <div className="activity-modal" onClick={e => e.stopPropagation()}>
@@ -338,42 +408,26 @@ const res = await fetch(`/api/users/${id_usuario}`, {
                                 <h2 className="activity-title">📊 Mi Actividad</h2>
                                 <button className="activity-close" onClick={() => setActiveModal(null)}>✕</button>
                             </div>
-
                             <div className="activity-body">
-                                {/* Stats rápidas */}
                                 <div className="quick-stats">
                                     <QuickStatCard icon="📝" value="12" label="Este Mes" />
                                     <QuickStatCard icon="✅" value="45" label="Completados" />
-                                    <QuickStatCard icon="⭐" value="4.9" label="Calificación" />
+                                    <QuickStatCard icon="⭐" value={reputacionTexto.split("/")[0]} label="Calificación" />
                                     <QuickStatCard icon="⏱️" value="45h" label="Tiempo Activo" />
                                 </div>
-                
-                                {/* Sección de Progreso */}
                                 <div className="progress-section">
                                     <div className="progress-title">🏆 Logros y Metas</div>
                                     <ProgressBar label="🎯 Meta de publicaciones" value="80%" color="teal" />
                                     <ProgressBar label="⭐ Satisfacción del cliente" value="98%" color="green" />
                                     <ProgressBar label="📩 Tasa de respuesta" value="95%" color="yellow" />
                                 </div>
-                
-                                {/* Actividad reciente */}
                                 <div className="recent-activity">
                                     <div className="recent-title">🕐 Actividad Reciente</div>
                                     <div className="activity-list">
-                                        <ActivityItem 
-                                            icon="✅" 
-                                            text="Completaste el servicio 'Diseño de logo'" 
-                                            time="Hace 2 horas" 
-                                            badge="+5★" 
-                                            type="success" 
-                                        />
-                                        <ActivityItem 
-                                            icon="💬" 
-                                            text="Nuevo mensaje de María García" 
-                                            time="Hace 5 horas" 
-                                            badge="Nuevo" 
-                                            type="info" 
-                                        />
+                                        <ActivityItem icon="✅" text="Completaste el servicio 'Diseño de logo'"
+                                            time="Hace 2 horas" badge="+5★" type="success" />
+                                        <ActivityItem icon="💬" text="Nuevo mensaje de María García"
+                                            time="Hace 5 horas" badge="Nuevo" type="info" />
                                     </div>
                                 </div>
                             </div>
@@ -385,7 +439,8 @@ const res = await fetch(`/api/users/${id_usuario}`, {
     );
 };
 
-// Sub-componentesdel Modal Información y Actividad
+// ── Subcomponentes ──
+
 const StatItem = ({ value, label }) => (
     <div className="stat-item">
         <div className="stat-value">{value}</div>
@@ -393,15 +448,25 @@ const StatItem = ({ value, label }) => (
     </div>
 );
 
-const MenuItem = ({ icon, title, desc, tag, onClick }) => (
-    <div className="menu-item" onClick={onClick}>
-        <div className="menu-icon">{icon}</div>
+// danger=true aplica estilo rojo para el botón de cerrar sesión
+const MenuItem = ({ icon, title, desc, tag, onClick, danger }) => (
+    <div
+        className="menu-item"
+        onClick={onClick}
+        style={{
+            cursor: "pointer",
+            ...(danger && { borderColor: "rgba(239, 68, 68, 0.3)" })
+        }}
+    >
+        <div className="menu-icon" style={danger ? { background: "rgba(239,68,68,0.15)" } : {}}>
+            {icon}
+        </div>
         <div className="menu-text">
-            <div className="menu-title">{title}</div>
+            <div className="menu-title" style={danger ? { color: "#f87171" } : {}}>{title}</div>
             {desc && <div className="menu-desc">{desc}</div>}
         </div>
         {tag && <span className="status-tag online">{tag}</span>}
-        <span className="menu-arrow">→</span>
+        <span className="menu-arrow" style={danger ? { color: "#f87171" } : {}}>→</span>
     </div>
 );
 

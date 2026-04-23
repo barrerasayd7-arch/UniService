@@ -7,6 +7,8 @@ GO
 
 DELETE FROM usuarios WHERE correo LIKE 'luisrizzo2607%';
 
+UPDATE usuarios SET avatar = '../frontend/src/img/default_avatar.png' WHERE id_usuario = 2;
+
 -- Mostrar TODAS las calificaciones y su estado de solicitud
 SELECT 
     cal.id_calificacion AS 'ID Calificación',
