@@ -17,19 +17,6 @@ services:
       - ./import-data.sh:/import-data.sh
     # Inicia SQL y el script de carga en paralelo
     entrypoint: /bin/bash -c "/import-data.sh & /opt/mssql/bin/sqlservr"
-
-  php:
-    image: php:8.2-apache
-    container_name: proyecto-php-1
-    ports:
-      - "80:80"
-    volumes:
-      - ./frontend/src:/var/www/html
-    depends_on:
-      - sqlserver
-    build:
-      context: .
-      dockerfile: Dockerfile
-      
+    
 volumes:
   sql_data:
