@@ -432,3 +432,47 @@ textarea.form-input-custom {
   .card-proveedor    { padding: 24px 16px; }
   .seccion-info      { padding: 16px; }
 }
+
+
+/* ── BOTÓN SEGUIR ── */
+.btn-seguir {
+  display: block;
+  width: 100%;
+  padding: 11px 0;
+  margin: 10px 0 4px;
+  border-radius: 10px;
+  font-size: 0.92rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.25s ease;
+  letter-spacing: 0.4px;
+  background: transparent;
+  border: 2px solid var(--teal);
+  color: var(--teal);
+}
+
+.btn-seguir:hover:not(:disabled) {
+  background: rgba(14, 165, 160, 0.12);
+  transform: translateY(-1px);
+}
+
+.btn-seguir--siguiendo {
+  background: rgba(14, 165, 160, 0.15);
+  border-color: var(--teal);
+  color: var(--teal);
+}
+
+.btn-seguir--siguiendo:hover:not(:disabled) {
+  background: rgba(220, 50, 50, 0.12);
+  border-color: #e05555;
+  color: #e05555;
+}
+
+.btn-seguir--cargando,
+.btn-seguir:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  transform: none;
+}
+
+
