@@ -4,6 +4,9 @@ import cors from "cors";
 import userRoutes from "./routes/user.routes.js";
 import serviceRoutes from "./routes/service.routes.js";
 import solicitudRoutes from "./routes/solicitud.routes.js";
+import solicitudRoutes from "./src/routes/solicitud.routes.js";
+
+app.use("/api/solicitudes", solicitudRoutes);
 
 const app = express();
 

@@ -476,3 +476,226 @@ textarea.form-input-custom {
 }
 
 
+/* ── INPUT FECHA Y HORA MÁS BONITOS ── */
+input[type="date"].form-input-custom,
+input[type="time"].form-input-custom {
+  cursor: pointer;
+  position: relative;
+}
+
+input[type="date"].form-input-custom::-webkit-calendar-picker-indicator,
+input[type="time"].form-input-custom::-webkit-calendar-picker-indicator {
+  filter: invert(73%) sepia(34%) saturate(722%) hue-rotate(126deg) brightness(95%) contrast(91%);
+  cursor: pointer;
+  opacity: 0.9;
+  transition: 0.3s ease;
+}
+
+input[type="date"].form-input-custom::-webkit-calendar-picker-indicator:hover,
+input[type="time"].form-input-custom::-webkit-calendar-picker-indicator:hover {
+  transform: scale(1.15);
+  opacity: 1;
+}
+
+/* ── SUBIR ARCHIVO ── */
+input[type="file"].form-input-custom {
+  display: none;
+}
+
+.custom-file-upload {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 14px;
+  background: var(--bg2);
+  border: 2px dashed var(--borde2);
+  border-radius: 12px;
+  color: var(--texto2);
+  font-size: 0.88rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+
+.custom-file-upload:hover {
+  border-color: var(--teal);
+  background: rgba(14, 165, 160, 0.08);
+  color: var(--teal);
+}
+
+.nombre-archivo {
+  margin-top: 8px;
+  font-size: 0.8rem;
+  color: var(--teal);
+  text-align: center;
+  word-break: break-word;
+}
+
+/* ── CHECKBOX BONITO ── */
+.checkbox-custom {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  cursor: pointer;
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: var(--texto);
+  user-select: none;
+}
+
+.checkbox-custom input {
+  display: none;
+}
+
+.checkmark {
+  width: 20px;
+  height: 20px;
+  border: 2px solid var(--borde2);
+  border-radius: 6px;
+  background: var(--bg2);
+  position: relative;
+  transition: all 0.3s ease;
+}
+
+.checkbox-custom:hover .checkmark {
+  border-color: var(--teal);
+}
+
+.checkbox-custom input:checked + .checkmark {
+  background: var(--teal);
+  border-color: var(--teal);
+  box-shadow: 0 0 10px rgba(14, 165, 160, 0.4);
+}
+
+.checkbox-custom input:checked + .checkmark::after {
+  content: "✓";
+  color: #070d16;
+  font-size: 13px;
+  font-weight: bold;
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -55%);
+}
+
+/* =========================
+   INPUT
+========================= */
+.form-input-custom {
+  background: #0b1420;
+  border: 1px solid rgba(14, 165, 160, 0.35);
+  color: #e8eef8;
+  padding: 12px 14px;
+  border-radius: 12px;
+  outline: none;
+  transition: 0.2s ease;
+}
+
+.form-input-custom:focus {
+  border-color: #14c7c1;
+  box-shadow: 0 0 0 3px rgba(20, 199, 193, 0.15);
+}
+
+/* =========================
+   CALENDARIO BASE
+========================= */
+.mi-calendario {
+  background: #0b1420;
+  border: 1px solid rgba(14, 165, 160, 0.4);
+  border-radius: 16px;
+  overflow: hidden;
+  font-family: 'Poppins', sans-serif;
+  box-shadow: 0 18px 40px rgba(0, 0, 0, 0.45);
+  color: #e8eef8;
+}
+
+/* =========================
+   HEADER
+========================= */
+.mi-calendario .react-datepicker__header {
+  background: linear-gradient(135deg, #f2f5f5, #a7ecee);
+  border-bottom: none;
+  padding: 12px;
+}
+
+/* 🔥 MES (ARREGLADO 100%) */
+.mi-calendario .react-datepicker__current-month {
+  color: #071018;
+  font-weight: 800;
+  text-align: center;
+}
+
+
+/* =========================
+   DÍAS DE SEMANA
+========================= */
+.mi-calendario .react-datepicker__day-name {
+  color: #e8eef8;
+  font-weight: 600;
+}
+
+/* =========================
+   DÍAS
+========================= */
+.mi-calendario .react-datepicker__month {
+  padding: 10px;
+}
+
+.mi-calendario .react-datepicker__day {
+  color: #e8eef8;
+  border-radius: 10px;
+  padding: 6px;
+  transition: 0.2s ease;
+}
+
+.mi-calendario .react-datepicker__day:hover {
+  background: rgba(14, 165, 160, 0.2);
+  color: #ffffff;
+}
+
+.mi-calendario .react-datepicker__day--selected {
+  background: #0ea5a0;
+  color: #071018;
+  font-weight: 700;
+}
+
+.mi-calendario .react-datepicker__day--today {
+  border: 1px solid #14c7c1;
+  color: #14c7c1;
+}
+
+/* =========================
+   NAVEGACIÓN (FLECHAS)
+========================= */
+.mi-calendario .react-datepicker__navigation-icon::before {
+  border-color: #071018;
+  border-width: 2px 2px 0 0;
+}
+.modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: rgba(0,0,0,0.5);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 9999;
+}
+
+.modal-box {
+  background: rgba(21, 63, 65, 0.918);
+  padding: 20px;
+  border-radius: 12px;
+  min-width: 250px;
+  text-align: center;
+  animation: pop 0.2s ease;
+}
+
+@keyframes pop {
+  from { transform: scale(0.9); opacity: 0; }
+  to { transform: scale(1); opacity: 1; }
+}

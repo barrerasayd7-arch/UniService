@@ -97,22 +97,6 @@ CREATE TABLE servicios_imagenes (
 
 GO
 
--- 5. TABLA DE SOLICITUDES (Versión Minimalista)
-CREATE TABLE solicitudes (
-    id_solicitud INT IDENTITY(1,1) PRIMARY KEY,
-    id_cliente INT NOT NULL,    -- El que quiere contratar
-    id_proveedor INT NOT NULL,  -- El que recibe la solicitud (dueño del servicio)
-    id_servicio INT NOT NULL,   -- Qué servicio es
-    
-    -- El "True/False" que mencionas para habilitar el comentario
-    -- 0 = Pendiente/Rechazado, 1 = Aceptado (Habilita calificar)
-    fue_aceptada BIT DEFAULT 0, 
-
-    CONSTRAINT fk_sol_cliente FOREIGN KEY (id_cliente) REFERENCES usuarios(id_usuario) ON DELETE NO ACTION,
-    CONSTRAINT fk_sol_proveedor FOREIGN KEY (id_proveedor) REFERENCES usuarios(id_usuario) ON DELETE NO ACTION,
-    CONSTRAINT fk_sol_servicio FOREIGN KEY (id_servicio) REFERENCES servicios(id_servicio) ON DELETE CASCADE
-);
-GO
 
 -- 6. TABLA DE CALIFICACIONES (image_4.png)
 CREATE TABLE calificaciones (

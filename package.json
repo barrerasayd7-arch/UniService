@@ -26,7 +26,8 @@
     "math-intrinsics": "^1.1.0",
     "mime-db": "^1.52.0",
     "mime-types": "^2.1.35",
-    "proxy-from-env": "^2.1.0"
+    "proxy-from-env": "^2.1.0",
+    "react-datepicker": "^9.1.0"
   },
   "devDependencies": {
     "concurrently": "^9.2.1",
