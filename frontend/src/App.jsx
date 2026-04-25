@@ -11,15 +11,15 @@ export default function App() {
   return (
     <BrowserRouter>
       <Routes>
-        <Route path="/"            element={<Navigate to="/home-guest" />} />
-        <Route path="/login"       element={<Login />} />
-        <Route path="/home-guest"  element={<HomeGuest />} />
-        <Route path="/home"        element={<HomePrincipal />} />
-        <Route path="/servicio"    element={<Servicio />} />
-        <Route path="/privacidad"  element={<PrivacyPage />} />
-        <Route path="/terminos"    element={<TermsPage />} />
-        <Route path="/perfil"      element={<Perfil />} />
-        <Route path="/perfil/:id"   element={<Perfil />} />
+        <Route path="/"                element={<Navigate to="/home-guest" />} />
+        <Route path="/login"           element={<Login />} />
+        <Route path="/home-guest"      element={<HomeGuest />} />
+        <Route path="/home"            element={<HomePrincipal />} />
+        <Route path="/servicio"        element={<Servicio />} />
+        <Route path="/privacidad"      element={<PrivacyPage />} />
+        <Route path="/terminos"        element={<TermsPage />} />
+        <Route path="/perfil"          element={<Perfil />} />
+        <Route path="/perfil/:id"      element={<Perfil />} />
       </Routes>
     </BrowserRouter>
   );

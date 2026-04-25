@@ -78,6 +78,7 @@ function Navbar({ scrolled, onCerrarSesion }) {
   const nombreUsuario = localStorage.getItem("usuario") || "Usuario";
 
   return (
+    
     <nav className={`navbar-custom${scrolled ? " scrolled" : ""}`}>
       <div className="container">
         <a href="#inicio" className="navbar-brand-custom">UniService</a>
