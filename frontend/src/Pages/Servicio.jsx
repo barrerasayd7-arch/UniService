@@ -77,7 +77,6 @@ function FormSolicitud({
 }) {
   const [form, setForm] = useState({
     tipo_servicio: "",
-    tema: "",
     descripcion: "",
     fecha_deseada: "",
     hora_deseada: "",
@@ -89,8 +88,32 @@ function FormSolicitud({
     urgencia: "",
     archivo: null,
   });
+  const [solicitudExiste, setSolicitudExiste] = useState(false);
 
   const [estado, setEstado] = useState("idle");
+
+  useEffect(() => {
+    const verificar = async () => {
+      try {
+        const res = await fetch(API_SOLICITUD, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            accion: "verificar",
+            id_cliente: Number(localStorage.getItem("usuarioId")),
+            id_servicio: servicioId,
+          }),
+        });
+
+        const data = await res.json();
+        setSolicitudExiste(data.existe);
+      } catch (error) {
+        console.error(error);
+      }
+    };
+
+    if (servicioId) verificar();
+  }, [servicioId]);
 
   const handleChange = (e) => {
     const { name, value, type, checked, files } = e.target;
@@ -113,7 +136,6 @@ function FormSolicitud({
 
     if (
       !form.tipo_servicio ||
-      !form.tema ||
       !form.descripcion ||
       !form.fecha_deseada ||
       !form.hora_deseada ||
@@ -126,8 +148,6 @@ function FormSolicitud({
       showModal("error", "❌ Completa todos los campos obligatorios");
       return;
     }
-
-    
 
     const formatHora = (hora) => {
       if (!hora) return null;
@@ -146,7 +166,7 @@ function FormSolicitud({
       id_servicio: Number(servicioId),
 
       tipo_servicio: form.tipo_servicio,
-      tema: form.tema,
+      tema: null,
       descripcion: form.descripcion,
 
       fecha_deseada: form.fecha_deseada,
@@ -177,7 +197,6 @@ function FormSolicitud({
         setEstado("ok");
         setForm({
           tipo_servicio: "",
-          tema: "",
           descripcion: "",
           fecha_deseada: "",
           hora_deseada: "",
@@ -202,8 +221,47 @@ function FormSolicitud({
 
     setTimeout(() => setEstado("idle"), 3000);
   };
+  const handleAccionSolicitud = async () => {
+  const id_cliente = Number(localStorage.getItem("usuarioId"));
 
-  const handleNumericChange  = (e) => {
+  if (!id_cliente) {
+    showModal("error", "❌ Debes iniciar sesión");
+    return;
+  }
+
+  try {
+    const res = await fetch(API_SOLICITUD, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        accion: solicitudExiste ? "eliminar" : "crear",
+        id_cliente,
+        id_proveedor: Number(proveedorId),
+        id_servicio: Number(servicioId),
+      }),
+    });
+
+    const data = await res.json();
+
+    if (data.ok || data.existe !== undefined) {
+      setSolicitudExiste(!solicitudExiste);
+
+      showModal(
+        "success",
+        solicitudExiste
+          ? "🗑️ Solicitud eliminada"
+          : "✅ Solicitud enviada"
+      );
+    } else {
+      showModal("success", "✅ Solicitud enviada");
+    }
+  } catch (error) {
+    console.error(error);
+    showModal("error", "Error en la solicitud");
+  }
+};
+
+  const handleNumericChange = (e) => {
     const { name, value } = e.target;
 
     // Solo permitir números y máximo 10 dígitos
@@ -218,7 +276,7 @@ function FormSolicitud({
 
   return (
     <>
-      <form className="form-solicitud" onSubmit={handleSubmit}>
+      <form className="form-solicitud">
         <h3>📝 Solicitar Servicio a {proveedorNombre}</h3>
 
         <div className="form-grupo-custom">
@@ -236,18 +294,6 @@ function FormSolicitud({
             <option>Diseño</option>
             <option>Otro</option>
           </select>
-        </div>
-
-        <div className="form-grupo-custom">
-          <label>📚 Tema *</label>
-          <input
-            type="text"
-            name="tema"
-            value={form.tema}
-            onChange={handleChange}
-            className="form-input-custom"
-            placeholder="Ej: Álgebra lineal"
-          />
         </div>
 
         <div className="form-grupo-custom">
@@ -410,17 +456,14 @@ function FormSolicitud({
         </div>
 
         <button
-          type="submit"
+          type="button"
           className="btn-primary"
+          onClick={handleAccionSolicitud}
           disabled={estado === "enviando"}
         >
-          {estado === "enviando"
-            ? "⏳ Enviando..."
-            : estado === "ok"
-              ? "✅ Solicitud enviada"
-              : estado === "error"
-                ? "❌ Error"
-                : "✓ Enviar Solicitud"}
+          {solicitudExiste
+            ? "🗑️ Eliminar solicitud"
+            : "📩 Enviar solicitud"}
         </button>
       </form>
     </>
