@@ -98,36 +98,114 @@ BEGIN
 END;
 GO -- <--- IMPORTANTE
 
+USE UniService;
+GO
+
 CREATE OR ALTER PROCEDURE sp_GestionarSolicitud
     @id_cliente INT,
     @id_proveedor INT,
-    @id_servicio INT
+    @id_servicio INT,
+
+    @tipo_servicio NVARCHAR(100),
+    @tema NVARCHAR(150),
+    @descripcion NVARCHAR(MAX),
+
+    @fecha_deseada DATE,
+    @hora_deseada TIME,
+    @duracion NVARCHAR(50),
+    @modalidad NVARCHAR(50),
+
+    @metodo_pago NVARCHAR(50),
+    @presupuesto DECIMAL(10,2),
+    @pago_anticipado BIT = 0,
+
+    @urgencia NVARCHAR(20),
+    @archivo NVARCHAR(255) = NULL
 AS
 BEGIN
     SET NOCOUNT ON;
+
+    -- Validar que no se solicite a sí mismo
     IF @id_cliente = @id_proveedor
     BEGIN
         RAISERROR ('No puedes solicitar tu propio servicio.', 16, 1);
         RETURN;
     END
 
-    IF EXISTS (SELECT 1 FROM solicitudes WHERE id_cliente = @id_cliente AND id_servicio = @id_servicio AND fue_aceptada = 0)
+    -- Validar que no exista una solicitud pendiente
+    IF EXISTS (
+        SELECT 1
+        FROM solicitudes
+        WHERE id_cliente = @id_cliente
+        AND id_servicio = @id_servicio
+        AND estado = 'Pendiente'
+    )
     BEGIN
-        DELETE FROM solicitudes WHERE id_cliente = @id_cliente AND id_servicio = @id_servicio AND fue_aceptada = 0;
-        SELECT 'Solicitud cancelada con éxito' AS Resultado, 0 AS Estado;
+        RAISERROR ('Ya tienes una solicitud pendiente para este servicio.', 16, 1);
+        RETURN;
     END
-    ELSE IF EXISTS (SELECT 1 FROM solicitudes WHERE id_cliente = @id_cliente AND id_servicio = @id_servicio AND fue_aceptada = 1)
-    BEGIN
-        RAISERROR ('Esta solicitud ya fue aceptada y no se puede cancelar.', 16, 1);
-    END
-    ELSE
-    BEGIN
-        INSERT INTO solicitudes (id_cliente, id_proveedor, id_servicio, fue_aceptada)
-        VALUES (@id_cliente, @id_proveedor, @id_servicio, 0);
-        SELECT 'Solicitud enviada correctamente' AS Resultado, 1 AS Estado;
-    END
+
+    BEGIN TRY
+        INSERT INTO solicitudes (
+            id_cliente,
+            id_proveedor,
+            id_servicio,
+            fue_aceptada,
+
+            tipo_servicio,
+            tema,
+            descripcion,
+
+            fecha_deseada,
+            hora_deseada,
+            duracion,
+            modalidad,
+
+            metodo_pago,
+            presupuesto,
+            pago_anticipado,
+
+            urgencia,
+            archivo,
+            estado
+        )
+        VALUES (
+            @id_cliente,
+            @id_proveedor,
+            @id_servicio,
+            0,
+
+            @tipo_servicio,
+            @tema,
+            @descripcion,
+
+            @fecha_deseada,
+            @hora_deseada,
+            @duracion,
+            @modalidad,
+
+            @metodo_pago,
+            @presupuesto,
+            @pago_anticipado,
+
+            @urgencia,
+            @archivo,
+            'Pendiente'
+        );
+
+        SELECT 
+            'Solicitud enviada correctamente' AS Resultado,
+            SCOPE_IDENTITY() AS id_solicitud;
+
+    END TRY
+    BEGIN CATCH
+        DECLARE @Err NVARCHAR(4000) = ERROR_MESSAGE();
+        RAISERROR (@Err, 16, 1);
+    END CATCH
 END;
-GO -- <--- IMPORTANTE
+GO
+
+-- <--- IMPORTANTE
 
 CREATE OR ALTER PROCEDURE sp_GuardarCalificacionConAspectos
     @id_solicitud INT,
