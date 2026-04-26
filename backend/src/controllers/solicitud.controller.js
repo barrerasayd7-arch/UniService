@@ -92,7 +92,7 @@ export const crearSolicitud = async (req, res) => {
           c.nombre AS nombreCliente,
           p.nombre AS nombreProveedor,
           s.titulo AS tituloServicio,
-          c.correo AS correoProveedor
+          p.correo AS correoProveedor
         FROM usuarios c
         INNER JOIN usuarios p ON p.id_usuario = @id_proveedor
         INNER JOIN servicios s ON s.id_servicio = @id_servicio
@@ -107,6 +107,7 @@ export const crearSolicitud = async (req, res) => {
     const tituloServicio = datos?.tituloServicio;
 
     // 3. Enviar correo bonito
+    console.log("📧 Intentando enviar correo a:", correo);
     if (correo) {
       await transporter.sendMail({
         from: `"UniService 🎓" <${process.env.EMAIL_USER}>`,
@@ -189,6 +190,7 @@ export const crearSolicitud = async (req, res) => {
         </div>
         `,
       });
+      
     }
 
     res.json(result.recordset[0]);
