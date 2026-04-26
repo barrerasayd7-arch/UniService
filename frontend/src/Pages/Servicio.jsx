@@ -17,6 +17,16 @@ const DISPONIBILIDAD_MAP = {
   2: "Siempre disponible",
 };
 
+const formatHora = (hora) => {
+  if (!hora) return null;
+
+  if (/^\d{2}:\d{2}$/.test(hora)) return `${hora}:00`;
+
+  if (/^\d{2}:\d{2}:\d{2}$/.test(hora)) return hora;
+
+  return null;
+};
+
 const COLORES_AVATAR = ["ag-azul", "ag-morado", "ag-verde", "ag-naranja"];
 function colorAvatar(nombre) {
   if (!nombre) return "ag-azul";
@@ -125,141 +135,124 @@ function FormSolicitud({
   };
   const presupuesto = Number(form.presupuesto);
 
-  const handleSubmit = async (e) => {
-    e.preventDefault();
+  const handleAccionSolicitud = async () => {
+  const id_cliente = Number(localStorage.getItem("usuarioId"));
+  const id_servicio_num = Number(servicioId);
+  const id_proveedor_num = Number(proveedorId);
 
-    const solicitanteId = localStorage.getItem("usuarioId");
-    if (!solicitanteId) {
-      showModal("error", "❌ Debes iniciar sesión");
-      return;
-    }
+  if (!id_cliente || !id_servicio_num || !id_proveedor_num) {
+    showModal("error", "❌ Datos inválidos");
+    return;
+  }
 
-    if (
-      !form.tipo_servicio ||
-      !form.descripcion ||
-      !form.fecha_deseada ||
-      !form.hora_deseada ||
-      !form.duracion ||
-      !form.modalidad ||
-      !form.metodo_pago ||
-      !form.presupuesto ||
-      !form.urgencia
-    ) {
-      showModal("error", "❌ Completa todos los campos obligatorios");
-      return;
-    }
-
-    const formatHora = (hora) => {
-      if (!hora) return null;
-      return new Date(`1970-01-01T${hora}:00`);
-    };
-
-    if (presupuesto > 9999999) {
-      showModal("error", "❌ El presupuesto es demasiado grande");
-      return;
-    }
-    setEstado("enviando");
-
-    const payload = {
-      id_cliente: Number(solicitanteId),
-      id_proveedor: Number(proveedorId),
-      id_servicio: Number(servicioId),
-
-      tipo_servicio: form.tipo_servicio,
-      tema: null,
-      descripcion: form.descripcion,
-
-      fecha_deseada: form.fecha_deseada,
-      hora_deseada: formatHora(form.hora_deseada),
-      duracion: form.duracion,
-      modalidad: form.modalidad,
-
-      metodo_pago: form.metodo_pago,
-      presupuesto: Number(form.presupuesto),
-      pago_anticipado: form.pago_anticipado,
-
-      urgencia: form.urgencia,
-      archivo: form.archivo ? form.archivo.name : null,
-    };
-
+  // 🗑️ ELIMINAR
+  if (solicitudExiste) {
     try {
       const res = await fetch(API_SOLICITUD, {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify(payload),
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          accion: "eliminar",
+          id_cliente,
+          id_proveedor: id_proveedor_num,
+          id_servicio: id_servicio_num,
+        }),
       });
 
       const data = await res.json();
 
-      if (res.ok || data.ok) {
-        setEstado("ok");
-        setForm({
-          tipo_servicio: "",
-          descripcion: "",
-          fecha_deseada: "",
-          hora_deseada: "",
-          duracion: "",
-          modalidad: "",
-          metodo_pago: "",
-          presupuesto: "",
-          pago_anticipado: false,
-          urgencia: "",
-          archivo: null,
-        });
-        showModal("success", "✅ Solicitud enviada correctamente");
+      if (res.ok) {
+        setSolicitudExiste(false);
+        showModal("success", "🗑️ Solicitud eliminada");
       } else {
-        setEstado("error");
-        showModal("error", data.error || "Error al enviar solicitud");
+        showModal("error", data.error || "Error al eliminar");
       }
     } catch (error) {
-      console.error(error);
-      setEstado("error");
-      showModal("error", "Error al enviar solicitud");
+      showModal("error", "Error al eliminar solicitud");
     }
 
-    setTimeout(() => setEstado("idle"), 3000);
-  };
-  const handleAccionSolicitud = async () => {
-  const id_cliente = Number(localStorage.getItem("usuarioId"));
-
-  if (!id_cliente) {
-    showModal("error", "❌ Debes iniciar sesión");
     return;
   }
+
+  // 📩 VALIDAR SOLO PARA CREAR
+  if (
+    !form.tipo_servicio ||
+    !form.descripcion ||
+    !form.fecha_deseada ||
+    !form.hora_deseada ||
+    !form.duracion ||
+    !form.modalidad ||
+    !form.metodo_pago ||
+    !form.presupuesto ||
+    !form.urgencia
+  ) {
+    showModal("error", "❌ Completa todos los campos obligatorios");
+    return;
+  }
+
+  if (Number(form.presupuesto) > 9999999) {
+    showModal("error", "❌ El presupuesto es demasiado grande");
+    return;
+  }
+
+  // 📩 CREAR PAYLOAD CORRECTO
+  const payload = {
+    accion: "crear",
+    id_cliente,
+    id_proveedor: id_proveedor_num,
+    id_servicio: id_servicio_num,
+
+    tipo_servicio: form.tipo_servicio,
+    descripcion: form.descripcion,
+    fecha_deseada: form.fecha_deseada,
+    hora_deseada: formatHora(form.hora_deseada) || null,
+    tema: "sin tema",
+
+    duracion: form.duracion,
+    modalidad: form.modalidad,
+    metodo_pago: form.metodo_pago,
+    presupuesto: Number(form.presupuesto),
+    pago_anticipado: form.pago_anticipado,
+    urgencia: form.urgencia,
+    archivo: form.archivo ? form.archivo.name : null,
+  };
 
   try {
     const res = await fetch(API_SOLICITUD, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        accion: solicitudExiste ? "eliminar" : "crear",
-        id_cliente,
-        id_proveedor: Number(proveedorId),
-        id_servicio: Number(servicioId),
-      }),
+      body: JSON.stringify(payload),
     });
 
     const data = await res.json();
 
-    if (data.ok || data.existe !== undefined) {
-      setSolicitudExiste(!solicitudExiste);
+    if (res.ok) {
+      setSolicitudExiste(true);
 
-      showModal(
-        "success",
-        solicitudExiste
-          ? "🗑️ Solicitud eliminada"
-          : "✅ Solicitud enviada"
-      );
+      setForm({
+        tipo_servicio: "",
+        descripcion: "",
+        fecha_deseada: "",
+        hora_deseada: "",
+        duracion: "",
+        modalidad: "",
+        metodo_pago: "",
+        presupuesto: "",
+        pago_anticipado: false,
+        urgencia: "",
+        archivo: null,
+      });
+
+      showModal("success", "📩 Solicitud enviada");
     } else {
-      showModal("success", "✅ Solicitud enviada");
-    }
+    console.log("❌ RESPUESTA COMPLETA BACKEND:", data);
+    showModal("error", data.message || data.error || "Error al enviar");    
+}
   } catch (error) {
-    console.error(error);
-    showModal("error", "Error en la solicitud");
+    showModal("error", "Error al enviar solicitud");
   }
-};
+  };
+  
 
   const handleNumericChange = (e) => {
     const { name, value } = e.target;
@@ -271,6 +264,7 @@ function FormSolicitud({
     setForm({
       ...form,
       [name]: limitado,
+    
     });
   };
 
@@ -461,9 +455,7 @@ function FormSolicitud({
           onClick={handleAccionSolicitud}
           disabled={estado === "enviando"}
         >
-          {solicitudExiste
-            ? "🗑️ Eliminar solicitud"
-            : "📩 Enviar solicitud"}
+          {solicitudExiste ? "🗑️ Eliminar solicitud" : "📩 Enviar solicitud"}
         </button>
       </form>
     </>

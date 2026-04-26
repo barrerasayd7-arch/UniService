@@ -8,10 +8,10 @@ export const crearSolicitud = async (req, res) => {
   if (req.body.accion === "verificar") {
     const conn = await pool;
 
-    const result = await conn.request()
+    const result = await conn
+      .request()
       .input("id_cliente", sql.Int, req.body.id_cliente)
-      .input("id_servicio", sql.Int, req.body.id_servicio)
-      .query(`
+      .input("id_servicio", sql.Int, req.body.id_servicio).query(`
         SELECT TOP 1 id_solicitud
         FROM solicitudes
         WHERE id_cliente = @id_cliente
@@ -24,10 +24,10 @@ export const crearSolicitud = async (req, res) => {
   if (req.body.accion === "eliminar") {
     const conn = await pool;
 
-    await conn.request()
+    await conn
+      .request()
       .input("id_cliente", sql.Int, req.body.id_cliente)
-      .input("id_servicio", sql.Int, req.body.id_servicio)
-      .query(`
+      .input("id_servicio", sql.Int, req.body.id_servicio).query(`
         DELETE FROM solicitudes
         WHERE id_cliente = @id_cliente
         AND id_servicio = @id_servicio
@@ -59,7 +59,8 @@ export const crearSolicitud = async (req, res) => {
     const conn = await pool;
 
     // 1. Ejecutar SP
-    const result = await conn.request()
+    const result = await conn
+      .request()
       .input("id_cliente", sql.Int, id_cliente)
       .input("id_proveedor", sql.Int, id_proveedor)
       .input("id_servicio", sql.Int, id_servicio)
@@ -67,22 +68,26 @@ export const crearSolicitud = async (req, res) => {
       .input("tema", sql.NVarChar, tema)
       .input("descripcion", sql.NVarChar, descripcion)
       .input("fecha_deseada", sql.Date, fecha_deseada)
-      .input("hora_deseada", sql.Time, hora_deseada)
+      .input(
+        "hora_deseada",
+        sql.Time,
+        hora_deseada ? new Date(`1970-01-01T${hora_deseada}`) : null,
+      )
       .input("duracion", sql.NVarChar, duracion)
       .input("modalidad", sql.NVarChar, modalidad)
       .input("metodo_pago", sql.NVarChar, metodo_pago)
-      .input("presupuesto", sql.Decimal(10,2), presupuesto)
+      .input("presupuesto", sql.Decimal(10, 2), presupuesto)
       .input("pago_anticipado", sql.Bit, pago_anticipado)
       .input("urgencia", sql.NVarChar, urgencia)
       .input("archivo", sql.NVarChar, archivo)
       .execute("sp_GestionarSolicitud");
 
     // 2. Traer datos del cliente, proveedor y servicio (IMPORTANTE)
-    const info = await conn.request()
+    const info = await conn
+      .request()
       .input("id_cliente", sql.Int, id_cliente)
       .input("id_proveedor", sql.Int, id_proveedor)
-      .input("id_servicio", sql.Int, id_servicio)
-      .query(`
+      .input("id_servicio", sql.Int, id_servicio).query(`
         SELECT 
           c.nombre AS nombreCliente,
           p.nombre AS nombreProveedor,
@@ -187,8 +192,15 @@ export const crearSolicitud = async (req, res) => {
     }
 
     res.json(result.recordset[0]);
-
   } catch (error) {
-    res.status(500).json({ error: error.message });
+    console.error("❌ ERROR COMPLETO:", error);
+    console.error("❌ STACK:", error.stack);
+
+    res.status(500).json({
+      message: error.message,
+      sqlMessage: error.originalError?.info?.message,
+      number: error.number,
+      lineNumber: error.lineNumber,
+    });
   }
 };
