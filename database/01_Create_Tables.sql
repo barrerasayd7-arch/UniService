@@ -44,7 +44,11 @@ CREATE TABLE usuarios (
 GO
 
 CREATE TABLE solicitudes (
-    id INT IDENTITY(1,1) PRIMARY KEY,
+    id_solicitud INT IDENTITY(1,1) PRIMARY KEY,
+    id_cliente INT NOT NULL,
+    id_proveedor INT NOT NULL,
+    id_servicio INT NOT NULL,
+    fue_aceptada BIT DEFAULT 0,
 
     tipo_servicio NVARCHAR(100),
     tema NVARCHAR(150),
@@ -60,8 +64,18 @@ CREATE TABLE solicitudes (
     archivo NVARCHAR(255),
     estado NVARCHAR(20) DEFAULT 'Pendiente',
     motivo_rechazo NVARCHAR(MAX),
-    contraoferta DECIMAL(10,2)
+    contraoferta DECIMAL(10,2),
+
+    CONSTRAINT fk_solicitud_cliente FOREIGN KEY (id_cliente)
+        REFERENCES usuarios(id_usuario),
+
+    CONSTRAINT fk_solicitud_proveedor FOREIGN KEY (id_proveedor)
+        REFERENCES usuarios(id_usuario),
+
+    CONSTRAINT fk_solicitud_servicio FOREIGN KEY (id_servicio)
+        REFERENCES servicios(id_servicio)
 );
+
 GO
 
 -- 2. TABLA DE CATEGORÍAS
