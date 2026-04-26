@@ -206,3 +206,92 @@ export const crearSolicitud = async (req, res) => {
     });
   }
 };
+
+// SOLICITUDES ENVIADAS (como cliente)
+export const getMisSolicitudes = async (req, res) => {
+  try {
+    const { id } = req.params; // id_cliente
+    const conn = await pool;
+
+    const result = await conn.request()
+      .input("id_cliente", sql.Int, parseInt(id))
+      .query(`
+        SELECT 
+          sol.*,
+          s.titulo        AS titulo_servicio,
+          s.icono,
+          u.nombre        AS nombre_proveedor,
+          u.avatar        AS avatar_proveedor
+        FROM solicitudes sol
+        INNER JOIN servicios s  ON s.id_servicio  = sol.id_servicio
+        INNER JOIN usuarios  u  ON u.id_usuario   = sol.id_proveedor
+        WHERE sol.id_cliente = @id_cliente
+        ORDER BY sol.id_solicitud DESC
+      `);
+
+    res.json(result.recordset);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+};
+
+// SOLICITUDES RECIBIDAS (como proveedor)
+export const getSolicitudesRecibidas = async (req, res) => {
+  try {
+    const { id } = req.params; // id_proveedor
+    const conn = await pool;
+
+    const result = await conn.request()
+      .input("id_proveedor", sql.Int, parseInt(id))
+      .query(`
+        SELECT 
+          sol.*,
+          s.titulo        AS titulo_servicio,
+          s.icono,
+          u.nombre        AS nombre_cliente,
+          u.avatar        AS avatar_cliente,
+          u.correo        AS correo_cliente
+        FROM solicitudes sol
+        INNER JOIN servicios s  ON s.id_servicio = sol.id_servicio
+        INNER JOIN usuarios  u  ON u.id_usuario  = sol.id_cliente
+        WHERE sol.id_proveedor = @id_proveedor
+        ORDER BY sol.id_solicitud DESC
+      `);
+
+    res.json(result.recordset);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+};
+
+// ACEPTAR O RECHAZAR (como proveedor)
+export const responderSolicitud = async (req, res) => {
+  try {
+    const { id_solicitud, accion, motivo_rechazo } = req.body;
+    // accion: "aceptar" | "rechazar"
+    const conn = await pool;
+
+    if (accion === "aceptar") {
+      await conn.request()
+        .input("id", sql.Int, id_solicitud)
+        .query(`
+          UPDATE solicitudes 
+          SET estado = 'Aceptada', fue_aceptada = 1
+          WHERE id_solicitud = @id
+        `);
+    } else {
+      await conn.request()
+        .input("id",     sql.Int,     id_solicitud)
+        .input("motivo", sql.NVarChar, motivo_rechazo || "")
+        .query(`
+          UPDATE solicitudes 
+          SET estado = 'Rechazada', motivo_rechazo = @motivo
+          WHERE id_solicitud = @id
+        `);
+    }
+
+    res.json({ ok: true });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+};
