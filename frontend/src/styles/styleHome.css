@@ -252,15 +252,38 @@ fieldset {
   background: rgb(14, 165, 160);
 }
 
-.punto-notificacion {
+.badge-notificaciones {
   position: absolute;
-  top: 15px;
-  right: 15px;
-  width: 12px;
-  height: 12px;
-  background-color: #ff4757;
-  border-radius: 50%;
-  border: 2px solid #1a2235;
+  top: 0;
+  right: 0;
+  background: #ef4444;
+  color: #fff;
+  font-size: 11px;
+  font-weight: 700;
+  min-width: 20px;
+  height: 20px;
+  border-radius: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0 5px;
+  border: 2px solid #093b38;
+  animation: badgePulse 2s ease-in-out infinite;
+}
+
+@keyframes badgePulse {
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(1.1); }
+}
+
+.item-notificacion.leida {
+  opacity: 0.5;
+  border-left-color: #4b5563;
+}
+
+.item-notificacion:not(.leida) {
+  cursor: pointer;
+  border-left-color: #4ac7b6;
 }
 
 /* Panel principal */

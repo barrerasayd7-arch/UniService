@@ -59,20 +59,18 @@ const initialPublicar = {
 
 // Convierte un array de puntuaciones numéricas en íconos de estrellas (★☆)
 function calcularEstrellas(puntuaciones) {
-  // Asegura que tratamos con un array válido de puntuaciones
   if (!Array.isArray(puntuaciones) || puntuaciones.length === 0) return "☆☆☆☆☆";
 
-  // Calcula el promedio basado en el array de puntuaciones
   const prom =
     puntuaciones.reduce((a, b) => a + Number(b), 0) / puntuaciones.length;
-  const llenas = Math.min(5, Math.max(0, Math.round(prom))); // Garantiza rango 0-5
+  const llenas = Math.min(5, Math.max(0, Math.round(prom)));
 
   return "★".repeat(llenas) + "☆".repeat(5 - llenas);
+}
 
-  function promedioEstrellas(estrellas) {
-    if (!Array.isArray(estrellas) || estrellas.length === 0) return 0;
-    return estrellas.reduce((a, b) => a + Number(b), 0) / estrellas.length;
-  }
+function promedioEstrellas(estrellas) {
+  if (!Array.isArray(estrellas) || estrellas.length === 0) return 0;
+  return estrellas.reduce((a, b) => a + Number(b), 0) / estrellas.length;
 }
 
 // Recorta textos largos para que no desborden las tarjetas
@@ -1162,7 +1160,9 @@ function SeccionSolicitudes() {
         contraoferta,
       }),
     });
-    // Recargamos solo las recibidas para reflejar el nuevo estado
+
+    window.dispatchEvent(new CustomEvent("solicitud-actualizada"));
+
     const res = await fetch(`${API_SOLICITUD}/recibidas/${id}`);
     setRecibidas(await res.json());
   };
@@ -1304,138 +1304,102 @@ function Footer() {
   );
 }
 
-// Componente flotante de notificaciones: actualmente usa datos estáticos de prueba
-// La mejora pendiente es conectarlo al API para mostrar notificaciones reales de la BD
 function NotificacionesFlotantes() {
   const [abierto, setAbierto] = useState(false);
+  const [notificaciones, setNotificaciones] = useState([]);
+  const [cargando, setCargando] = useState(true);
 
-  const [notificaciones] = useState([
-    // --- Solicitudes y Servicios ---
-    {
-      id: 1,
-      texto:
-        "📩 ¡Nueva solicitud! Un estudiante requiere tu tutoría en Programación",
-      leida: false,
-    },
-    {
-      id: 2,
-      texto: "✅ Tu solicitud para 'Asesoría en Cálculo' ha sido aceptada",
-      leida: false,
-    },
-    {
-      id: 3,
-      texto:
-        "📅 Recordatorio: Tu tutoría de 'Bases de Datos' comienza en 30 minutos",
-      leida: false,
-    },
-    {
-      id: 4,
-      texto: "🍎 Daniela ha solicitado tu servicio de 'Asesoría Nutricional'",
-      leida: false,
-    },
-    {
-      id: 5,
-      texto: "🛠️ Camilo marcó como 'En Proceso' el Mantenimiento de tu PC",
-      leida: true,
-    },
+  const usuarioId = localStorage.getItem("usuarioId");
 
-    // --- Reseñas y Calificaciones ---
-    {
-      id: 6,
-      texto:
-        "⭐ ¡Nueva calificación! Alguien valoró tu servicio con 5 estrellas",
-      leida: false,
-    },
-    {
-      id: 7,
-      texto:
-        "📝 Julian dejó un comentario en tu perfil: 'Excelente explicación'",
-      leida: false,
-    },
-    {
-      id: 8,
-      texto: "🏅 ¡Felicidades! Has alcanzado el nivel de 'Tutor Destacado'",
-      leida: false,
-    },
+  useEffect(() => {
+    if (!usuarioId) return;
+    setCargando(true);
 
-    // --- Pagos y Precios ---
-    {
-      id: 9,
-      texto: "💰 Se ha confirmado el pago de $45,000 por 'Formateo de Laptop'",
-      leida: true,
-    },
-    {
-      id: 10,
-      texto: "📉 Oferta: El servicio 'Venta de Almuerzos' bajó de precio",
-      leida: false,
-    },
+    const cargarNotificaciones = () => {
+      Promise.all([
+        fetch(`${API_SOLICITUD}/recibidas/${usuarioId}`).then((r) => r.json()),
+        fetch(`${API_SOLICITUD}/enviadas/${usuarioId}`).then((r) => r.json()),
+      ])
+        .then(([recibidas, enviadas]) => {
+          const recibidasArr = Array.isArray(recibidas) ? recibidas : [];
+          const enviadasArr = Array.isArray(enviadas) ? enviadas : [];
 
-    // --- Mensajería e Interacción ---
-    {
-      id: 11,
-      texto: "💬 Mariana te envió un mensaje: '¿A qué hora nos vemos?'",
-      leida: false,
-    },
-    {
-      id: 12,
-      texto: "👋 Diego quiere contactarte por 'Reparación de Celulares'",
-      leida: false,
-    },
+          const notifs = [];
 
-    // --- Sistema y Seguridad (Acorde a tu SECURITY.md) ---
-    {
-      id: 13,
-      texto: "🔒 Tu código de verificación ha sido generado exitosamente",
-      leida: true,
-    },
-    {
-      id: 14,
-      texto: "⚠️ Alerta de seguridad: Nuevo inicio de sesión detectado",
-      leida: false,
-    },
-    {
-      id: 15,
-      texto: "🔄 Tu contraseña ha sido actualizada correctamente",
-      leida: true,
-    },
+          recibidasArr.forEach((sol) => {
+            if (sol.estado === "Pendiente") {
+              notifs.push({
+                id: `rec-${sol.id_solicitud}`,
+                texto: `📩 Nueva solicitud de ${sol.nombre_cliente || "un estudiante"} para "${sol.titulo_servicio || "tu servicio"}"`,
+                leida: false,
+                tipo: "recibida",
+              });
+            } else if (sol.estado === "Aceptada") {
+              notifs.push({
+                id: `rec-acept-${sol.id_solicitud}`,
+                texto: `✅ ${sol.nombre_cliente || "El cliente"} aceptó tu respuesta para "${sol.titulo_servicio || "tu servicio"}"`,
+                leida: true,
+                tipo: "info",
+              });
+            } else if (sol.estado === "Rechazada") {
+              notifs.push({
+                id: `rec-rech-${sol.id_solicitud}`,
+                texto: `❌ ${sol.nombre_cliente || "El cliente"} rechazó la solicitud para "${sol.titulo_servicio || "tu servicio"}"`,
+                leida: true,
+                tipo: "info",
+              });
+            }
+          });
 
-    // --- Comunidad y Material (Repositorio Académico) ---
-    {
-      id: 16,
-      texto: "📚 Se ha subido un nuevo taller al repositorio de 'Física II'",
-      leida: false,
-    },
-    {
-      id: 17,
-      texto: "🔥 ¡Tu aporte al repositorio ha sido descargado 10 veces!",
-      leida: false,
-    },
-    {
-      id: 18,
-      texto: "📍 Nuevo servicio cerca de ti: 'Arriendo de Habitaciones'",
-      leida: false,
-    },
+          enviadasArr.forEach((sol) => {
+            if (sol.estado === "Aceptada") {
+              notifs.push({
+                id: `env-acept-${sol.id_solicitud}`,
+                texto: `✅ Tu solicitud para "${sol.titulo_servicio || "el servicio"}" fue aceptada por ${sol.nombre_proveedor || "el proveedor"}`,
+                leida: false,
+                tipo: "enviada",
+              });
+            } else if (sol.estado === "Rechazada") {
+              notifs.push({
+                id: `env-rech-${sol.id_solicitud}`,
+                texto: `❌ Tu solicitud para "${sol.titulo_servicio || "el servicio"}" fue rechazada${sol.motivo_rechazo ? ": " + sol.motivo_rechazo : ""}`,
+                leida: false,
+                tipo: "enviada",
+              });
+            }
+          });
 
-    // --- Actualizaciones de UniServices ---
-    {
-      id: 19,
-      texto:
-        "🚀 Actualización v1.2.5: Revisa las nuevas mejoras en la interfaz",
-      leida: true,
-    },
-    {
-      id: 20,
-      texto: "🎁 ¡Gracias por ser parte de UniServices! Tienes un badge nuevo",
-      leida: false,
-    },
-  ]);
+          notifs.sort((a, b) => b.leida - a.leida);
+          setNotificaciones(notifs);
+        })
+        .catch(console.error)
+        .finally(() => setCargando(false));
+    };
+
+    cargarNotificaciones();
+
+    const handler = () => cargarNotificaciones();
+    window.addEventListener("solicitud-actualizada", handler);
+
+    return () => window.removeEventListener("solicitud-actualizada", handler);
+  }, [usuarioId]);
+
+  const marcarLeida = (id) => {
+    setNotificaciones((prev) =>
+      prev.map((n) => (n.id === id ? { ...n, leida: true } : n)),
+    );
+  };
 
   const vaciarNotificaciones = () => {
     const confirmar = window.confirm(
       "¿Estás seguro de que deseas eliminar todas las notificaciones? Esta acción no se puede deshacer.",
     );
-    setNotificaciones([]);
+    if (confirmar) {
+      setNotificaciones([]);
+    }
   };
+
+  const noLeidas = notificaciones.filter((n) => !n.leida).length;
 
   return (
     <div className="contenedor-notificaciones">
@@ -1444,13 +1408,15 @@ function NotificacionesFlotantes() {
         onClick={() => setAbierto(!abierto)}
       >
         🔔
+        {noLeidas > 0 && <span className="badge-notificaciones">{noLeidas}</span>}
       </button>
 
       {abierto && (
         <div className="panel-notificaciones">
-          {/* Encabezado estático con título y botón de borrar */}
           <div className="cabecera-estatica">
-            <h3 className="titulo-estatico">Notificaciones</h3>
+            <h3 className="titulo-estatico">
+              Notificaciones{noLeidas > 0 ? ` (${noLeidas} nuevas)` : ""}
+            </h3>
             <button
               className="boton-vaciar"
               onClick={vaciarNotificaciones}
@@ -1461,9 +1427,15 @@ function NotificacionesFlotantes() {
           </div>
 
           <ul className="lista-scroll">
-            {notificaciones.length > 0 ? (
+            {cargando ? (
+              <li className="sin-notificaciones">Cargando notificaciones...</li>
+            ) : notificaciones.length > 0 ? (
               notificaciones.map((n) => (
-                <li key={n.id} className="item-notificacion">
+                <li
+                  key={n.id}
+                  className={`item-notificacion${n.leida ? " leida" : ""}`}
+                  onClick={() => !n.leida && marcarLeida(n.id)}
+                >
                   {n.texto}
                 </li>
               ))

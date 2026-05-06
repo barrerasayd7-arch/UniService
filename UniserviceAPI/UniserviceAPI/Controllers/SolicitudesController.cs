@@ -5,16 +5,19 @@ using System;
 using System.Collections.Generic;
 using System.Data;
 using System.Threading.Tasks;
+using UniserviceAPI.Services;
 
 [ApiController]
 [Route("api/[controller]")]
 public class SolicitudesController : ControllerBase
 {
     private readonly IConfiguration _config;
+    private readonly EmailService _emailService;
 
-    public SolicitudesController(IConfiguration config)
+    public SolicitudesController(IConfiguration config, EmailService emailService)
     {
         _config = config;
+        _emailService = emailService;
     }
 
     // 🔹 CREAR SOLICITUD
@@ -57,10 +60,59 @@ public class SolicitudesController : ControllerBase
 
             if (await reader.ReadAsync())
             {
+                var resultado = reader["Resultado"]?.ToString();
+                var idSolicitud = reader["id_solicitud"]?.ToString();
+
+                if (resultado != null && resultado.Contains("exitosamente"))
+                {
+                    try
+                    {
+                        using var connEmail = new SqlConnection(_config.GetConnectionString("DefaultConnection"));
+                        await connEmail.OpenAsync();
+
+                        var cmdEmail = new SqlCommand(@"
+                            SELECT u.email AS email_proveedor, u.nombre AS nombre_proveedor,
+                                   c.nombre AS nombre_cliente, se.titulo AS titulo_servicio
+                            FROM usuarios u
+                            INNER JOIN servicios se ON u.id_usuario = se.id_proveedor
+                            INNER JOIN usuarios c ON c.id_usuario = @id_cliente
+                            WHERE u.id_usuario = @id_proveedor
+                        ", connEmail);
+                        cmdEmail.Parameters.AddWithValue("@id_proveedor", dto.id_proveedor);
+                        cmdEmail.Parameters.AddWithValue("@id_cliente", dto.id_cliente);
+
+                        using var readerEmail = await cmdEmail.ExecuteReaderAsync();
+                        if (await readerEmail.ReadAsync())
+                        {
+                            var emailProveedor = readerEmail["email_proveedor"]?.ToString();
+                            var nombreProveedor = readerEmail["nombre_proveedor"]?.ToString();
+                            var nombreCliente = readerEmail["nombre_cliente"]?.ToString();
+                            var tituloServicio = readerEmail["titulo_servicio"]?.ToString();
+
+                            if (!string.IsNullOrEmpty(emailProveedor))
+                            {
+                                _ = _emailService.EnviarNotificacionSolicitud(
+                                    emailProveedor,
+                                    nombreProveedor ?? "Proveedor",
+                                    nombreCliente ?? "Un estudiante",
+                                    tituloServicio ?? "Tu servicio",
+                                    dto.tipo_servicio ?? "No especificado",
+                                    dto.descripcion ?? "",
+                                    dto.presupuesto?.ToString() ?? "",
+                                    dto.urgencia ?? ""
+                                );
+                            }
+                        }
+                    }
+                    catch
+                    {
+                    }
+                }
+
                 return Ok(new
                 {
-                    message = reader["Resultado"]?.ToString(),
-                    id = reader["id_solicitud"]?.ToString()
+                    message = resultado,
+                    id = idSolicitud
                 });
             }
 
@@ -163,18 +215,21 @@ public class SolicitudesController : ControllerBase
         await conn.OpenAsync();
 
         string estado = dto.accion == "aceptar" ? "Aceptada" : "Rechazada";
+        int fueAceptada = dto.accion == "aceptar" ? 1 : 0;
 
         var cmd = new SqlCommand(@"
             UPDATE solicitudes
             SET estado = @estado,
                 motivo_rechazo = @motivo,
-                contraoferta = @contraoferta
+                contraoferta = @contraoferta,
+                fue_aceptada = @fue_aceptada
             WHERE id_solicitud = @id
         ", conn);
 
         cmd.Parameters.AddWithValue("@estado", estado);
         cmd.Parameters.AddWithValue("@motivo", dto.motivo_rechazo ?? (object)DBNull.Value);
         cmd.Parameters.AddWithValue("@contraoferta", dto.contraoferta ?? (object)DBNull.Value);
+        cmd.Parameters.AddWithValue("@fue_aceptada", fueAceptada);
         cmd.Parameters.AddWithValue("@id", dto.id_solicitud);
 
         await cmd.ExecuteNonQueryAsync();

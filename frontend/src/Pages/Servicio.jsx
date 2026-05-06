@@ -245,6 +245,9 @@ function FormSolicitud({
           archivo: null,
         });
 
+        // Dispara evento para refrescar notificaciones y solicitudes en otras páginas
+        window.dispatchEvent(new CustomEvent("solicitud-actualizada"));
+
         showModal("success", "📩 Solicitud enviada");
       } else {
         console.log("❌ RESPUESTA COMPLETA BACKEND:", data);
