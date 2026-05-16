@@ -80,6 +80,27 @@ const Perfil = () => {
   const [editando, setEditando] = useState(null);
   // Guarda el ID del servicio que se quiere eliminar, para mostrar confirmación
   const [confirmEliminar, setConfirmEliminar] = useState(null);
+  // Modal de seguidores
+  const [modalSeguidores, setModalSeguidores] = useState(false);
+  const [listaSeguidores, setListaSeguidores] = useState([]);
+  const [cargandoSeguidores, setCargandoSeguidores] = useState(false);
+
+
+  const abrirModalSeguidores = async () => {
+  setModalSeguidores(true);
+  setCargandoSeguidores(true);
+  try {
+    const res = await fetch(
+      `http://localhost:5165/api/seguidores/lista?id_usuario=${id_a_consultar}`
+    );
+    const data = await res.json();
+    setListaSeguidores(data);
+  } catch (err) {
+    console.error("Error al cargar seguidores:", err);
+  } finally {
+    setCargandoSeguidores(false);
+  }
+};
 
   // ════════════════════════════════════════════════════════════
   // SABER SI YA SEGUIMOS A ESTE USUARIO (solo en perfil externo)
@@ -454,10 +475,16 @@ const Perfil = () => {
                     value={userData.total_publicaciones}
                     label="Publicaciones"
                   />
-                  <StatItem
+                  <div
+                    onClick={abrirModalSeguidores}
+                    style={{ cursor: "pointer" }}
+                    title="Ver seguidores"
+                  >
+                <StatItem
                     value={formatearNumero(userData.total_seguidores)}
                     label="Seguidores"
-                  />
+                />
+</div>
                   <StatItem
                     value={userData.total_siguiendo}
                     label="Siguiendo"
@@ -1103,6 +1130,95 @@ const Perfil = () => {
             </div>
           </div>
         )}
+        {/* ══ MODAL: Lista de seguidores ══ */}
+{modalSeguidores && (
+  <div
+    className="image-menu-overlay active"
+    onClick={() => setModalSeguidores(false)}
+  >
+    <div
+      className="image-menu"
+      onClick={(e) => e.stopPropagation()}
+      style={{ maxWidth: "420px", width: "90%" }}
+    >
+      {/* Header */}
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "1rem" }}>
+        <h3 className="image-menu-title" style={{ margin: 0 }}>
+          <i className="bi bi-people-fill"></i> Seguidores ({listaSeguidores.length})
+        </h3>
+        <button
+          onClick={() => setModalSeguidores(false)}
+          style={{
+            background: "transparent",
+            border: "none",
+            cursor: "pointer",
+            fontSize: "1.1rem",
+            color: "inherit",
+            opacity: 0.6,
+            padding: "4px 8px",
+            borderRadius: "6px",
+          }}
+        >
+          <i className="bi bi-x-lg"></i>
+        </button>
+      </div>
+
+      {/* Cuerpo */}
+      <div style={{ maxHeight: "380px", overflowY: "auto", display: "flex", flexDirection: "column", gap: "4px" }}>
+        {cargandoSeguidores ? (
+          <p style={{ textAlign: "center", padding: "1.5rem", opacity: 0.6 }}>
+            <i className="bi bi-hourglass-split"></i> Cargando...
+          </p>
+        ) : listaSeguidores.length === 0 ? (
+          <p style={{ textAlign: "center", padding: "1.5rem", opacity: 0.5, fontSize: "0.9rem" }}>
+            Aún no tienes seguidores.
+          </p>
+        ) : (
+          listaSeguidores.map((seguidor) => (
+            <div
+              key={seguidor.id_usuario}
+              className="menu-item"
+              onClick={() => {
+                setModalSeguidores(false);
+                navigate(`/perfil/${seguidor.id_usuario}`);
+              }}
+              style={{ cursor: "pointer", borderRadius: "10px", padding: "10px 12px" }}
+            >
+              {/* Avatar */}
+              <img
+                src={
+                  seguidor.avatar
+                    ? `http://localhost:5165/${seguidor.avatar}`
+                    : "/img/default_avatar.png"
+                }
+                alt={seguidor.nombre}
+                onError={(e) => { e.currentTarget.src = "/src/img/default-avatar.png"; }}
+                style={{
+                  width: "44px",
+                  height: "44px",
+                  borderRadius: "50%",
+                  objectFit: "cover",
+                  border: "2px solid rgba(255,255,255,0.15)",
+                  flexShrink: 0,
+                }}
+              />
+              {/* Nombre y universidad */}
+              <div className="menu-text">
+                <div className="menu-title">{seguidor.nombre}</div>
+                <div className="menu-desc">
+                  <i className="bi bi-buildings" style={{ marginRight: "4px" }}></i>
+                  {seguidor.universidad || "Sin universidad"}
+                </div>
+              </div>
+              {/* Flecha */}
+              <span className="menu-arrow">→</span>
+            </div>
+          ))
+        )}
+      </div>
+    </div>
+  </div>
+)}
       </div>
     </>
   );
