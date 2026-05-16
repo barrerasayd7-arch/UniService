@@ -329,17 +329,35 @@ public class ServicesController : ControllerBase
             using var conn = new SqlConnection(_config.GetConnectionString("DefaultConnection"));
             await conn.OpenAsync();
 
-            using var cmd = new SqlCommand(@"
-            DELETE FROM servicios
-            WHERE id_servicio = @id AND id_proveedor = @id_proveedor
-        ", conn);
+            // 1. Verificar que el servicio pertenece al proveedor
+            using var cmdCheck = new SqlCommand(
+                "SELECT COUNT(1) FROM servicios WHERE id_servicio = @id AND id_proveedor = @id_proveedor",
+                conn);
+            cmdCheck.Parameters.AddWithValue("@id", id);
+            cmdCheck.Parameters.AddWithValue("@id_proveedor", id_proveedor);
+            int existe = (int)await cmdCheck.ExecuteScalarAsync();
+            if (existe == 0)
+                return NotFound(new { error = "Servicio no encontrado o no tienes permiso" });
 
+            // 2. Eliminar calificaciones del servicio
+            using var cmdCalif = new SqlCommand(
+                "DELETE FROM calificaciones WHERE id_servicio = @id", conn);
+            cmdCalif.Parameters.AddWithValue("@id", id);
+            await cmdCalif.ExecuteNonQueryAsync();
+
+            // 3. Eliminar solicitudes del servicio
+            using var cmdSol = new SqlCommand(
+                "DELETE FROM solicitudes WHERE id_servicio = @id", conn);
+            cmdSol.Parameters.AddWithValue("@id", id);
+            await cmdSol.ExecuteNonQueryAsync();
+
+            // 4. Ahora sí eliminar el servicio
+            using var cmd = new SqlCommand(
+                "DELETE FROM servicios WHERE id_servicio = @id AND id_proveedor = @id_proveedor",
+                conn);
             cmd.Parameters.AddWithValue("@id", id);
             cmd.Parameters.AddWithValue("@id_proveedor", id_proveedor);
-
-            int filas = await cmd.ExecuteNonQueryAsync();
-            if (filas == 0)
-                return NotFound(new { error = "Servicio no encontrado o no tienes permiso" });
+            await cmd.ExecuteNonQueryAsync();
 
             return Ok(new { ok = true });
         }

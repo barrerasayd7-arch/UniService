@@ -93,14 +93,18 @@ public class UsersController : ControllerBase
 
             string sql = @"
             SELECT 
-                id_usuario, nombre, correo, estado, id_rol,
-                ISNULL(avatar, '../src/img/default-avatar.png') as avatar, 
-                ISNULL(descripcion, 'Sin descripción') as descripcion, 
-                ISNULL(telefono, 'No disponible') as telefono, 
-                ISNULL(fecha_registro, GETDATE()) as fecha_registro, 
-                ISNULL(universidad, 'Sin universidad') as universidad
-            FROM usuarios 
-            WHERE id_usuario = @id";
+                u.id_usuario, u.nombre, u.correo, u.estado, u.id_rol,
+                ISNULL(u.avatar, '../src/img/default-avatar.png') as avatar, 
+                ISNULL(u.descripcion, 'Sin descripción') as descripcion, 
+                ISNULL(u.telefono, 'No disponible') as telefono, 
+                ISNULL(u.fecha_registro, GETDATE()) as fecha_registro, 
+                ISNULL(u.universidad, 'Sin universidad') as universidad,
+                (SELECT COUNT(*) FROM seguidores WHERE id_seguido  = u.id_usuario) as total_seguidores,
+                (SELECT COUNT(*) FROM seguidores WHERE id_seguidor = u.id_usuario) as total_siguiendo,
+                (SELECT COUNT(*) FROM servicios  WHERE id_proveedor = u.id_usuario) as total_publicaciones,
+                (SELECT AVG(CAST(puntuacion AS FLOAT)) FROM calificaciones WHERE id_servicio IN (SELECT id_servicio FROM servicios WHERE id_proveedor = u.id_usuario)) as reputacion
+            FROM usuarios u
+            WHERE u.id_usuario = @id";
 
             using var cmd = new SqlCommand(sql, conn);
             cmd.Parameters.AddWithValue("@id", id);
@@ -121,11 +125,10 @@ public class UsersController : ControllerBase
                     telefono = reader["telefono"]?.ToString(),
                     fecha_registro = (DateTime)reader["fecha_registro"],
                     universidad = reader["universidad"]?.ToString(),
-                    // Contadores temporales para evitar error 500
-                    total_publicaciones = 0,
-                    total_seguidores = 0,
-                    total_siguiendo = 0,
-                    reputacion = 0,
+                    total_seguidores = reader["total_seguidores"] == DBNull.Value ? 0 : (int)reader["total_seguidores"],
+                    total_siguiendo = reader["total_siguiendo"] == DBNull.Value ? 0 : (int)reader["total_siguiendo"],
+                    total_publicaciones = reader["total_publicaciones"] == DBNull.Value ? 0 : (int)reader["total_publicaciones"],
+                    reputacion = reader["reputacion"] == DBNull.Value ? (double?)null : (double)reader["reputacion"],
                 });
             }
             return NotFound(new { message = "Usuario no encontrado" });
