@@ -14,7 +14,7 @@ html[data-theme="claro"] {
   --card-hover: #f3f7fc;
   --borde: #d4e4f0;
   --borde2: #c0d9eb;
-  --teal: #a8d5e8;
+  --teal: #98d2ec;
   --teal2: #7fbdd8;
   --teal-dim: rgba(168, 213, 232, 0.15);
   --amarillo: #f0d788;
@@ -3134,7 +3134,7 @@ html[data-theme="claro"] {
 /* Pantallas muy grandes - Laptop/Desktop */
 @media (min-width: 1200px) {
   [data-theme="claro"] .cards-grid {
-    grid-template-columns: repeat(3, 1fr);
+    grid-template-columns: repeat(4, 1fr);
   }
   
   [data-theme="claro"] .form-grid.cols-3 {
