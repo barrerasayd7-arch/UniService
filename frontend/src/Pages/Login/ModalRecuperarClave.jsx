@@ -29,7 +29,7 @@ export default function ResetPasswordModal({
             <div className="modal-codigo-icon"><i className="bi bi-key-fill"></i></div>
             <h3>¿Olvidaste tu contraseña?</h3>
             <p>
-              Ingresa tu correo y te enviaremos un código de verificación
+              Ingresa tu correo @unicesar.edu.co y te enviaremos un código de verificación
             </p>
             <input
               type="email"
@@ -40,7 +40,7 @@ export default function ResetPasswordModal({
                 textAlign: "left",
                 padding: "12px 14px",
               }}
-              placeholder="tu@correo.com"
+              placeholder="tu@unicesar.edu.co"
               value={resetCorreo}
               onChange={(e) => setResetCorreo(e.target.value)}
             />
@@ -114,7 +114,7 @@ export default function ResetPasswordModal({
                 textAlign: "left",
                 padding: "12px 14px",
               }}
-              placeholder="Nueva contraseña"
+              placeholder="Nueva contraseña (letras y números)"
               value={resetPass}
               onChange={(e) => setResetPass(e.target.value)}
             />

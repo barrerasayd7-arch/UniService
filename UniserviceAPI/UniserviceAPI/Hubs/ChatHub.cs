@@ -1,109 +1,57 @@
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.SignalR;
+using Npgsql;
+using UniserviceAPI.Services;
 
 namespace UniserviceAPI.Hubs;
 
-public class ChatHub : Hub
+// Tiempo real del chat. Exige JWT (?access_token= en la conexión) y el usuario sale del token,
+// nunca de un parámetro. Cada conexión entra sola al grupo de su usuario; los mensajes se envían
+// por REST (ChatController), que los guarda y los reenvía aquí sólo a los dos participantes.
+[Authorize]
+public sealed class ChatHub(IConfiguration config, AccountStatus cuentas) : Hub
 {
-    private static readonly Dictionary<string, int> _userConnections = new();
-    private static readonly Dictionary<int, HashSet<string>> _userGroups = new();
+    public static string GrupoUsuario(int id) => $"usuario_{id}";
+    public static string GrupoChat(int id) => $"chat_{id}";
+    private int Yo => InstitutionalAccess.UserId(Context.User!)!.Value;
 
-    public async Task ConectarUsuario(int usuarioId)
+    public override async Task OnConnectedAsync()
     {
-        _userConnections[Context.ConnectionId] = usuarioId;
-
-        if (!_userGroups.ContainsKey(usuarioId))
-            _userGroups[usuarioId] = new HashSet<string>();
-
-        _userGroups[usuarioId].Add(Context.ConnectionId);
-
-        await Clients.All.SendAsync("UsuarioConectado", usuarioId);
-    }
-
-    public async Task EnviarMensajeDirecto(int idChat, int remitenteId, int destinatarioId, string mensaje, string tipo = "texto")
-    {
-        var mensajeData = new
+        // Las cuentas suspendidas no reciben nada en tiempo real.
+        if (await cuentas.Get(Yo, Context.ConnectionAborted) is not { Activa: true })
         {
-            id_chat = idChat,
-            id_remitente = remitenteId,
-            id_destinatario = destinatarioId,
-            mensaje = mensaje,
-            tipo = tipo,
-            fecha_envio = DateTime.UtcNow.ToString("o")
-        };
-
-        if (_userGroups.ContainsKey(destinatarioId))
-        {
-            foreach (var connId in _userGroups[destinatarioId])
-            {
-                await Clients.Client(connId).SendAsync("RecibirMensaje", mensajeData);
-            }
+            Context.Abort();
+            return;
         }
-
-        await Clients.Caller.SendAsync("MensajeEnviado", mensajeData);
+        await Groups.AddToGroupAsync(Context.ConnectionId, GrupoUsuario(Yo));
+        await base.OnConnectedAsync();
     }
 
-    public async Task NotificarNuevoChat(int idChat, int remitenteId, int destinatarioId, string nombreRemitente, string previewMensaje)
-    {
-        var notificacion = new
-        {
-            id_chat = idChat,
-            id_remitente = remitenteId,
-            nombre_remitente = nombreRemitente,
-            preview_mensaje = previewMensaje
-        };
-
-        if (_userGroups.ContainsKey(destinatarioId))
-        {
-            foreach (var connId in _userGroups[destinatarioId])
-            {
-                await Clients.Client(connId).SendAsync("NuevoChatNotification", notificacion);
-            }
-        }
-    }
-
-    public async Task MarcarLeidoNotificacion(int chatId, int usuarioId)
-    {
-        await Clients.OthersInGroup($"chat_{chatId}").SendAsync("MensajesLeidos", new { id_chat = chatId });
-    }
-
+    // Grupo por chat (lo usa SolicitudesController para el mensaje del sistema). Sólo participantes.
     public async Task UnirseChat(int chatId)
     {
-        await Groups.AddToGroupAsync(Context.ConnectionId, $"chat_{chatId}");
+        if (await OtroParticipante(chatId) == null) throw new HubException("Chat no encontrado");
+        await Groups.AddToGroupAsync(Context.ConnectionId, GrupoChat(chatId));
     }
 
-    public async Task SalirChat(int chatId)
+    public Task SalirChat(int chatId) => Groups.RemoveFromGroupAsync(Context.ConnectionId, GrupoChat(chatId));
+
+    public async Task EnviarEscribiendo(int chatId, bool escribiendo)
     {
-        await Groups.RemoveFromGroupAsync(Context.ConnectionId, $"chat_{chatId}");
+        if (await OtroParticipante(chatId) is not { } otro) throw new HubException("Chat no encontrado");
+        await Clients.Group(GrupoUsuario(otro)).SendAsync("UsuarioEscribiendo", new { id_chat = chatId, id_usuario = Yo, escribiendo });
     }
 
-    public async Task EnviarEscribiendo(int chatId, int usuarioId, bool escribiendo)
+    private async Task<int?> OtroParticipante(int chatId)
     {
-        await Clients.OthersInGroup($"chat_{chatId}").SendAsync("UsuarioEscribiendo", new
-        {
-            id_chat = chatId,
-            id_usuario = usuarioId,
-            escribiendo = escribiendo
-        });
-    }
-
-    public override async Task OnDisconnectedAsync(Exception? exception)
-    {
-        if (_userConnections.TryGetValue(Context.ConnectionId, out var usuarioId))
-        {
-            _userConnections.Remove(Context.ConnectionId);
-
-            if (_userGroups.ContainsKey(usuarioId))
-            {
-                _userGroups[usuarioId].Remove(Context.ConnectionId);
-
-                if (_userGroups[usuarioId].Count == 0)
-                {
-                    _userGroups.Remove(usuarioId);
-                    await Clients.All.SendAsync("UsuarioDesconectado", usuarioId);
-                }
-            }
-        }
-
-        await base.OnDisconnectedAsync(exception);
+        await using var conn = new NpgsqlConnection(config.GetConnectionString("DefaultConnection"));
+        await conn.OpenAsync(Context.ConnectionAborted);
+        await using var cmd = new NpgsqlCommand("""
+            SELECT CASE WHEN id_usuario1 = @yo THEN id_usuario2 ELSE id_usuario1 END
+            FROM chats WHERE id_chat = @chat AND @yo IN (id_usuario1, id_usuario2)
+            """, conn);
+        cmd.Parameters.AddWithValue("chat", chatId);
+        cmd.Parameters.AddWithValue("yo", Yo);
+        return await cmd.ExecuteScalarAsync(Context.ConnectionAborted) as int?;
     }
 }

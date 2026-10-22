@@ -2,58 +2,18 @@ import { useState, useEffect } from "react";
 import { createPortal } from "react-dom";
 import TarjetaSolicitud from "./TarjetaSolicitud";
 import ModalRechazo from "./ModalRechazo";
-import { API_SOLICITUD } from "../shared/constantes";
-import { apiFetch } from "../../utils/apiFetch";
+import { useSolicitudes } from "./useSolicitudes";
 
 export default function SeccionSolicitudes() {
   const [tab, setTab] = useState("enviadas");
-  const [enviadas, setEnviadas] = useState([]);
-  const [recibidas, setRecibidas] = useState([]);
-  const [cargando, setCargando] = useState(true);
-  const [rechazando, setRechazando] = useState(null);
-
-  const id = localStorage.getItem("usuarioId");
+  const {
+    enviadas, recibidas, cargando, error, ocupado, recargar,
+    respondiendo, abrirRespuesta, cerrarRespuesta, confirmarRespuesta, completar, cancelar,
+  } = useSolicitudes();
 
   useEffect(() => {
-    if (!id) return;
-    setCargando(true);
-
-    Promise.all([
-      apiFetch(`${API_SOLICITUD}/enviadas/${id}`).then((r) => r.data),
-      apiFetch(`${API_SOLICITUD}/recibidas/${id}`).then((r) => r.data),
-    ])
-      .then(([env, rec]) => {
-        setEnviadas(Array.isArray(env) ? env : []);
-        setRecibidas(Array.isArray(rec) ? rec : []);
-      })
-      .catch(console.error)
-      .finally(() => setCargando(false));
-  }, [id]);
-
-  const responder = async (id_solicitud, accion, motivo_rechazo = "", contraoferta = null) => {
-    await apiFetch(`${API_SOLICITUD}/responder`, {
-      method: "POST",
-      body: JSON.stringify({ id_solicitud, accion, motivo_rechazo, contraoferta }),
-    });
-
-    window.dispatchEvent(new CustomEvent("solicitud-actualizada"));
-
-    const { data } = await apiFetch(`${API_SOLICITUD}/recibidas/${id}`);
-    setRecibidas(data || []);
-  };
-
-  const completar = async (id_solicitud) => {
-    const { ok } = await apiFetch(`${API_SOLICITUD}/completar`, {
-      method: "POST",
-      body: JSON.stringify({ id_solicitud }),
-    });
-
-    if (ok) {
-      window.dispatchEvent(new CustomEvent("solicitud-actualizada"));
-      const { data } = await apiFetch(`${API_SOLICITUD}/recibidas/${id}`);
-      setRecibidas(data || []);
-    }
-  };
+    recargar();
+  }, [recargar]);
 
   const lista = tab === "enviadas" ? enviadas : recibidas;
 
@@ -81,6 +41,7 @@ export default function SeccionSolicitudes() {
             ))}
           </div>
 
+          {error && <p className="solicitud-rechazo" role="alert">{error}</p>}
           {cargando ? (
             <p className="texto-muted solicitud-mensaje">Cargando solicitudes...</p>
           ) : lista.length === 0 ? (
@@ -96,9 +57,10 @@ export default function SeccionSolicitudes() {
                   key={sol.id_solicitud}
                   sol={sol}
                   tipo={tab === "enviadas" ? "enviada" : "recibida"}
-                  responder={responder}
-                  setRechazando={setRechazando}
+                  onResponder={abrirRespuesta}
                   onCompletar={completar}
+                  onCancelarSolicitud={cancelar}
+                  ocupado={ocupado}
                 />
               ))}
             </div>
@@ -106,13 +68,11 @@ export default function SeccionSolicitudes() {
         </div>
       </section>
 
-      {rechazando && createPortal(
+      {respondiendo && createPortal(
         <ModalRechazo
-          onConfirmar={(motivo, contraoferta) => {
-            responder(rechazando, "rechazar", motivo, contraoferta);
-            setRechazando(null);
-          }}
-          onCancelar={() => setRechazando(null)}
+          modo={respondiendo.modo}
+          onConfirmar={confirmarRespuesta}
+          onCancelar={cerrarRespuesta}
         />,
         document.body
       )}

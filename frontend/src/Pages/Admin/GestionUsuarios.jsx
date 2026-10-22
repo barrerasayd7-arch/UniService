@@ -1,153 +1,54 @@
 import { useState, useEffect } from "react";
-import { Badge, formatFecha } from "./UtilidadesAdmin";
-import { apiFetch } from "../../utils/apiFetch";
+import { Badge, formatFecha, AdminDialogo, Paginacion } from "./UtilidadesAdmin";
+import { apiFetch, mensajeError } from "../../utils/apiFetch";
 
-const API = "/api";
+const POR_PAGINA = 20;
 
-export default function SeccionUsuarios({ onRefresh }) {
+// Usuarios: /api/admin/usuarios. Suspender exige un motivo; los administradores no se pueden suspender.
+export default function SeccionUsuarios() {
   const [usuarios, setUsuarios] = useState([]);
+  const [total, setTotal] = useState(0);
+  const [pagina, setPagina] = useState(1);
   const [busqueda, setBusqueda] = useState("");
+  const [filtroEstado, setFiltroEstado] = useState("");
   const [cargando, setCargando] = useState(true);
-  const [editandoId, setEditandoId] = useState(null);
-  const [editNombre, setEditNombre] = useState("");
   const [accionandoId, setAccionandoId] = useState(null);
   const [modal, setModal] = useState(null);
 
   const cargarUsuarios = async () => {
     setCargando(true);
+    const params = new URLSearchParams({ page: pagina, pageSize: POR_PAGINA });
+    if (busqueda.trim()) params.set("busqueda", busqueda.trim());
+    if (filtroEstado) params.set("estado", filtroEstado);
     try {
-      const { data } = await apiFetch(`${API}/users`);
-      const normalizados = (Array.isArray(data) ? data : []).map((u) => ({
-        id_usuario: u.id,
-        nombre: u.nombre,
-        correo: u.correo,
-        estado: u.estado === false || u.estado === 0 ? "inactivo" : "activo",
-        rol: u.id_rol === 1 ? "admin" : "usuario",
-      }));
-      setUsuarios(normalizados);
-    } catch {
+      const { ok, data } = await apiFetch(`/api/admin/usuarios?${params}`);
+      if (!ok) throw new Error(mensajeError(data, "No se pudieron cargar los usuarios"));
+      setUsuarios(data.items);
+      setTotal(data.total);
+    } catch (err) {
       setUsuarios([]);
+      setModal({ tipo: "error", titulo: "Error", mensaje: err.message });
     } finally {
       setCargando(false);
     }
   };
 
+  // La búsqueda se hace en el servidor; se espera a que el admin deje de escribir.
   useEffect(() => {
-    cargarUsuarios();
-  }, []);
+    const t = setTimeout(cargarUsuarios, 300);
+    return () => clearTimeout(t);
+  }, [pagina, busqueda, filtroEstado]);
 
-  const suspender = async (id) => {
-    const usuario = usuarios.find((u) => u.id_usuario === id);
-    setModal({
-      tipo: "confirm",
-      titulo: "Suspender usuario",
-      mensaje: `¿Estás seguro de que deseas suspender a "${usuario?.nombre}"?`,
-      onConfirm: async () => {
-        setAccionandoId(id);
-        try {
-          await apiFetch(`${API}/users/${id}`, {
-            method: "PUT",
-            body: JSON.stringify({ estado: false }),
-          });
-          setUsuarios((prev) =>
-            prev.map((u) =>
-              u.id_usuario === id ? { ...u, estado: "inactivo" } : u
-            )
-          );
-          if (window.registrarLogAdmin) {
-            window.registrarLogAdmin("Suspendió usuario", `${usuario?.nombre} (ID: ${id})`);
-          }
-          setModal({ tipo: "success", titulo: "Usuario suspendido", mensaje: `"${usuario?.nombre}" ha sido suspendido correctamente.` });
-        } catch (err) {
-          setModal({ tipo: "error", titulo: "Error", mensaje: err.message });
-        } finally {
-          setAccionandoId(null);
-        }
-      },
-    });
-  };
-
-  const activar = async (id) => {
-    const usuario = usuarios.find((u) => u.id_usuario === id);
-    setModal({
-      tipo: "confirm",
-      titulo: "Activar usuario",
-      mensaje: `¿Estás seguro de que deseas activar a "${usuario?.nombre}"?`,
-      onConfirm: async () => {
-        setAccionandoId(id);
-        try {
-          await apiFetch(`${API}/users/${id}`, {
-            method: "PUT",
-            body: JSON.stringify({ estado: true }),
-          });
-          setUsuarios((prev) =>
-            prev.map((u) =>
-              u.id_usuario === id ? { ...u, estado: "activo" } : u
-            )
-          );
-          if (window.registrarLogAdmin) {
-            window.registrarLogAdmin("Activó usuario", `${usuario?.nombre} (ID: ${id})`);
-          }
-          setModal({ tipo: "success", titulo: "Usuario activado", mensaje: `"${usuario?.nombre}" ha sido activado correctamente.` });
-        } catch (err) {
-          setModal({ tipo: "error", titulo: "Error", mensaje: err.message });
-        } finally {
-          setAccionandoId(null);
-        }
-      },
-    });
-  };
-
-  const eliminar = async (id) => {
-    const usuario = usuarios.find((u) => u.id_usuario === id);
-    setModal({
-      tipo: "confirm",
-      titulo: "Eliminar usuario",
-      mensaje: `¿Estás seguro de que deseas eliminar a "${usuario?.nombre}"? Esta acción no se puede deshacer.`,
-      onConfirm: async () => {
-        setAccionandoId(id);
-        try {
-          await apiFetch(`${API}/users/${id}`, { method: "DELETE" });
-          setUsuarios((prev) => prev.filter((u) => u.id_usuario !== id));
-          if (window.registrarLogAdmin) {
-            window.registrarLogAdmin("Eliminó usuario", `${usuario?.nombre} (ID: ${id})`);
-          }
-          setModal({ tipo: "success", titulo: "Usuario eliminado", mensaje: `"${usuario?.nombre}" ha sido eliminado.` });
-        } catch (err) {
-          setModal({ tipo: "error", titulo: "Error", mensaje: err.message });
-        } finally {
-          setAccionandoId(null);
-        }
-      },
-    });
-  };
-
-  const iniciarEdicion = (u) => {
-    setEditandoId(u.id_usuario);
-    setEditNombre(u.nombre);
-  };
-
-  const guardarNombre = async (id) => {
-    if (!editNombre.trim()) return;
-    const usuario = usuarios.find((u) => u.id_usuario === id);
-    const nombreAnterior = usuario?.nombre;
-    setAccionandoId(id);
+  const accion = async (u, ruta, body, exito) => {
+    setAccionandoId(u.id_usuario);
     try {
-      await apiFetch(`${API}/users/${id}`, {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ nombre: editNombre }),
+      const { ok, data } = await apiFetch(`/api/admin/usuarios/${u.id_usuario}/${ruta}`, {
+        method: "PATCH",
+        ...(body && { body: JSON.stringify(body) }),
       });
-      setUsuarios((prev) =>
-        prev.map((u) =>
-          u.id_usuario === id ? { ...u, nombre: editNombre } : u
-        )
-      );
-      setEditandoId(null);
-      if (window.registrarLogAdmin) {
-        window.registrarLogAdmin("Editó nombre usuario", `"${nombreAnterior}" → "${editNombre}"`);
-      }
-      setModal({ tipo: "success", titulo: "Nombre actualizado", mensaje: `El nombre ha sido cambiado correctamente.` });
+      if (!ok) throw new Error(mensajeError(data));
+      setModal({ tipo: "success", ...exito });
+      await cargarUsuarios();
     } catch (err) {
       setModal({ tipo: "error", titulo: "Error", mensaje: err.message });
     } finally {
@@ -155,11 +56,30 @@ export default function SeccionUsuarios({ onRefresh }) {
     }
   };
 
-  const filtrados = usuarios.filter((u) =>
-    [u.nombre, u.correo, u.rol].some((v) =>
-      (v || "").toLowerCase().includes(busqueda.toLowerCase())
-    )
-  );
+  const suspender = (u) =>
+    setModal({
+      tipo: "confirm",
+      titulo: "Suspender usuario",
+      mensaje: `"${u.nombre}" no podrá iniciar sesión ni usar la plataforma hasta que lo reactives. Indica el motivo:`,
+      campo: { placeholder: "Motivo de la suspensión (mínimo 5 caracteres)", min: 5, max: 500 },
+      onConfirm: (motivo) =>
+        accion(u, "suspender", { motivo }, {
+          titulo: "Usuario suspendido",
+          mensaje: `"${u.nombre}" ha sido suspendido. Sus sesiones abiertas dejan de funcionar.`,
+        }),
+    });
+
+  const activar = (u) =>
+    setModal({
+      tipo: "confirm",
+      titulo: "Reactivar usuario",
+      mensaje: `¿Deseas reactivar a "${u.nombre}"?`,
+      onConfirm: () =>
+        accion(u, "reactivar", null, {
+          titulo: "Usuario reactivado",
+          mensaje: `"${u.nombre}" puede volver a usar la plataforma.`,
+        }),
+    });
 
   return (
     <section className="admin-section">
@@ -171,182 +91,107 @@ export default function SeccionUsuarios({ onRefresh }) {
         <input
           className="admin-input-search"
           type="text"
-          placeholder="Buscar usuario..."
+          placeholder="Buscar por nombre o correo..."
           value={busqueda}
-          onChange={(e) => setBusqueda(e.target.value)}
+          onChange={(e) => { setBusqueda(e.target.value); setPagina(1); }}
         />
+      </div>
+
+      <div className="admin-filters">
+        <select
+          className="admin-select"
+          value={filtroEstado}
+          onChange={(e) => { setFiltroEstado(e.target.value); setPagina(1); }}
+          aria-label="Filtrar por estado"
+        >
+          <option value="">Todos</option>
+          <option value="activos">Activos</option>
+          <option value="suspendidos">Suspendidos</option>
+        </select>
       </div>
 
       <div className="admin-table-container">
         <table className="admin-table">
           <thead>
             <tr>
-              {["ID", "Nombre", "Correo", "Rol", "Estado", "Fecha registro", "Acciones"].map(
-                (h) => (
-                  <th key={h}>{h}</th>
-                )
-              )}
+              {["ID", "Nombre", "Correo", "Rol", "Estado", "Servicios", "Reportes", "Registro", "Acciones"].map((h) => (
+                <th key={h}>{h}</th>
+              ))}
             </tr>
           </thead>
           <tbody>
             {cargando ? (
               <tr>
-                <td colSpan={7} className="admin-table__status">
+                <td colSpan={9} className="admin-table__status">
                   Cargando...
                 </td>
               </tr>
-            ) : filtrados.length === 0 ? (
+            ) : usuarios.length === 0 ? (
               <tr>
-                <td colSpan={7} className="admin-table__status">
+                <td colSpan={9} className="admin-table__status">
                   No se encontraron usuarios.
                 </td>
               </tr>
             ) : (
-              filtrados.map((u) => (
-                <tr key={u.id_usuario}>
-                  <td className="admin-table__id">#{u.id_usuario}</td>
-                  <td>
-                    <div className="admin-table__user-info">
-                      <div className="admin-table__avatar">
-                        {(u.nombre || "?").charAt(0).toUpperCase()}
+              usuarios.map((u) => {
+                const esAdmin = u.id_rol === 1;
+                return (
+                  <tr key={u.id_usuario}>
+                    <td className="admin-table__id">#{u.id_usuario}</td>
+                    <td>
+                      <div className="admin-table__user-info">
+                        <div className="admin-table__avatar">
+                          {(u.nombre || "?").charAt(0).toUpperCase()}
+                        </div>
+                        <span>{u.nombre}</span>
                       </div>
-                      {editandoId === u.id_usuario ? (
-                        <input
-                          type="text"
-                          value={editNombre}
-                          onChange={(e) => setEditNombre(e.target.value)}
-                          onKeyDown={(e) =>
-                            e.key === "Enter" && guardarNombre(u.id_usuario)
-                          }
-                          style={{
-                            background: "var(--bg2)",
-                            border: "1px solid var(--teal)",
-                            color: "var(--texto)",
-                            padding: "2px 6px",
-                            borderRadius: "4px",
-                            fontSize: "0.85rem",
-                            width: "140px",
-                          }}
-                          autoFocus
-                        />
-                      ) : (
-                        <span
-                          onDoubleClick={() => iniciarEdicion(u)}
-                          style={{ cursor: "pointer" }}
-                          title="Doble clic para editar"
-                        >
-                          {u.nombre}
-                        </span>
-                      )}
-                    </div>
-                  </td>
-                  <td className="admin-table__email">{u.correo}</td>
-                  <td>
-                    <span
-                      className={`admin-role-badge admin-role-badge--${u.rol}`}
-                    >
-                      {u.rol}
-                    </span>
-                  </td>
-                  <td>
-                    <Badge estado={u.estado} />
-                  </td>
-                  <td className="admin-table__date">
-                    {formatFecha(u.fecha_registro)}
-                  </td>
-                  <td>
-                    <div className="admin-table__actions">
-                      {editandoId === u.id_usuario ? (
-                        <>
+                    </td>
+                    <td className="admin-table__email">{u.correo}</td>
+                    <td>
+                      <span className={`admin-role-badge admin-role-badge--${esAdmin ? "admin" : "usuario"}`}>
+                        {esAdmin ? "admin" : "usuario"}
+                      </span>
+                    </td>
+                    <td title={u.motivo_suspension || undefined}>
+                      <Badge estado={u.activa ? "activo" : "suspendido"} />
+                    </td>
+                    <td>{u.total_servicios}</td>
+                    <td>{u.reportes_recibidos}</td>
+                    <td className="admin-table__date">{formatFecha(u.fecha_registro)}</td>
+                    <td>
+                      <div className="admin-table__actions">
+                        {esAdmin ? (
+                          <span className="admin-table__date">—</span>
+                        ) : u.activa ? (
                           <button
-                            className="admin-btn-action admin-btn-action--success"
-                            onClick={() => guardarNombre(u.id_usuario)}
+                            className="admin-btn-action admin-btn-action--warning"
+                            onClick={() => suspender(u)}
                             disabled={accionandoId === u.id_usuario}
                           >
-                            Guardar
+                            {accionandoId === u.id_usuario ? "..." : "Suspender"}
                           </button>
+                        ) : (
                           <button
-                            className="admin-btn-action admin-btn-action--ghost"
-                            onClick={() => setEditandoId(null)}
+                            className="admin-btn-action admin-btn-action--activate"
+                            onClick={() => activar(u)}
                             disabled={accionandoId === u.id_usuario}
                           >
-                            ✕
+                            {accionandoId === u.id_usuario ? "..." : "Reactivar"}
                           </button>
-                        </>
-                      ) : u.estado === "activo" ? (
-                        <button
-                          className="admin-btn-action admin-btn-action--warning"
-                          onClick={() => suspender(u.id_usuario)}
-                          disabled={accionandoId === u.id_usuario}
-                        >
-                          {accionandoId === u.id_usuario ? "..." : "Suspender"}
-                        </button>
-                      ) : (
-                        <button
-                          className="admin-btn-action admin-btn-action--activate"
-                          onClick={() => activar(u.id_usuario)}
-                          disabled={accionandoId === u.id_usuario}
-                        >
-                          {accionandoId === u.id_usuario ? "..." : "Activar"}
-                        </button>
-                      )}
-                      <button
-                        className="admin-btn-action admin-btn-action--danger"
-                        onClick={() => eliminar(u.id_usuario)}
-                        disabled={accionandoId === u.id_usuario}
-                      >
-                        {accionandoId === u.id_usuario ? "..." : "Eliminar"}
-                      </button>
-                    </div>
-                  </td>
-                </tr>
-              ))
+                        )}
+                      </div>
+                    </td>
+                  </tr>
+                );
+              })
             )}
           </tbody>
         </table>
       </div>
 
-      {modal && (
-        <AdminModal modal={modal} onClose={() => setModal(null)} />
-      )}
+      <Paginacion pagina={pagina} total={total} porPagina={POR_PAGINA} onCambiar={setPagina} />
+
+      {modal && <AdminDialogo modal={modal} onClose={() => setModal(null)} />}
     </section>
-  );
-}
-
-function AdminModal({ modal, onClose }) {
-  const isConfirm = modal.tipo === "confirm";
-  const isSuccess = modal.tipo === "success";
-  const isError = modal.tipo === "error";
-
-  const icon = isConfirm
-    ? <i className="bi bi-question-circle-fill" style={{ fontSize: "2.5rem", color: "#f59e0b" }}></i>
-    : isSuccess
-    ? <i className="bi bi-check-circle-fill" style={{ fontSize: "2.5rem", color: "#10b981" }}></i>
-    : <i className="bi bi-x-circle-fill" style={{ fontSize: "2.5rem", color: "#ef4444" }}></i>;
-
-  return (
-    <div className="admin-modal-overlay" onClick={onClose}>
-      <div className="admin-modal-content" onClick={(e) => e.stopPropagation()}>
-        <div className="admin-modal-icon">{icon}</div>
-        <h3 className="admin-modal-title">{modal.titulo}</h3>
-        <p className="admin-modal-message">{modal.mensaje}</p>
-        <div className="admin-modal-actions">
-          {isConfirm ? (
-            <>
-              <button className="admin-btn-action admin-btn-action--ghost" onClick={onClose}>
-                Cancelar
-              </button>
-              <button className="admin-btn-action admin-btn-action--danger" onClick={() => { onClose(); modal.onConfirm(); }}>
-                Confirmar
-              </button>
-            </>
-          ) : (
-            <button className="admin-btn-action admin-btn-action--success" onClick={onClose}>
-              Entendido
-            </button>
-          )}
-        </div>
-      </div>
-    </div>
   );
 }

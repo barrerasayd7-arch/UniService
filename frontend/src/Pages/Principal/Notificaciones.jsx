@@ -5,8 +5,8 @@
 // ─────────────────────────────────────────────────────────────────────────────
 
 import { useState, useEffect } from "react";
-import { API_SOLICITUD, API_CHAT } from "../shared/constantes";
-import { apiFetch } from "../../utils/apiFetch";
+import { cargarSolicitudes } from "../shared/solicitudes";
+import { totalNoLeidos, registrarActividad } from "../shared/chat";
 
 // Componente que renderiza el botón de campana y el panel desplegable
 export default function NotificacionesFlotantes({ onToggleChat }) {
@@ -49,17 +49,12 @@ export default function NotificacionesFlotantes({ onToggleChat }) {
     const cargarNotificaciones = () => {
       const leidas = obtenerLeidas();
 
-      Promise.all([
-        apiFetch(`${API_SOLICITUD}/recibidas/${usuarioId}`).then((r) => r.data),
-        apiFetch(`${API_SOLICITUD}/enviadas/${usuarioId}`).then((r) => r.data),
-      ])
-        .then(([recibidas, enviadas]) => {
-          const recibidasArr = Array.isArray(recibidas) ? recibidas : [];
-          const enviadasArr = Array.isArray(enviadas) ? enviadas : [];
+      cargarSolicitudes()
+        .then(({ recibidas: recibidasArr, enviadas: enviadasArr }) => {
 
           const notifs = [];
 
-          // Notificaciones de solicitudes recibidas (nuevas, aceptadas, rechazadas)
+          // Notificaciones de solicitudes recibidas (nuevas y canceladas por el cliente)
           recibidasArr.forEach((sol) => {
             if (sol.estado === "Pendiente") {
               const id = `rec-${sol.id_solicitud}`;
@@ -69,32 +64,24 @@ export default function NotificacionesFlotantes({ onToggleChat }) {
                 leida: !!leidas[id],
                 tipo: "recibida",
               });
-            } else if (sol.estado === "Aceptada") {
-              const id = `rec-acept-${sol.id_solicitud}`;
+            } else if (sol.estado === "Cancelada") {
+              const id = `rec-canc-${sol.id_solicitud}`;
               notifs.push({
                 id,
-                texto: `${sol.nombre_cliente || "El cliente"} aceptó tu respuesta para "${sol.titulo_servicio || "tu servicio"}"`,
-                leida: !!leidas[id],
-                tipo: "info",
-              });
-            } else if (sol.estado === "Rechazada") {
-              const id = `rec-rech-${sol.id_solicitud}`;
-              notifs.push({
-                id,
-                texto: `${sol.nombre_cliente || "El cliente"} rechazó la solicitud para "${sol.titulo_servicio || "tu servicio"}"`,
+                texto: `${sol.nombre_cliente || "El cliente"} canceló su solicitud para "${sol.titulo_servicio || "tu servicio"}"`,
                 leida: !!leidas[id],
                 tipo: "info",
               });
             }
           });
 
-          // Notificaciones de solicitudes enviadas (aceptadas o rechazadas)
+          // Notificaciones de solicitudes enviadas (aceptadas, rechazadas o completadas)
           enviadasArr.forEach((sol) => {
             if (sol.estado === "Aceptada") {
               const id = `env-acept-${sol.id_solicitud}`;
               notifs.push({
                 id,
-                texto: `Tu solicitud para "${sol.titulo_servicio || "el servicio"}" fue aceptada por ${sol.nombre_proveedor || "el proveedor"}`,
+                texto: `Tu solicitud para "${sol.titulo_servicio || "el servicio"}" fue aceptada por ${sol.nombre_proveedor || "el proveedor"}${sol.contraoferta ? ` con un precio de $${Number(sol.contraoferta).toLocaleString("es-CO")}` : ""}`,
                 leida: !!leidas[id],
                 tipo: "enviada",
               });
@@ -103,6 +90,14 @@ export default function NotificacionesFlotantes({ onToggleChat }) {
               notifs.push({
                 id,
                 texto: `Tu solicitud para "${sol.titulo_servicio || "el servicio"}" fue rechazada${sol.motivo_rechazo ? ": " + sol.motivo_rechazo : ""}`,
+                leida: !!leidas[id],
+                tipo: "enviada",
+              });
+            } else if (sol.estado === "Completada" && sol.puede_calificar) {
+              const id = `env-comp-${sol.id_solicitud}`;
+              notifs.push({
+                id,
+                texto: `${sol.nombre_proveedor || "El proveedor"} completó "${sol.titulo_servicio || "el servicio"}". ¡Ya puedes calificarlo!`,
                 leida: !!leidas[id],
                 tipo: "enviada",
               });
@@ -129,17 +124,17 @@ export default function NotificacionesFlotantes({ onToggleChat }) {
     // Cargar mensajes no leídos
     const cargarNoLeidos = () => {
       if (!usuarioId) return;
-      apiFetch(`${API_CHAT}/no-leidos/${usuarioId}`)
-        .then((r) => r.data)
-        .then((data) => {
-          console.log("[Notificaciones] Mensajes no leídos:", data?.no_leidos);
-          setMensajesNoLeidos(data?.no_leidos || 0);
-        })
+      totalNoLeidos()
+        .then(setMensajesNoLeidos)
         .catch(() => setMensajesNoLeidos(0));
     };
 
     cargarNoLeidos();
     const intervalChat = setInterval(cargarNoLeidos, 15000);
+
+    // Presencia: con la página abierta el usuario aparece "En línea" a los demás (ventana de 2 min).
+    registrarActividad();
+    const intervalActividad = setInterval(registrarActividad, 60000);
 
     // Escuchar evento de chat leído para refrescar badge
     const chatLeidoHandler = () => cargarNoLeidos();
@@ -159,6 +154,7 @@ export default function NotificacionesFlotantes({ onToggleChat }) {
       window.removeEventListener("nuevo-mensaje-chat", nuevoMsgHandler);
       window.removeEventListener("chat-cerrado", chatCerradoHandler);
       clearInterval(intervalChat);
+      clearInterval(intervalActividad);
     };
   }, [usuarioId]);
 

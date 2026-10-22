@@ -31,3 +31,9 @@ export function iniciales(nombre) {
   if (!nombre) return "?";
   return nombre.split(" ").map(p => p[0]).join("").toUpperCase().slice(0, 2);
 }
+// Precio en COP con su unidad: la API devuelve precio + unidad_precio ("hora", "mes" o "proyecto").
+const SUFIJO_UNIDAD = { hora: "/hora", mes: "/mes", proyecto: "/proyecto" };
+export function formatPrecio(precio, unidad) {
+  const valor = `$${Number(precio || 0).toLocaleString("es-CO")}`;
+  return SUFIJO_UNIDAD[unidad] ? `${valor} ${SUFIJO_UNIDAD[unidad]}` : valor;
+}

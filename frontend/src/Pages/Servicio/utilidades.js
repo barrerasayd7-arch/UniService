@@ -1,6 +1,6 @@
 // Mapas para traducir valores numéricos de modalidad y disponibilidad a texto legible
-export const MODALIDAD_MAP = { 0: "Presencial", 1: "Virtual", 2: "Mixta", "0": "Presencial", "1": "Virtual", "2": "Mixta", "Presencial": "Presencial", "Virtual": "Virtual", "Mixta": "Mixta" };
-export const DISPONIBILIDAD_MAP = { 0: "Entre semana", 1: "Fines de semana", 2: "Siempre disponible", "0": "Entre semana", "1": "Fines de semana", "2": "Siempre disponible", "Entre semana": "Entre semana", "Fines de semana": "Fines de semana", "Siempre disponible": "Siempre disponible" };
+export const MODALIDAD_MAP = { 0: "Presencial", 1: "Virtual", 2: "Mixta", "0": "Presencial", "1": "Virtual", "2": "Mixta", "Presencial": "Presencial", "Virtual": "Virtual", "Mixta": "Mixta", presencial: "Presencial", virtual: "Virtual", mixta: "Mixta" };
+export const DISPONIBILIDAD_MAP = { 0: "Entre semana", 1: "Fines de semana", 2: "Siempre disponible", "0": "Entre semana", "1": "Fines de semana", "2": "Siempre disponible", "Entre semana": "Entre semana", "Fines de semana": "Fines de semana", "Siempre disponible": "Siempre disponible", entre_semana: "Entre semana", fines_de_semana: "Fines de semana", siempre: "Siempre disponible" };
 
 // Convierte un valor de modalidad a su representación textual
 export function mostrarModalidad(valor) {

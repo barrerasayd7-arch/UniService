@@ -12,11 +12,8 @@ import Footer from "./Guest/PiePaginaInvitado";
 import SeccionRecientes from "./shared/SeccionRecientes";
 import SeccionDestacados from "./shared/SeccionDestacados";
 import Presentacion from "./shared/Presentacion";
-import { promedioEstrellas } from "./shared/utilidades";
+import { listarServicios } from "./shared/servicios";
 import BotonTema from "../Components/B_StyleHome";
-import { apiFetch } from "../utils/apiFetch";
-
-const API = "/api/services";
 
 export default function HomeGuest() {
   const [scrolled, setScrolled] = useState(false);
@@ -48,18 +45,15 @@ export default function HomeGuest() {
   }, []);
 
   useEffect(() => {
-    apiFetch(API)
-      .then(({ data }) => {
-        const ordenados = [...data].reverse();
-        setServiciosTotales(ordenados);
-        setRecientes(ordenados.slice(0, 4));
-        const top = [...data]
-          .sort(
-            (a, b) =>
-              promedioEstrellas(b.estrellas) - promedioEstrellas(a.estrellas),
-          )
-          .slice(0, 3);
-        setTop3(top);
+    // El buscador del invitado filtra en el navegador los 50 servicios más recientes.
+    Promise.all([
+      listarServicios({ porPagina: 50, orden: "recientes" }),
+      listarServicios({ porPagina: 3, orden: "rating-mayor" }),
+    ])
+      .then(([todos, mejores]) => {
+        setServiciosTotales(todos.servicios);
+        setRecientes(todos.servicios.slice(0, 4));
+        setTop3(mejores.servicios);
       })
       .catch((err) => console.error("Error cargando servicios:", err))
       .finally(() => setCargando(false));

@@ -2,7 +2,7 @@
 {
     public class VerificarCodigoDTO
     {
-        public string correo { get; set; }
-        public string codigo { get; set; }
+        public string correo { get; set; } = null!;
+        public string codigo { get; set; } = null!;
     }
 }

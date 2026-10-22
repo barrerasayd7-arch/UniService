@@ -6,19 +6,19 @@
     },
     {
       "source": "/api/(.*)",
-      "destination": "https://uniservice.onrender.com/api/$1"
+      "destination": "https://uniservice-bepk.onrender.com/api/$1"
     },
     {
       "source": "/imagenes-servicios/(.*)",
-      "destination": "https://uniservice.onrender.com/imagenes-servicios/$1"
+      "destination": "https://uniservice-bepk.onrender.com/imagenes-servicios/$1"
     },
     {
       "source": "/chathub/(.*)",
-      "destination": "https://uniservice.onrender.com/chathub/$1"
+      "destination": "https://uniservice-bepk.onrender.com/chathub/$1"
     },
     {
       "source": "/chathub",
-      "destination": "https://uniservice.onrender.com/chathub"
+      "destination": "https://uniservice-bepk.onrender.com/chathub"
     },
     {
       "source": "/(.*)",

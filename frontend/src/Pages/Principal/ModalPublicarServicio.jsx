@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect } from "react";
-import { CATEGORIAS, MODALIDADES, DISPONIBILIDAD, initialPublicar, API_HOME, mapaIconos, mapaCategoriaId, MAPA_ICONOS_MODALIDAD, MAPA_ICONOS_DISPONIBILIDAD } from "../shared/constantes";
+import { CATEGORIAS, MODALIDADES, DISPONIBILIDAD, initialPublicar, API_HOME, mapaCategoriaId, MAPA_ICONOS_MODALIDAD, MAPA_ICONOS_DISPONIBILIDAD, MODALIDAD_API, DISPONIBILIDAD_API, UNIDADES_PRECIO } from "../shared/constantes";
 import GoogleMapsAutocomplete from "../../Components/GoogleMapsAutocomplete";
-import { apiFetch } from "../../utils/apiFetch";
+import { apiFetch, mensajeError } from "../../utils/apiFetch";
 import { compressImage } from "../../utils/compressImage";
 
 export default function ModalPublicarServicio({ abierto, onCerrar, onPublicado }) {
@@ -11,8 +11,7 @@ export default function ModalPublicarServicio({ abierto, onCerrar, onPublicado }
   const [errorCampo, setErrorCampo] = useState("");
   const [modalExito, setModalExito] = useState(false);
   const [modalError, setModalError] = useState(null);
-  const [tipoUniversidad, setTipoUniversidad] = useState("");
-  const [otraUniversidad, setOtraUniversidad] = useState("");
+  const [unidadPrecio, setUnidadPrecio] = useState("hora");
   const [imagenes, setImagenes] = useState([]);
   const [imagenesPreview, setImagenesPreview] = useState([]);
   const fileInputRef = useRef(null);
@@ -38,26 +37,9 @@ export default function ModalPublicarServicio({ abierto, onCerrar, onPublicado }
   const handleChange = (e) => {
     const { name, value } = e.target;
     setForm((prev) => ({ ...prev, [name]: value }));
+    // El arriendo se cobra por mes; el resto empieza por hora.
+    if (name === "categoria") setUnidadPrecio(value === "arriendo" ? "mes" : "hora");
     if (errorCampo) setErrorCampo("");
-  };
-
-  const handleTipoUniversidad = (tipo) => {
-    setTipoUniversidad(tipo);
-    if (tipo === "upc") {
-      setForm((prev) => ({ ...prev, universidad: "Universidad Popular del Cesar" }));
-      setOtraUniversidad("");
-    } else if (tipo === "ninguna") {
-      setForm((prev) => ({ ...prev, universidad: "No pertenece a ninguna universidad" }));
-      setOtraUniversidad("");
-    } else {
-      setForm((prev) => ({ ...prev, universidad: "" }));
-    }
-  };
-
-  const handleOtraUniversidad = (e) => {
-    const val = e.target.value;
-    setOtraUniversidad(val);
-    setForm((prev) => ({ ...prev, universidad: val }));
   };
 
   const handleImagenesChange = async (e) => {
@@ -96,28 +78,28 @@ export default function ModalPublicarServicio({ abierto, onCerrar, onPublicado }
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    const { titulo, descripcion, categoria, precio, universidad, contacto, modalidad, disponibilidad } = form;
-    if (!titulo || !descripcion || !categoria || !precio || !universidad || !modalidad || !disponibilidad) {
+    const { titulo, descripcion, categoria, precio, contacto, modalidad, disponibilidad } = form;
+    if (!titulo || !descripcion || !categoria || !precio || !modalidad || !disponibilidad) {
       setModalError("Completa todos los campos obligatorios del formulario."); return;
     }
+    if (titulo.trim().length < 5) { setModalError("El título debe tener al menos 5 caracteres."); return; }
+    if (descripcion.trim().length < 20) { setModalError("La descripción debe tener al menos 20 caracteres."); return; }
     if (!tipoContacto) { setModalError("Selecciona si tu contacto es por teléfono o correo electrónico."); return; }
     const errorContacto = validarContacto();
     if (errorContacto) { setModalError(errorContacto); return; }
-    if (Number(precio) < 1000) { setModalError("El precio mínimo debe ser $1,000 COP."); return; }
+    if (Number(precio) < 1000 || Number(precio) > 99999999) { setModalError("El precio debe estar entre $1.000 y $99.999.999 COP."); return; }
     if (categoria === "arriendo" && !ubicacion) { setModalError("Para servicios de arriendo debes seleccionar una ubicación en el mapa."); return; }
 
-    const proveedor = localStorage.getItem("usuarioId");
-    if (!proveedor) { setModalError("Debes iniciar sesión para publicar un servicio."); return; }
+    if (!localStorage.getItem("token")) { setModalError("Debes iniciar sesión para publicar un servicio."); return; }
 
-    const modalidadDB = { "Presencial": 0, "Virtual": 1, "Mixta": 2 }[modalidad.replace(/[^\\w]/g, "").replace(/^./, m => m.toUpperCase())] ?? 0;
-    const dispDB = { "Entre semana": 0, "Fines de semana": 1, "Siempre disponible": 2 }[disponibilidad] ?? 0;
-
+    // El proveedor lo toma la API de la sesión.
     const nuevoServicio = {
-      id_proveedor: Number(proveedor), titulo, descripcion,
-      id_categoria: mapaCategoriaId[categoria] || 7, precio_hora: Number(precio),
-      contacto, universidad, modalidad: modalidadDB, disponibilidad: dispDB,
-      icono: mapaIconos[categoria] || "bi-pin",
-      ubicacion_lat: ubicacion?.lat || null, ubicacion_lng: ubicacion?.lng || null,
+      titulo: titulo.trim(), descripcion: descripcion.trim(),
+      id_categoria: mapaCategoriaId[categoria] || 7,
+      precio: Number(precio), unidad_precio: unidadPrecio,
+      modalidad: MODALIDAD_API[modalidad], disponibilidad: DISPONIBILIDAD_API[disponibilidad],
+      contacto: contacto.trim(),
+      ubicacion_lat: ubicacion?.lat ?? null, ubicacion_lng: ubicacion?.lng ?? null,
       direccion: ubicacion?.direccion || null,
     };
 
@@ -129,20 +111,22 @@ export default function ModalPublicarServicio({ abierto, onCerrar, onPublicado }
       });
       if (ok) {
         const idServicio = data.id_servicio;
+        let errorImagenes = null;
         if (imagenes.length > 0 && idServicio) {
           const formData = new FormData();
           imagenes.forEach((img) => formData.append("imagenes", img));
           try {
-            await apiFetch(`${API_HOME}/${idServicio}/imagenes`, { method: "POST", body: formData });
-          } catch { /* silently fail */ }
+            const subida = await apiFetch(`${API_HOME}/${idServicio}/imagenes`, { method: "POST", body: formData });
+            if (!subida.ok) errorImagenes = mensajeError(subida.data, "No se pudieron subir las imágenes");
+          } catch { errorImagenes = "No se pudieron subir las imágenes"; }
         }
-        setModalExito(true);
-        setForm(initialPublicar); setTipoContacto(""); setTipoUniversidad("");
-        setOtraUniversidad(""); setImagenes([]); setImagenesPreview([]); setUbicacion(null);
+        resetForm();
         onPublicado();
+        if (errorImagenes) setModalError(`El servicio se creó y quedó en revisión, pero las imágenes fallaron: ${errorImagenes}. Puedes agregarlas desde tu perfil.`);
+        else setModalExito(true);
       } else {
-        let msg = data.error || "No se pudo publicar el servicio.";
-        if (data.detalles?.length) msg += "\n\n" + data.detalles.map(d => `• ${d.campo}: ${d.error}`).join("\n");
+        let msg = data?.error || "No se pudo publicar el servicio.";
+        if (data?.detalles?.length) msg += "\n\n" + data.detalles.map(d => `• ${d.error}`).join("\n");
         setModalError(msg);
       }
     } catch { setModalError("Error de conexión con el servidor."); }
@@ -150,8 +134,8 @@ export default function ModalPublicarServicio({ abierto, onCerrar, onPublicado }
   };
 
   const resetForm = () => {
-    setForm(initialPublicar); setTipoContacto(""); setTipoUniversidad("");
-    setOtraUniversidad(""); setImagenes([]); setImagenesPreview([]); setUbicacion(null);
+    setForm(initialPublicar); setTipoContacto(""); setUnidadPrecio("hora");
+    setImagenes([]); setImagenesPreview([]); setUbicacion(null);
   };
 
   const handleClose = () => { resetForm(); onCerrar(); };
@@ -197,12 +181,22 @@ export default function ModalPublicarServicio({ abierto, onCerrar, onPublicado }
               </div>
               <div className="mp-field">
                 <label htmlFor="mp-desc">Descripción *</label>
-                <textarea id="mp-desc" name="descripcion" className="mp-input mp-textarea" rows={3} placeholder="Describe tu servicio..." value={form.descripcion} onChange={handleChange} />
-                <span className="mp-counter">{form.descripcion.length} / 500</span>
+                <textarea id="mp-desc" name="descripcion" className="mp-input mp-textarea" rows={3} placeholder="Describe tu servicio (mínimo 20 caracteres)..." value={form.descripcion} onChange={handleChange} maxLength={2000} />
+                <span className="mp-counter">{form.descripcion.length} / 2000</span>
               </div>
-              <div className="mp-field">
-                <label htmlFor="mp-precio">Precio (COP/hora) *</label>
-                <input id="mp-precio" type="number" name="precio" className="mp-input" placeholder="Ej: 30000" min="1000" value={form.precio} onChange={handleChange} />
+              <div className="mp-grid-2">
+                <div className="mp-field">
+                  <label htmlFor="mp-precio">Precio (COP) *</label>
+                  <input id="mp-precio" type="number" name="precio" className="mp-input" placeholder="Ej: 30000" min="1000" max="99999999" value={form.precio} onChange={handleChange} />
+                </div>
+                <div className="mp-field">
+                  <label htmlFor="mp-unidad">Se cobra *</label>
+                  <select id="mp-unidad" className="mp-select" value={unidadPrecio} onChange={(e) => setUnidadPrecio(e.target.value)}>
+                    {UNIDADES_PRECIO.map((u) => (
+                      <option key={u.valor} value={u.valor}>{u.label}</option>
+                    ))}
+                  </select>
+                </div>
               </div>
             </fieldset>
 
@@ -227,25 +221,11 @@ export default function ModalPublicarServicio({ abierto, onCerrar, onPublicado }
                     <div key={i} className="mp-img-item">
                       <img src={img.preview} alt={`Vista previa de imagen ${i + 1} para el servicio`} loading="lazy" decoding="async" />
                       <button type="button" className="mp-img-del" onClick={() => eliminarImagen(i)}><i className="bi bi-x-lg"></i></button>
-                      {i === 0 && <span className="mp-img-badge">Principal</span>}
+                      {i === 0 && <span className="mp-img-badge">Portada</span>}
                     </div>
                   ))}
                 </div>
               </div>
-            </fieldset>
-
-            <fieldset className="mp-fieldset">
-              <legend>Universidad</legend>
-              <div className="mp-chips">
-                {[["upc", "Popular del Cesar"], ["otra", "Otra"], ["ninguna", "Ninguna"]].map(([tipo, label]) => (
-                  <button key={tipo} type="button" className={`mp-chip${tipoUniversidad === tipo ? " active" : ""}`} onClick={() => handleTipoUniversidad(tipo)}>{label}</button>
-                ))}
-              </div>
-              {tipoUniversidad === "otra" && (
-                <div className="mp-field" style={{ marginTop: "12px" }}>
-                  <input type="text" className="mp-input" placeholder="Ej: Universidad Nacional" value={otraUniversidad} onChange={handleOtraUniversidad} />
-                </div>
-              )}
             </fieldset>
 
             <fieldset className="mp-fieldset">
@@ -259,7 +239,7 @@ export default function ModalPublicarServicio({ abierto, onCerrar, onPublicado }
                 <div className="mp-field" style={{ marginTop: "12px" }}>
                   <div className="mp-input-wrap">
                     <span className="mp-prefix">{tipoContacto === "telefono" ? "+57" : "@"}</span>
-                    <input type={tipoContacto === "telefono" ? "tel" : "email"} name="contacto" className="mp-input" placeholder={tipoContacto === "telefono" ? "300 123 4567" : "correo@email.com"} value={form.contacto} onChange={(e) => { const v = tipoContacto === "telefono" ? e.target.value.replace(/\D/g, "").slice(0, 10) : e.target.value; setForm(p => ({ ...p, contacto: v })); }} maxLength={tipoContacto === "telefono" ? 10 : undefined} />
+                    <input type={tipoContacto === "telefono" ? "tel" : "email"} name="contacto" className="mp-input" placeholder={tipoContacto === "telefono" ? "300 123 4567" : "correo@email.com"} value={form.contacto} onChange={(e) => { const v = tipoContacto === "telefono" ? e.target.value.replace(/\D/g, "").slice(0, 10) : e.target.value; setForm(p => ({ ...p, contacto: v })); }} maxLength={tipoContacto === "telefono" ? 10 : 150} />
                   </div>
                 </div>
               )}

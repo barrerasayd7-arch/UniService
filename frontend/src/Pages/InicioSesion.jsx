@@ -1,14 +1,34 @@
 import { useState, useEffect } from "react";
 import "../styles/StyleLogin.css";
 import { useNavigate } from "react-router-dom";
-import { GoogleLogin, useGoogleLogin } from "@react-oauth/google";
 import logoIcon from "../img/logo_color_noBG.png";
-import AdminModal from "./Login/ModalAdmin";
 import ResetPasswordModal from "./Login/ModalRecuperarClave";
 import VerificationCodeModal from "./Login/ModalVerificarCodigo";
 import NotificationModal from "./Login/ModalNotificacion";
 import BotonTema from "../Components/B_StyleHome";
-import { apiFetch } from "../utils/apiFetch";
+import { apiFetch, limpiarSesion, mensajeError } from "../utils/apiFetch";
+
+// Sólo se admiten cuentas con correo institucional (la base de datos lo exige).
+const REGEX_CORREO = /^[a-z0-9][a-z0-9._+-]*@unicesar\.edu\.co$/i;
+const ERROR_CORREO = "Usa tu correo @unicesar.edu.co";
+
+// Mismas reglas que la API: 8 a 72 caracteres, con letras y números.
+function errorPassword(p) {
+  if (p.length < 8) return "Mínimo 8 caracteres";
+  if (p.length > 72) return "Máximo 72 caracteres";
+  if (!/\p{L}/u.test(p) || !/\d/.test(p)) return "Combina letras y números";
+  return "";
+}
+
+// Guarda la sesión que devuelven login y registro: { token, user: { id, nombre, correo, id_rol } }.
+function guardarSesion({ token, user }) {
+  limpiarSesion();
+  localStorage.setItem("token", token);
+  localStorage.setItem("usuarioId", user.id);
+  localStorage.setItem("usuarioNombre", user.nombre || user.correo.split("@")[0]);
+  localStorage.setItem("usuarioRol", user.id_rol);
+  localStorage.setItem("logueado", "true");
+}
 
 export default function Login() {
   // Hook de React Router para redirigir al usuario entre páginas
@@ -26,6 +46,8 @@ export default function Login() {
   // Guardan los datos del formulario de crear cuenta nueva
   // ════════════════════════════════
   const [nombre, setNombre] = useState("");
+  const [apellido, setApellido] = useState("");
+  const [telefono, setTelefono] = useState("");
   const [correoReg, setCorreoReg] = useState("");
   const [passReg, setPassReg] = useState("");
   const [passReg2, setPassReg2] = useState("");
@@ -39,6 +61,8 @@ export default function Login() {
   const [codigoEnviado, setCodigoEnviado] = useState(false);
   const [codigoInput, setCodigoInput] = useState("");
   const [correoVerificado, setCorreoVerificado] = useState(false);
+  // JWT efímero (15 min) que devuelve verify-code y exige /api/auth/register
+  const [verificacionToken, setVerificacionToken] = useState("");
   const [enviandoCodigo, setEnviandoCodigo] = useState(false);
   const [mostrarModalCodigo, setMostrarModalCodigo] = useState(false);
 
@@ -54,20 +78,8 @@ export default function Login() {
   const [resetCodigo, setResetCodigo] = useState(""); // Código de verificación recibido
   const [resetPass, setResetPass] = useState(""); // Nueva contraseña
   const [resetPass2, setResetPass2] = useState(""); // Confirmación de nueva contraseña
+  const [resetToken, setResetToken] = useState(""); // Token de verify-code para reset-password-verificado
   const [resetCargando, setResetCargando] = useState(false); // Deshabilita botones mientras espera la API
-
-  // ════════════════════════════════
-  // ESTADOS DEL MODAL DE ACCESO ADMIN
-  // Controlan el comportamiento del modal que aparece cuando
-  // se detecta que el usuario es administrador
-  // ════════════════════════════════
-  const [modalAdmin, setModalAdmin] = useState(false); // Si el modal está visible
-  const [adminMasterInput, setAdminMasterInput] = useState(""); // Contraseña maestra que escribe el admin
-  const [adminIntentos, setAdminIntentos] = useState(0); // Contador de intentos fallidos (máx 3)
-  const [adminBloqueado, setAdminBloqueado] = useState(false); // Si se bloqueó por demasiados intentos
-  const [adminError, setAdminError] = useState(""); // Mensaje de error dentro del modal
-  const [adminShake, setAdminShake] = useState(false); // Activa animación de "shake" cuando falla
-  const [adminCargando, setAdminCargando] = useState(false); // Deshabilita botón mientras verifica
 
   // ════════════════════════════════
   // ESTADOS GENERALES DE UI
@@ -94,43 +106,60 @@ export default function Login() {
   // Actualiza el estado del campo Y el objeto de errores al mismo tiempo.
   // ════════════════════════════════
 
-  // Valida que el correo tenga formato válido (algo@algo.algo)
+  // Valida que el correo sea institucional (@unicesar.edu.co)
   // El parámetro "tipo" diferencia si es el campo del login o el del registro
   const validarCorreo = (email, tipo = "login") => {
-    const regex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    const esValido = regex.test(email);
+    const esValido = REGEX_CORREO.test(email.trim());
     if (tipo === "login") {
       setCorreo(email);
       setErrores((prev) => ({
         ...prev,
-        correo: esValido ? "" : "Correo inválido",
+        correo: esValido ? "" : ERROR_CORREO,
       }));
     } else {
       setCorreoReg(email);
       setErrores((prev) => ({
         ...prev,
-        correoReg: esValido ? "" : "Correo inválido",
+        correoReg: esValido ? "" : ERROR_CORREO,
       }));
     }
   };
 
-  // Valida que la contraseña del login tenga al menos 8 caracteres
+  // En el login sólo se exige que haya contraseña: las cuentas antiguas pueden tener otras reglas
   const validarPassLogin = (value) => {
     setPass(value);
     setErrores((prev) => ({
       ...prev,
-      pass: value.length < 8 ? "Mínimo 8 caracteres" : "",
+      pass: value ? "" : "Escribe tu contraseña",
     }));
   };
 
-  // Valida el nombre: mínimo 3 caracteres, máximo 50
+  // Nombre y apellido: sólo letras; entre los dos máximo 50 caracteres (límite de la base de datos)
+  const errorNombre = (value, otro) => {
+    const t = value.trim();
+    if (t.length < 2) return "Mínimo 2 letras";
+    if (!/^\p{L}[\p{L}\p{M}' .-]*$/u.test(t)) return "Sólo letras";
+    if (`${t} ${otro.trim()}`.trim().length > 50) return "Nombre y apellido: máximo 50 caracteres entre ambos";
+    return "";
+  };
+
   const validarNombre = (value) => {
     setNombre(value);
-    if (value.trim().length < 3)
-      setErrores((prev) => ({ ...prev, nombre: "Mínimo 3 caracteres" }));
-    else if (value.length > 50)
-      setErrores((prev) => ({ ...prev, nombre: "Nombre muy largo" }));
-    else setErrores((prev) => ({ ...prev, nombre: "" }));
+    setErrores((prev) => ({ ...prev, nombre: errorNombre(value, apellido) }));
+  };
+
+  const validarApellido = (value) => {
+    setApellido(value);
+    setErrores((prev) => ({ ...prev, apellido: errorNombre(value, nombre) }));
+  };
+
+  // Teléfono: 7 a 12 dígitos (se permiten espacios, guiones, paréntesis y + al inicio)
+  const errorTelefono = (value) =>
+    /^\+?[0-9]{7,12}$/.test(value.replace(/[\s\-.()]/g, "")) ? "" : "De 7 a 12 dígitos";
+
+  const validarTelefono = (value) => {
+    setTelefono(value);
+    setErrores((prev) => ({ ...prev, telefono: errorTelefono(value) }));
   };
 
   // Valida la contraseña del registro. También re-valida la confirmación
@@ -139,7 +168,7 @@ export default function Login() {
     setPassReg(value);
     setErrores((prev) => ({
       ...prev,
-      passReg: value.length < 8 ? "Mínimo 8 caracteres" : "",
+      passReg: errorPassword(value),
       ...(passReg2 && {
         passReg2: value !== passReg2 ? "Las contraseñas no coinciden" : "",
       }),
@@ -149,38 +178,45 @@ export default function Login() {
   // Valida la confirmación de contraseña comparándola con la original
   const validarPassReg2 = (value) => {
     setPassReg2(value);
-    if (value.length < 8)
-      setErrores((prev) => ({ ...prev, passReg2: "Mínimo 8 caracteres" }));
-    else if (value !== passReg)
-      setErrores((prev) => ({
-        ...prev,
-        passReg2: "Las contraseñas no coinciden",
-      }));
-    else setErrores((prev) => ({ ...prev, passReg2: "" }));
+    setErrores((prev) => ({
+      ...prev,
+      passReg2: value !== passReg ? "Las contraseñas no coinciden" : "",
+    }));
   };
 
   // ════════════════════════════════
   // VERIFICACIÓN DE CORREO (REGISTRO)
-  // Llama a la API para enviar el código de 6 dígitos al correo del usuario.
-  // El backend genera el código, lo guarda temporalmente (5 min) y lo envía por email.
+  // La API envía un código de 6 dígitos al correo institucional (válido 10 minutos).
+  // Al verificarlo devuelve un token que autoriza a crear la cuenta durante 15 minutos.
   // ════════════════════════════════
+  const enviarCodigo = (correoDestino) =>
+    apiFetch("/api/auth/institutional-email/send-code", {
+      method: "POST",
+      skipAuth: true,
+      body: JSON.stringify({ correo: correoDestino.trim().toLowerCase() }),
+    });
+
+  const verificarCodigo = (correoDestino, codigo) =>
+    apiFetch("/api/auth/institutional-email/verify-code", {
+      method: "POST",
+      skipAuth: true,
+      body: JSON.stringify({ correo: correoDestino.trim().toLowerCase(), codigo }),
+    });
+
   const handleEnviarCodigo = async () => {
-    const regex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    if (!correoReg || !regex.test(correoReg)) {
-      notificar("Ingresa un correo válido primero");
+    if (!REGEX_CORREO.test(correoReg.trim())) {
+      notificar(ERROR_CORREO);
       return;
     }
     setEnviandoCodigo(true); // Cambia el botón a "Enviando..."
     try {
-      const { ok, data } = await apiFetch("/api/Auth/send-code", {
-        method: "POST",
-        body: JSON.stringify({ correo: correoReg }),
-      });
+      const { ok, data } = await enviarCodigo(correoReg);
       if (ok) {
         setCodigoEnviado(true);
+        setCodigoInput("");
         setMostrarModalCodigo(true);
       } else {
-        notificar("Error al enviar el código");
+        notificar(mensajeError(data, "Error al enviar el código"));
       }
     } catch {
       notificar("Error de conexión");
@@ -190,24 +226,26 @@ export default function Login() {
   };
 
   // Envía el código que escribió el usuario a la API para verificarlo.
-  // Si es correcto, marca el correo como verificado y cierra el modal.
+  // Si es correcto, guarda el token de verificación y habilita "Crear cuenta".
   const handleVerificarCodigo = async () => {
     if (codigoInput.length !== 6) {
       notificar("El código debe tener 6 dígitos");
       return;
     }
     try {
-      const { data } = await apiFetch("/api/Auth/verify-code", {
-        method: "POST",
-        body: JSON.stringify({ correo: correoReg, codigo: codigoInput }),
-      });
-      if (data.valido) {
-        setCorreoVerificado(true); // Habilita el botón de crear cuenta
-        setMostrarModalCodigo(false); // Cierra el modal del código
-        notificar("Correo verificado con éxito", "success");
-      } else {
-        notificar("Código incorrecto, intenta de nuevo");
+      const { ok, data } = await verificarCodigo(correoReg, codigoInput);
+      if (!ok) {
+        notificar(mensajeError(data, "Código incorrecto, intenta de nuevo"));
+        return;
       }
+      setMostrarModalCodigo(false);
+      if (data.cuenta_existente) {
+        notificar("Ya existe una cuenta con este correo. Inicia sesión o recupera tu contraseña.", "info");
+        return;
+      }
+      setVerificacionToken(data.verificacion_token);
+      setCorreoVerificado(true); // Habilita el botón de crear cuenta
+      notificar("Correo verificado con éxito", "success");
     } catch {
       notificar("Error en la verificación");
     }
@@ -220,21 +258,17 @@ export default function Login() {
 
   // PASO 1: Pide al backend que envíe un código de recuperación al correo ingresado
   const handleResetEnviarCodigo = async () => {
-    const regex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    if (!resetCorreo || !regex.test(resetCorreo)) {
-      notificar("Ingresa un correo válido");
+    if (!REGEX_CORREO.test(resetCorreo.trim())) {
+      notificar(ERROR_CORREO);
       return;
     }
     setResetCargando(true);
     try {
-      const { ok, data } = await apiFetch("/api/Auth/forgot-password", {
-        method: "POST",
-        body: JSON.stringify({ correo: resetCorreo }),
-      });
+      const { ok, data } = await enviarCodigo(resetCorreo);
       if (ok) {
         setResetPaso("codigo");
       } else {
-        notificar("Error al enviar el código");
+        notificar(mensajeError(data, "Error al enviar el código"));
       }
     } catch {
       notificar("Error de conexión");
@@ -247,11 +281,9 @@ export default function Login() {
   const handleResetReenviarCodigo = async () => {
     setResetCargando(true);
     try {
-      await apiFetch("/api/Auth/forgot-password", {
-        method: "POST",
-        body: JSON.stringify({ correo: resetCorreo }),
-      });
-      notificar("Código reenviado", "success");
+      const { ok, data } = await enviarCodigo(resetCorreo);
+      if (ok) notificar("Código reenviado", "success");
+      else notificar(mensajeError(data, "Error al reenviar"));
     } catch {
       notificar("Error al reenviar");
     } finally {
@@ -259,7 +291,7 @@ export default function Login() {
     }
   };
 
-  // PASO 2: Verifica que el código de recuperación ingresado sea correcto
+  // PASO 2: Verifica el código; la API devuelve un token para cambiar la contraseña
   const handleResetVerificarCodigo = async () => {
     if (resetCodigo.length !== 6) {
       notificar("El código debe tener 6 dígitos");
@@ -267,14 +299,14 @@ export default function Login() {
     }
     setResetCargando(true);
     try {
-      const { data } = await apiFetch("/api/Auth/verify-code", {
-        method: "POST",
-        body: JSON.stringify({ correo: resetCorreo, codigo: resetCodigo }),
-      });
-      if (data.valido) {
-        setResetPaso("nueva"); // Avanza al paso 3: escribir la nueva contraseña
+      const { ok, data } = await verificarCodigo(resetCorreo, resetCodigo);
+      if (!ok) {
+        notificar(mensajeError(data, "Código incorrecto o expirado"));
+      } else if (!data.cuenta_existente) {
+        notificar("No hay una cuenta con este correo. Regístrate primero.");
       } else {
-        notificar("Código incorrecto o expirado");
+        setResetToken(data.verificacion_token);
+        setResetPaso("nueva"); // Avanza al paso 3: escribir la nueva contraseña
       }
     } catch {
       notificar("Error de conexión");
@@ -285,8 +317,9 @@ export default function Login() {
 
   // PASO 3: Envía la nueva contraseña al backend para guardarla en la base de datos
   const handleResetGuardar = async () => {
-    if (resetPass.length < 8) {
-      notificar("La contraseña debe tener mínimo 8 caracteres");
+    const error = errorPassword(resetPass);
+    if (error) {
+      notificar(`Contraseña: ${error.toLowerCase()}`);
       return;
     }
     if (resetPass !== resetPass2) {
@@ -295,27 +328,23 @@ export default function Login() {
     }
     setResetCargando(true);
     try {
-      const { ok, data } = await apiFetch("/api/Auth/reset-password", {
+      const { ok, data } = await apiFetch("/api/auth/reset-password-verificado", {
         method: "POST",
+        skipAuth: true,
         body: JSON.stringify({
-          correo: resetCorreo,
-          codigo: resetCodigo,
-          nuevaPassword: resetPass,
+          correo: resetCorreo.trim().toLowerCase(),
+          verificacion_token: resetToken,
+          nueva_password: resetPass,
         }),
       });
-      if (data?.ok) {
+      if (ok) {
         notificar(
           "Contraseña cambiada correctamente. Ya puedes iniciar sesión.",
           "success",
         );
-        // Limpia todos los estados del flujo de recuperación y cierra el modal
-        setResetPaso(null);
-        setResetCorreo("");
-        setResetCodigo("");
-        setResetPass("");
-        setResetPass2("");
+        cerrarModalReset();
       } else {
-        notificar(data.error || "Error al cambiar contraseña");
+        notificar(mensajeError(data, "Error al cambiar contraseña"));
       }
     } catch {
       notificar("Error de conexión");
@@ -331,155 +360,22 @@ export default function Login() {
     setResetCodigo("");
     setResetPass("");
     setResetPass2("");
+    setResetToken("");
   };
-
-  // ════════════════════════════════
-  // MODAL DE ACCESO ADMIN
-  // Segundo factor de seguridad: aunque el login detecte un admin,
-  // debe ingresar la contraseña maestra para entrar al panel.
-  // Tiene un límite de 3 intentos antes de bloquearse.
-  // ════════════════════════════════
-
-  const cerrarModalAdmin = () => {
-    setModalAdmin(false);
-    setAdminMasterInput("");
-    setAdminError("");
-    setAdminIntentos(0);
-    setAdminBloqueado(false);
-    setAdminCargando(false);
-  };
-
-  const handleAdminConfirmar = async () => {
-    if (adminBloqueado) return;
-
-    setAdminCargando(true);
-    try {
-      const { ok, status, data } = await apiFetch(
-        "/api/auth/verify-admin-master",
-        {
-          method: "POST",
-          body: JSON.stringify({ masterPassword: adminMasterInput }),
-        },
-      );
-
-      if (ok) {
-        notificar("Acceso concedido, Comandante", "success");
-        setModalAdmin(false);
-
-        localStorage.setItem("logueado", "true");
-        localStorage.setItem("usuarioRol", "1");
-
-        setTimeout(() => {
-          navigate("/admin-dashboard", { replace: true });
-        }, 1000);
-      } else {
-        setAdminShake(true);
-        setTimeout(() => setAdminShake(false), 500);
-
-        if (status === 404) {
-          setAdminError(
-            "El servidor no pudo procesar la solicitud. Asegúrate de que la API esté actualizada y en ejecución.",
-          );
-          return;
-        }
-
-        if (data?.bloqueado || status === 429) {
-          setAdminBloqueado(true);
-          setAdminIntentos(3);
-          setAdminError(
-            data?.error ||
-              "Bloqueado por 10 minutos tras demasiados intentos fallidos.",
-          );
-        } else {
-          const intentosBackend = data?.intentos || adminIntentos + 1;
-          setAdminIntentos(intentosBackend);
-          if (intentosBackend >= 3) {
-            setAdminBloqueado(true);
-            setAdminError(
-              "DEMASIADOS INTENTOS FALLIDOS. ACCESO DENEGADO POR 10 MINUTOS.",
-            );
-          } else {
-            setAdminError(
-              data?.error ||
-                `Contraseña incorrecta. Intento ${intentosBackend} de 3.`,
-            );
-          }
-        }
-      }
-    } catch {
-      notificar("Error de conexión con el servidor");
-    } finally {
-      setAdminCargando(false);
-    }
-  };
-
-  // ════════════════════════════════
-  // GOOGLE LOGIN
-  // GoogleLogin component devuelve un credential (JWT) directamente.
-  // Se envía al backend para validarlo y obtener un JWT de nuestra app.
-  // ════════════════════════════════
-  const handleGoogleSuccess = async (credentialResponse) => {
-    const cred = credentialResponse.credential;
-    if (!cred) {
-      console.error("No credential in response:", credentialResponse);
-      notificar("Error: no se recibió credencial de Google");
-      return;
-    }
-    try {
-      const { data } = await apiFetch("/api/auth/google-login", {
-        method: "POST",
-        body: JSON.stringify({ credential: cred }),
-      });
-      console.log("Backend response:", data);
-
-      if (data.token) {
-        localStorage.setItem("token", data.token);
-        localStorage.setItem("usuarioId", data.user.id);
-        localStorage.setItem("usuarioNombre", data.user.nombre);
-        localStorage.setItem("usuarioRol", data.user.id_rol);
-        localStorage.setItem("logueado", "true");
-
-        if (data.user.id_rol === 1) {
-          setModalAdmin(true);
-        } else {
-          navigate("/home", { replace: true });
-        }
-      } else {
-        notificar(data.error || "Error al iniciar sesión con Google");
-      }
-    } catch (err) {
-      console.error("Fetch error:", err);
-      notificar("Error de conexión con el servidor");
-    }
-  };
-
-  const handleGoogleError = () => {
-    console.error("Google login error");
-    notificar("Error al iniciar sesión con Google");
-  };
-
-  const googleLogin = useGoogleLogin({
-    onSuccess: async (tokenResponse) => {
-      await handleGoogleSuccess({ credential: tokenResponse.id_token });
-    },
-    onError: handleGoogleError,
-    scope: "openid profile email",
-  });
 
   // ════════════════════════════════
   // LÓGICA DE LOGIN
   // La autenticación se realiza contra el backend para todos los usuarios.
-  // El backend devuelve id_rol=1 para admins, que activa el modal de verificación.
-  // No hay bypass hardcodeado.
+  // Los administradores (id_rol = 1) van al panel, que pide su contraseña de administrador.
   // ════════════════════════════════
   const handleLogin = async () => {
     if (cargandoLogin) return;
     if (!correo || errores.correo) {
-      notificar("Ingresa un correo válido");
+      notificar(ERROR_CORREO);
       return;
     }
-    if (pass.length < 8) {
-      notificar("Mínimo 8 caracteres");
+    if (!pass) {
+      notificar("Escribe tu contraseña");
       return;
     }
 
@@ -487,36 +383,23 @@ export default function Login() {
     setTransitionState("loading");
     setCargandoLogin(true);
     try {
-      const { data } = await apiFetch("/api/auth/login", {
+      const { ok, data } = await apiFetch("/api/auth/login", {
         method: "POST",
-        body: JSON.stringify({ correo, password: pass }),
+        skipAuth: true,
+        body: JSON.stringify({ correo: correo.trim().toLowerCase(), password: pass }),
       });
 
       const transcurrido = Date.now() - inicio;
       const espera = Math.max(0, 4000 - transcurrido);
 
-      if (data.token) {
-        localStorage.setItem("token", data.token);
-        localStorage.setItem("usuarioId", data.user.id);
-        localStorage.setItem(
-          "usuarioNombre",
-          data.user.nombre || data.user.correo.split("@")[0],
-        );
-        localStorage.setItem("usuarioRol", data.user.id_rol);
-        localStorage.setItem("logueado", "true");
-
+      if (ok && data?.token) {
+        guardarSesion(data);
         await new Promise((r) => setTimeout(r, espera));
-
-        if (data.user.id_rol === 1) {
-          setTransitionState(null);
-          setModalAdmin(true);
-        } else {
-          navigate("/home", { replace: true });
-        }
+        navigate(data.user.id_rol === 1 ? "/admin-dashboard" : "/home", { replace: true });
       } else {
         await new Promise((r) => setTimeout(r, Math.min(espera, 1500)));
         setTransitionState(null);
-        notificar(data.error || "Credenciales incorrectas");
+        notificar(mensajeError(data, "Credenciales incorrectas"));
       }
     } catch {
       await new Promise((r) => setTimeout(r, 1500));
@@ -529,8 +412,7 @@ export default function Login() {
 
   // ════════════════════════════════
   // LÓGICA DE REGISTRO
-  // Crea una cuenta nueva en el backend. Requiere que el correo
-  // haya sido verificado previamente con el código de 6 dígitos.
+  // Crea la cuenta con el token de verificación del correo y abre la sesión.
   // ════════════════════════════════
   const handleRegister = async () => {
     if (cargandoRegistro) return;
@@ -540,47 +422,57 @@ export default function Login() {
       return;
     }
     // Validación completa del formulario antes de enviar
-    if (
-      passReg.length < 8 ||
-      passReg !== passReg2 ||
-      nombre.trim().length < 3 ||
-      !terminos
-    ) {
-      notificar("Revisa los campos del formulario");
+    const erroresForm = {
+      nombre: errorNombre(nombre, apellido),
+      apellido: errorNombre(apellido, nombre),
+      telefono: errorTelefono(telefono),
+      passReg: errorPassword(passReg),
+      passReg2: passReg !== passReg2 ? "Las contraseñas no coinciden" : "",
+    };
+    setErrores((prev) => ({ ...prev, ...erroresForm }));
+    if (Object.values(erroresForm).some(Boolean) || !terminos) {
+      notificar(terminos ? "Revisa los campos del formulario" : "Debes aceptar los términos y condiciones");
       return;
     }
     setCargandoRegistro(true);
     try {
-      const { data } = await apiFetch("/api/Auth/register", {
+      const { ok, status, data } = await apiFetch("/api/auth/register", {
         method: "POST",
+        skipAuth: true,
         body: JSON.stringify({
-          correo: correoReg,
+          correo: correoReg.trim().toLowerCase(),
           password: passReg,
           nombre: nombre.trim(),
-          codigo: codigoInput,
+          apellido: apellido.trim(),
+          telefono: telefono.trim(),
+          verificacion_token: verificacionToken,
         }),
       });
-      if (data.error) {
-        notificar(data.error);
-      } else {
-        notificar("Cuenta creada, ya puedes iniciar sesión", "success");
-        // Limpia todos los campos del formulario de registro después de crear la cuenta
-        setNombre("");
-        setCorreoReg("");
-        setPassReg("");
-        setPassReg2("");
-        setTerminos(false);
-        setErrores({});
-        setCorreoVerificado(false);
-        setCodigoEnviado(false);
-        setCodigoInput("");
+      if (ok && data?.token) {
+        guardarSesion(data);
+        navigate("/home", { replace: true });
+        return;
       }
+      // El token de verificación dura 15 minutos: si venció hay que pedir otro código
+      if (status === 400 && /verificaci|venci/i.test(data?.error || "")) {
+        setCorreoVerificado(false);
+        setVerificacionToken("");
+      }
+      notificar(mensajeError(data, "No se pudo crear la cuenta"));
     } catch {
       notificar("Error de conexión");
     } finally {
       setCargandoRegistro(false);
     }
   };
+
+  // Aviso cuando el servidor cerró la sesión (token vencido o cuenta suspendida)
+  useEffect(() => {
+    const motivo = new URLSearchParams(window.location.search).get("sesion");
+    if (motivo === "suspendida")
+      notificar("Tu cuenta fue suspendida. Si crees que es un error, contacta al administrador.");
+    else if (motivo === "expirada") notificar("Tu sesión terminó. Inicia sesión de nuevo.", "info");
+  }, []);
 
   // ════════════════════════════════
   // EFECTO DE CLASE CSS EN EL BODY
@@ -738,7 +630,7 @@ export default function Login() {
                 <input
                   id="login-correo"
                   type="email"
-                  placeholder="tu@correo.com"
+                  placeholder="tu@unicesar.edu.co"
                   value={correo}
                   onChange={(e) => validarCorreo(e.target.value, "login")}
                   autoComplete="email"
@@ -815,23 +707,6 @@ export default function Login() {
                 </button>
               </div>
 
-              <div className="separator">
-                <span>o continúa con</span>
-              </div>
-
-              <div className="btn-google-wrapper">
-                <GoogleLogin
-                  onSuccess={handleGoogleSuccess}
-                  onError={handleGoogleError}
-                  useOneTap={false}
-                  text="continue_with"
-                  locale="es"
-                  shape="rectangular"
-                  theme="outline"
-                  width="100%"
-                />
-              </div>
-
               <p className="pie">
                 ¿No tienes cuenta?{" "}
                 <label className="pie-link" htmlFor="r-reg">
@@ -850,15 +725,15 @@ export default function Login() {
               {/* Campo nombre con validación de longitud */}
               <div className="campo">
                 <label htmlFor="reg-nombre" className="campo-label">
-                  Nombre completo
+                  Nombre
                 </label>
                 <input
                   id="reg-nombre"
                   type="text"
-                  placeholder="Tu nombre y apellido"
+                  placeholder="Tu nombre"
                   value={nombre}
                   onChange={(e) => validarNombre(e.target.value)}
-                  autoComplete="name"
+                  autoComplete="given-name"
                   aria-invalid={!!errores.nombre}
                   aria-describedby={
                     errores.nombre ? "reg-nombre-error" : undefined
@@ -875,6 +750,52 @@ export default function Login() {
                 )}
               </div>
 
+              <div className="campo">
+                <label htmlFor="reg-apellido" className="campo-label">
+                  Apellido
+                </label>
+                <input
+                  id="reg-apellido"
+                  type="text"
+                  placeholder="Tu apellido"
+                  value={apellido}
+                  onChange={(e) => validarApellido(e.target.value)}
+                  autoComplete="family-name"
+                  aria-invalid={!!errores.apellido}
+                  aria-describedby={
+                    errores.apellido ? "reg-apellido-error" : undefined
+                  }
+                />
+                {errores.apellido && (
+                  <span id="reg-apellido-error" className="error-msg" role="alert">
+                    {errores.apellido}
+                  </span>
+                )}
+              </div>
+
+              <div className="campo">
+                <label htmlFor="reg-telefono" className="campo-label">
+                  Teléfono
+                </label>
+                <input
+                  id="reg-telefono"
+                  type="tel"
+                  placeholder="3001234567"
+                  value={telefono}
+                  onChange={(e) => validarTelefono(e.target.value)}
+                  autoComplete="tel"
+                  aria-invalid={!!errores.telefono}
+                  aria-describedby={
+                    errores.telefono ? "reg-telefono-error" : undefined
+                  }
+                />
+                {errores.telefono && (
+                  <span id="reg-telefono-error" className="error-msg" role="alert">
+                    {errores.telefono}
+                  </span>
+                )}
+              </div>
+
               {/* Campo correo con botón para enviar código de verificación.
                   Se deshabilita una vez que el correo fue verificado exitosamente. */}
               <div className="campo">
@@ -885,7 +806,7 @@ export default function Login() {
                   <input
                     id="reg-correo"
                     type="email"
-                    placeholder="tu@correo.com"
+                    placeholder="tu@unicesar.edu.co"
                     value={correoReg}
                     onChange={(e) => validarCorreo(e.target.value, "registro")}
                     disabled={correoVerificado}
@@ -938,7 +859,7 @@ export default function Login() {
                 <input
                   id="reg-pass"
                   type="password"
-                  placeholder="Mínimo 8 caracteres"
+                  placeholder="Mínimo 8, con letras y números"
                   value={passReg}
                   onChange={(e) => validarPassReg(e.target.value)}
                   autoComplete="new-password"
@@ -1011,19 +932,6 @@ export default function Login() {
           </div>
         </div>
       </main>
-
-      <AdminModal
-        visible={modalAdmin}
-        adminMasterInput={adminMasterInput}
-        setAdminMasterInput={setAdminMasterInput}
-        adminError={adminError}
-        adminBloqueado={adminBloqueado}
-        adminShake={adminShake}
-        adminIntentos={adminIntentos}
-        adminCargando={adminCargando}
-        onConfirmar={handleAdminConfirmar}
-        onCancelar={cerrarModalAdmin}
-      />
 
       <ResetPasswordModal
         resetPaso={resetPaso}

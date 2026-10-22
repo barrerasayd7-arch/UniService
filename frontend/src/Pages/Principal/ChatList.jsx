@@ -1,5 +1,4 @@
 import { useState, useEffect } from "react";
-import { API_CHAT } from "../shared/constantes";
 import { apiImageUrl } from "../../utils/apiFetch";
 
 export default function ChatList({ chats, chatSeleccionado, onSelectChat, usuariosOnline }) {

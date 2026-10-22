@@ -21,8 +21,7 @@ import Footer from "./Principal/PiePagina";
 import SeccionRecientes from "./shared/SeccionRecientes";
 import SeccionDestacados from "./shared/SeccionDestacados";
 import Presentacion from "./shared/Presentacion";
-import { API_HOME } from "./shared/constantes";
-import { promedioEstrellas } from "./shared/utilidades";
+import { listarServicios } from "./shared/servicios";
 import { apiFetch } from "../utils/apiFetch";
 
 export default function HomePrincipal() {
@@ -31,7 +30,6 @@ export default function HomePrincipal() {
   const [chatAbierto, setChatAbierto] = useState(false);
   const [modalPublicar, setModalPublicar] = useState(false);
   const [modalSolicitudes, setModalSolicitudes] = useState(false);
-  const [serviciosTotales, setServiciosTotales] = useState([]);
   const [recientes, setRecientes] = useState([]);
   const [top3, setTop3] = useState([]);
   const [cargando, setCargando] = useState(true);
@@ -45,17 +43,13 @@ export default function HomePrincipal() {
 
   const cargarServicios = useCallback(() => {
     setCargando(true);
-    fetch(`${API_HOME}?page=1&pageSize=50&orden=recientes`)
-      .then((res) => res.json())
-      .then((data) => {
-        const lista = data.servicios || data;
-        if (!Array.isArray(lista)) return;
-        setServiciosTotales([...lista].reverse());
-        setRecientes(lista.slice(0, 4));
-        const top = [...lista]
-          .sort((a, b) => promedioEstrellas(b.estrellas) - promedioEstrellas(a.estrellas))
-          .slice(0, 3);
-        setTop3(top);
+    Promise.all([
+      listarServicios({ porPagina: 4, orden: "recientes" }),
+      listarServicios({ porPagina: 3, orden: "rating-mayor" }),
+    ])
+      .then(([nuevos, mejores]) => {
+        setRecientes(nuevos.servicios);
+        setTop3(mejores.servicios);
       })
       .catch(err => console.error("Error cargando servicios:", err))
       .finally(() => setCargando(false));
@@ -74,10 +68,8 @@ export default function HomePrincipal() {
   }, []);
 
   const handleCerrarSesion = async () => {
-    const usuarioId = localStorage.getItem("usuarioId");
-    if (usuarioId) {
-      try { await apiFetch("/api/auth/logout", { method: "POST", body: JSON.stringify({ id_usuario: parseInt(usuarioId) }) }); } catch (err) { console.error("Error en logout:", err); }
-    }
+    // El servidor invalida el token (y los de otros dispositivos); si falla, se sale igual.
+    try { await apiFetch("/api/auth/logout", { method: "POST" }); } catch (err) { console.error("Error en logout:", err); }
     const keysToPreserve = [];
     for (let i = 0; i < localStorage.length; i++) {
       const key = localStorage.key(i);
@@ -93,7 +85,7 @@ export default function HomePrincipal() {
       <Navbar scrolled={scrolled} onCerrarSesion={handleCerrarSesion} onAbrirSolicitudes={() => setModalSolicitudes(true)} />
       <main id="main-content" role="main">
         <Presentacion primaryBtn={{href:"#buscar", className:"btn btn-verde", label:"Explorar servicios"}} secondaryBtn={{href:"#publicar", className:"btn btn-borde", label:"Publicar mi servicio"}} />
-        <SeccionBuscar serviciosTotales={serviciosTotales} />
+        <SeccionBuscar />
         <SeccionRecientes servicios={recientes} cargando={cargando} />
         <SeccionDestacados top3={top3} />
         <TarjetaPublicar onAbrir={() => setModalPublicar(true)} />

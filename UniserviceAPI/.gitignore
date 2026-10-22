@@ -8,3 +8,7 @@ appsettings.Production.json
 bin/
 obj/
 wwwroot/avatars/
+
+# Configuración local con secretos (connection string, Jwt, Supabase, Brevo)
+appsettings.json
+appsettings.*.json

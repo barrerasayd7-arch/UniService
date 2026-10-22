@@ -9,9 +9,9 @@ namespace UniServiceAPI.Models
         public int id_proveedor { get; set; }
         public int id_servicio { get; set; }
 
-        public string tipo_servicio { get; set; }
-        public string tema { get; set; }
-        public string descripcion { get; set; }
+        public string tipo_servicio { get; set; } = null!;
+        public string tema { get; set; } = null!;
+        public string descripcion { get; set; } = null!;
 
         public DateTime? fecha_deseada { get; set; }
         public TimeSpan? hora_deseada { get; set; }

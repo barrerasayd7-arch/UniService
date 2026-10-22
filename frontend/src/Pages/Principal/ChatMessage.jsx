@@ -10,7 +10,8 @@ export default function ChatMessage({ mensaje, esPropio }) {
       <div className="mensaje-sistema">
         <div className="mensaje-sistema-content">
           <i className="bi bi-info-circle"></i>
-          <div dangerouslySetInnerHTML={{ __html: mensaje.mensaje }}></div>
+          {/* Texto plano: incluye lo que escribió el cliente en la solicitud */}
+          <div style={{ whiteSpace: "pre-line" }}>{mensaje.mensaje}</div>
         </div>
       </div>
     );
@@ -19,7 +20,7 @@ export default function ChatMessage({ mensaje, esPropio }) {
   return (
     <div className={`mensaje-burbuja ${esPropio ? "propio" : "ajeno"}`}>
       <div className="mensaje-content">
-        <p>{mensaje.mensaje}</p>
+        <p style={{ whiteSpace: "pre-line" }}>{mensaje.mensaje}</p>
         <span className="mensaje-hora">{formatearHora(mensaje.fecha_envio)}</span>
         {esPropio && (
           <span className="mensaje-leido">

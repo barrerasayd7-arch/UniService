@@ -1,14 +1,17 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import ChatMessage from "./ChatMessage";
 import { API_CHAT } from "../shared/constantes";
-import { enviarMensaje, unirseChat, salirChat, on, enviarEscribiendo } from "../../Services/SignalRService";
-import { apiFetch, apiImageUrl } from "../../utils/apiFetch";
+import { unirseChat, salirChat, on, enviarEscribiendo } from "../../Services/SignalRService";
+import { apiFetch, apiImageUrl, mensajeError } from "../../utils/apiFetch";
+
+const MAX_LARGO_MENSAJE = 2000;
 
 export default function ChatWindow({ chat, usuarioId, usuariosOnline }) {
   const [mensajes, setMensajes] = useState([]);
   const [nuevoMensaje, setNuevoMensaje] = useState("");
   const [cargando, setCargando] = useState(true);
   const [escribiendo, setEscribiendo] = useState(false);
+  const [error, setError] = useState("");
   const mensajesEndRef = useRef(null);
   const inputRef = useRef(null);
   const typingTimeoutRef = useRef(null);
@@ -18,20 +21,17 @@ export default function ChatWindow({ chat, usuarioId, usuariosOnline }) {
     setCargando(true);
     setMensajes([]);
     setEscribiendo(false);
+    setError("");
 
-    apiFetch(`${API_CHAT}/${chat.id_chat}/mensajes`)
-      .then((r) => r.data)
-      .then((data) => {
-        setMensajes(Array.isArray(data) ? data : []);
+    apiFetch(`${API_CHAT}/${chat.id_chat}/mensajes?limite=100`)
+      .then(({ ok, data }) => {
+        setMensajes(ok && Array.isArray(data) ? data : []);
         setCargando(false);
       })
       .catch(() => setCargando(false));
 
     // Marcar mensajes como leídos y refrescar contador global
-    apiFetch(`${API_CHAT}/mensajes/${chat.id_chat}/leido`, {
-      method: "PUT",
-      body: JSON.stringify({ id_destinatario: parseInt(usuarioId) }),
-    }).then(() => {
+    apiFetch(`${API_CHAT}/${chat.id_chat}/leido`, { method: "PUT" }).then(() => {
       // Disparar evento para que Notificaciones actualice el badge
       window.dispatchEvent(new CustomEvent("chat-leido"));
     });
@@ -49,10 +49,8 @@ export default function ChatWindow({ chat, usuarioId, usuariosOnline }) {
     const unsub = on("onMensaje", (data) => {
       if (data.id_chat === chat.id_chat) {
         setMensajes((prev) => {
-          const exists = prev.some(
-            (m) => m.id_mensaje === data.id_mensaje ||
-            (m.mensaje === data.mensaje && m.id_remitente === data.id_remitente && Math.abs(new Date(m.fecha_envio) - new Date(data.fecha_envio)) < 5000)
-          );
+          // El mensaje propio ya está en pantalla (respuesta del POST); SignalR lo reenvía a ambos.
+          const exists = data.id_mensaje != null && prev.some((m) => m.id_mensaje === data.id_mensaje);
           if (exists) return prev;
           return [...prev, {
             id_mensaje: data.id_mensaje || Date.now(),
@@ -66,6 +64,19 @@ export default function ChatWindow({ chat, usuarioId, usuariosOnline }) {
             nombre_remitente: data.id_remitente === parseInt(usuarioId) ? "Tú" : (data.nombre_remitente || ""),
           }];
         });
+        // Llegó estando la conversación abierta: queda leído.
+        if (data.id_remitente !== parseInt(usuarioId)) {
+          apiFetch(`${API_CHAT}/${chat.id_chat}/leido`, { method: "PUT" }).then(() =>
+            window.dispatchEvent(new CustomEvent("chat-leido")),
+          );
+        }
+      }
+    });
+
+    // El otro participante abrió la conversación: los mensajes propios pasan a leídos.
+    const unsubLeidos = on("onMensajesLeidos", (data) => {
+      if (data.id_chat === chat.id_chat) {
+        setMensajes((prev) => prev.map((m) => (m.id_remitente === parseInt(usuarioId) ? { ...m, leido: true } : m)));
       }
     });
 
@@ -78,6 +89,7 @@ export default function ChatWindow({ chat, usuarioId, usuariosOnline }) {
     return () => {
       unsub();
       unsubTyping();
+      unsubLeidos();
     };
   }, [chat, usuarioId]);
 
@@ -94,21 +106,22 @@ export default function ChatWindow({ chat, usuarioId, usuariosOnline }) {
 
     if (chat) {
       const tieneTexto = e.target.value.trim().length > 0;
-      enviarEscribiendo(chat.id_chat, parseInt(usuarioId), tieneTexto);
+      enviarEscribiendo(chat.id_chat, tieneTexto);
 
       if (typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current);
       typingTimeoutRef.current = setTimeout(() => {
-        enviarEscribiendo(chat.id_chat, parseInt(usuarioId), false);
+        enviarEscribiendo(chat.id_chat, false);
       }, 3000);
     }
-  }, [chat, usuarioId]);
+  }, [chat]);
 
   const handleEnviar = async () => {
     if (!nuevoMensaje.trim() || !chat) return;
 
     const texto = nuevoMensaje.trim();
     setNuevoMensaje("");
-    enviarEscribiendo(chat.id_chat, parseInt(usuarioId), false);
+    setError("");
+    enviarEscribiendo(chat.id_chat, false);
 
     const msgOptimista = {
       id_mensaje: Date.now(),
@@ -124,34 +137,34 @@ export default function ChatWindow({ chat, usuarioId, usuariosOnline }) {
 
     setMensajes((prev) => [...prev, msgOptimista]);
 
+    // El servidor guarda el mensaje y lo reenvía por SignalR a los dos participantes.
+    const quitarOptimista = () => setMensajes((prev) => prev.filter((m) => m.id_mensaje !== msgOptimista.id_mensaje));
     try {
-      const { data } = await apiFetch(`${API_CHAT}/mensaje`, {
+      const { ok, data } = await apiFetch(`${API_CHAT}/${chat.id_chat}/mensajes`, {
         method: "POST",
-        body: JSON.stringify({
-          id_chat: chat.id_chat,
-          id_remitente: parseInt(usuarioId),
-          id_destinatario: chat.id_otro_usuario,
-          mensaje: texto,
-        }),
+        body: JSON.stringify({ mensaje: texto }),
       });
-      if (data.id_mensaje) {
-        setMensajes((prev) =>
-          prev.map((m) =>
-            m.id_mensaje === msgOptimista.id_mensaje
-              ? { ...m, id_mensaje: data.id_mensaje, fecha_envio: data.fecha_envio }
-              : m
-          )
-        );
+      if (!ok) {
+        quitarOptimista();
+        setNuevoMensaje(texto);
+        setError(mensajeError(data, "No se pudo enviar el mensaje"));
+        return;
       }
-
-      enviarMensaje(
-        chat.id_chat,
-        parseInt(usuarioId),
-        chat.id_otro_usuario,
-        texto
-      );
+      setMensajes((prev) => {
+        // Si SignalR ya lo trajo, se quita el optimista; si no, se le pone el id real.
+        if (prev.some((m) => m.id_mensaje === data.id_mensaje)) {
+          return prev.filter((m) => m.id_mensaje !== msgOptimista.id_mensaje);
+        }
+        return prev.map((m) =>
+          m.id_mensaje === msgOptimista.id_mensaje
+            ? { ...m, id_mensaje: data.id_mensaje, fecha_envio: data.fecha_envio }
+            : m
+        );
+      });
     } catch (err) {
-      console.error("Error enviando mensaje:", err);
+      quitarOptimista();
+      setNuevoMensaje(texto);
+      setError("Error de conexión: el mensaje no se envió");
     }
   };
 
@@ -163,7 +176,7 @@ export default function ChatWindow({ chat, usuarioId, usuariosOnline }) {
   };
 
   function estaOnline() {
-    return usuariosOnline.has(chat?.id_otro_usuario);
+    return !!chat?.en_linea || usuariosOnline.has(chat?.id_otro_usuario);
   }
 
   if (!chat) {
@@ -237,8 +250,15 @@ export default function ChatWindow({ chat, usuarioId, usuariosOnline }) {
         )}
       </div>
 
+      {error && (
+        <p role="alert" style={{ color: "#f87171", fontSize: "0.8rem", padding: "4px 16px", margin: 0 }}>{error}</p>
+      )}
+      {chat.disponible === false ? (
+        <p className="texto-muted" style={{ padding: "12px 16px", margin: 0 }}>Este usuario ya no está disponible.</p>
+      ) : (
       <div className="chat-input-container">
         <textarea
+          maxLength={MAX_LARGO_MENSAJE}
           ref={inputRef}
           value={nuevoMensaje}
           onChange={handleInputChange}
@@ -255,6 +275,7 @@ export default function ChatWindow({ chat, usuarioId, usuariosOnline }) {
           <i className="bi bi-send-fill"></i>
         </button>
       </div>
+      )}
     </div>
   );
 }

@@ -1,6 +1,6 @@
 // Tarjeta de presentación de un servicio con icono, categoría, título, descripción, autor y precio
 import { useState } from "react";
-import { formatearFecha } from "../../utils/helpers";
+import { formatearFecha, formatPrecio } from "../../utils/helpers";
 import { calcularEstrellas, truncar } from "./utilidades";
 import { COLORES_CATEGORIA, ICONOS_POR_NOMBRE_CATEGORIA } from "./constantes";
 import StarRating from "../../Components/StarRating";
@@ -24,6 +24,7 @@ export default function TarjetaServicio({ servicio, linkBase = "/servicio?id=" }
   };
 
   const uniTexto = mostrarUniversidad();
+  const precio = formatPrecio(servicio.precio_hora, servicio.unidad_precio);
 
   const imagenesReales = (servicio.imagenes || [])
     .filter((img) => img.url_imagen && !img.url_imagen.includes("default") && !img.url_imagen.startsWith("img/"));
@@ -32,7 +33,7 @@ export default function TarjetaServicio({ servicio, linkBase = "/servicio?id=" }
     : null;
 
   return (
-    <a href={`${linkBase}${servicio.id_servicio}`} className="card-servicio card-3d" aria-label={`Servicio: ${servicio.titulo || "Sin título"} por ${servicio.proveedor || "Proveedor anónimo"}, precio: $${servicio.precio_hora || 0}`}>
+    <a href={`${linkBase}${servicio.id_servicio}`} className="card-servicio card-3d" aria-label={`Servicio: ${servicio.titulo || "Sin título"} por ${servicio.proveedor || "Proveedor anónimo"}, precio: ${precio}`}>
       {portada ? (
         <div className="card-icono card-icono-imagen">
           <img
@@ -82,7 +83,7 @@ export default function TarjetaServicio({ servicio, linkBase = "/servicio?id=" }
             <StarRating rating={promNum} size={16} />
             <div className="texto-muted">{numReseñas} reseñas</div>
           </div>
-          <div className="precio" aria-label={`Precio: $${servicio.precio_hora || 0} por hora`}>${servicio.precio_hora || 0}</div>
+          <div className="precio" aria-label={`Precio: ${precio}`}>{precio}</div>
         </div>
       </div>
     </a>

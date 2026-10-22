@@ -1,5 +1,8 @@
 import * as signalR from "@microsoft/signalr";
 
+// Tiempo real del chat. El hub exige el JWT (viaja en ?access_token=) y saca el usuario del token.
+// Los mensajes se envían por REST (POST /api/chat/{id}/mensajes); el servidor los guarda y los
+// reenvía aquí a los dos participantes con "RecibirMensaje".
 const HUB_URL = import.meta.env.VITE_API_URL
   ? `${import.meta.env.VITE_API_URL}/chathub`
   : "/chathub";
@@ -7,59 +10,27 @@ const HUB_URL = import.meta.env.VITE_API_URL
 let connection = null;
 let callbacks = {};
 
-export function iniciarSignalR(usuarioId) {
-  if (connection && connection.state === signalR.HubConnectionState.Connected) {
-    console.log("[SignalR] Ya conectado");
+function emitir(evento, data) {
+  (callbacks[evento] || []).forEach((cb) => cb(data));
+}
+
+export function iniciarSignalR() {
+  if (connection && connection.state !== signalR.HubConnectionState.Disconnected) {
     return connection;
   }
-
-  if (connection) {
-    connection.stop();
-  }
+  if (!localStorage.getItem("token")) return null;
 
   connection = new signalR.HubConnectionBuilder()
-    .withUrl(HUB_URL)
+    .withUrl(HUB_URL, { accessTokenFactory: () => localStorage.getItem("token") || "" })
     .withAutomaticReconnect([0, 2000, 5000, 10000, 30000])
     .build();
 
-  connection.on("RecibirMensaje", (data) => {
-    console.log("[SignalR] Mensaje recibido:", data);
-    (callbacks.onMensaje || []).forEach((cb) => cb(data));
-  });
-
-  connection.on("MensajeEnviado", (data) => {
-    console.log("[SignalR] Mensaje enviado confirmado:", data);
-    (callbacks.onMensaje || []).forEach((cb) => cb(data));
-  });
-
-  connection.on("UsuarioConectado", (id) => {
-    console.log("[SignalR] Usuario conectado:", id);
-    (callbacks.onUsuarioConectado || []).forEach((cb) => cb(id));
-  });
-
-  connection.on("UsuarioDesconectado", (id) => {
-    console.log("[SignalR] Usuario desconectado:", id);
-    (callbacks.onUsuarioDesconectado || []).forEach((cb) => cb(id));
-  });
-
-  connection.on("NuevoChatNotification", (data) => {
-    (callbacks.onNuevoChat || []).forEach((cb) => cb(data));
-  });
-
-  connection.on("MensajesLeidos", (data) => {
-    (callbacks.onMensajesLeidos || []).forEach((cb) => cb(data));
-  });
-
-  connection.on("UsuarioEscribiendo", (data) => {
-    (callbacks.onUsuarioEscribiendo || []).forEach((cb) => cb(data));
-  });
+  connection.on("RecibirMensaje", (data) => emitir("onMensaje", data));
+  connection.on("MensajesLeidos", (data) => emitir("onMensajesLeidos", data));
+  connection.on("UsuarioEscribiendo", (data) => emitir("onUsuarioEscribiendo", data));
 
   connection
     .start()
-    .then(() => {
-      console.log("[SignalR] Conectado como usuario:", usuarioId);
-      connection.invoke("ConectarUsuario", usuarioId);
-    })
     .catch((err) => console.error("[SignalR] Error:", err));
 
   return connection;
@@ -73,55 +44,19 @@ export function on(evento, callback) {
   };
 }
 
-export function enviarMensaje(idChat, remitenteId, destinatarioId, mensaje, tipo = "texto") {
-  if (connection && connection.state === signalR.HubConnectionState.Connected) {
-    return connection.invoke(
-      "EnviarMensajeDirecto",
-      idChat,
-      remitenteId,
-      destinatarioId,
-      mensaje,
-      tipo
-    ).catch((err) => console.error("[SignalR] Error enviando mensaje:", err));
-  }
-  console.warn("[SignalR] No conectado");
-}
+const conectado = () => connection && connection.state === signalR.HubConnectionState.Connected;
 
+// Grupo del chat: recibe el mensaje del sistema que crea una solicitud nueva.
 export function unirseChat(chatId) {
-  if (connection && connection.state === signalR.HubConnectionState.Connected) {
-    return connection.invoke("UnirseChat", chatId);
-  }
+  if (conectado()) return connection.invoke("UnirseChat", chatId).catch(() => {});
 }
 
 export function salirChat(chatId) {
-  if (connection && connection.state === signalR.HubConnectionState.Connected) {
-    return connection.invoke("SalirChat", chatId);
-  }
+  if (conectado()) return connection.invoke("SalirChat", chatId).catch(() => {});
 }
 
-export function marcarLeido(chatId, usuarioId) {
-  if (connection && connection.state === signalR.HubConnectionState.Connected) {
-    return connection.invoke("MarcarLeidoNotificacion", chatId, usuarioId);
-  }
-}
-
-export function enviarEscribiendo(chatId, usuarioId, escribiendo) {
-  if (connection && connection.state === signalR.HubConnectionState.Connected) {
-    return connection.invoke("EnviarEscribiendo", chatId, usuarioId, escribiendo);
-  }
-}
-
-export function notificarNuevoChat(idChat, remitenteId, destinatarioId, nombreRemitente, preview) {
-  if (connection && connection.state === signalR.HubConnectionState.Connected) {
-    return connection.invoke(
-      "NotificarNuevoChat",
-      idChat,
-      remitenteId,
-      destinatarioId,
-      nombreRemitente,
-      preview
-    );
-  }
+export function enviarEscribiendo(chatId, escribiendo) {
+  if (conectado()) return connection.invoke("EnviarEscribiendo", chatId, escribiendo).catch(() => {});
 }
 
 export function detenerSignalR() {

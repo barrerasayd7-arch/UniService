@@ -1,7 +1,8 @@
 import { BADGE, ICONOS_POR_NOMBRE_CATEGORIA } from "../shared/constantes";
 import { useNavigate } from "react-router-dom";
 
-export default function TarjetaSolicitud({ sol, tipo, responder, setRechazando, onCompletar }) {
+// onResponder(sol, modo): abre el diálogo para "aceptar" (con contraoferta opcional) o "rechazar" (con motivo).
+export default function TarjetaSolicitud({ sol, tipo, onResponder, onCompletar, onCancelarSolicitud, ocupado }) {
   const navigate = useNavigate();
   const badge = BADGE[sol.estado] || BADGE.Pendiente;
   const nombre = tipo === "enviada" ? sol.nombre_proveedor : sol.nombre_cliente;
@@ -22,6 +23,10 @@ export default function TarjetaSolicitud({ sol, tipo, responder, setRechazando, 
         </span>
       </div>
 
+      {sol.presupuesto != null && (
+        <p className="solicitud-subtitle">Presupuesto: ${Number(sol.presupuesto).toLocaleString("es-CO")}</p>
+      )}
+
       {sol.descripcion && (
         <p className="solicitud-desc">
           {sol.descripcion.length > 120
@@ -41,7 +46,7 @@ export default function TarjetaSolicitud({ sol, tipo, responder, setRechazando, 
           <span className="solicitud-contraoferta-icon"><i className="bi bi-cash-coin"></i></span>
           <div>
             <p className="solicitud-contraoferta-label">
-              El proveedor propone un nuevo precio
+              {sol.estado === "Aceptada" || sol.estado === "Completada" ? "Precio acordado por el proveedor" : "El proveedor propone un nuevo precio"}
             </p>
             <p className="solicitud-contraoferta-price">
               ${Number(sol.contraoferta).toLocaleString("es-CO")}
@@ -55,14 +60,16 @@ export default function TarjetaSolicitud({ sol, tipo, responder, setRechazando, 
           <button
             type="button"
             className="btn btn-verde"
-            onClick={() => responder(sol.id_solicitud, "aceptar")}
+            disabled={ocupado}
+            onClick={() => onResponder(sol, "aceptar")}
           >
             <><i className="bi bi-check-circle"></i> Aceptar</>
           </button>
           <button
             type="button"
             className="btn btn-borde"
-            onClick={() => setRechazando(sol.id_solicitud)}
+            disabled={ocupado}
+            onClick={() => onResponder(sol, "rechazar")}
           >
             <><i className="bi bi-x-circle"></i> Rechazar</>
           </button>
@@ -74,6 +81,7 @@ export default function TarjetaSolicitud({ sol, tipo, responder, setRechazando, 
           <button
             type="button"
             className="btn btn-completar"
+            disabled={ocupado}
             onClick={() => onCompletar(sol.id_solicitud)}
           >
             <><i className="bi bi-check2-all"></i> Marcar como completado</>
@@ -89,7 +97,20 @@ export default function TarjetaSolicitud({ sol, tipo, responder, setRechazando, 
         </div>
       )}
 
-      {tipo === "enviada" && sol.estado === "Completada" && (
+      {tipo === "enviada" && (sol.estado === "Pendiente" || sol.estado === "Aceptada") && (
+        <div className="solicitud-acciones">
+          <button
+            type="button"
+            className="btn btn-borde"
+            disabled={ocupado}
+            onClick={() => onCancelarSolicitud(sol.id_solicitud)}
+          >
+            <><i className="bi bi-x-circle"></i> Cancelar solicitud</>
+          </button>
+        </div>
+      )}
+
+      {tipo === "enviada" && sol.estado === "Completada" && sol.puede_calificar && (
         <div className="solicitud-acciones">
           <button
             type="button"

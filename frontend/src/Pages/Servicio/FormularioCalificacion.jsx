@@ -1,8 +1,22 @@
 // Formulario para calificar un servicio con estrellas y comentario opcional
 import { useState, useEffect } from "react";
-import { apiFetch } from "../../utils/apiFetch";
+import { apiFetch, mensajeError } from "../../utils/apiFetch";
+import { formatearFecha } from "../../utils/helpers";
+import { API_CALIFICACIONES } from "../shared/constantes";
 
-const API_CALIFICACIONES = "/api/calificaciones";
+// GET /api/calificaciones/estado → { puede_calificar, ya_califico, mi_calificacion } adaptado a este formulario.
+function adaptarPermiso(data) {
+  const mia = data.mi_calificacion;
+  return {
+    puede: data.puede_calificar,
+    yaCalifico: data.ya_califico,
+    mi_calificacion: mia && {
+      ...mia,
+      fecha: formatearFecha(mia.fecha),
+      fecha_modificacion: mia.editada ? "después de publicarla" : null,
+    },
+  };
+}
 
 function FormCalificacion({ servicioId, showModal, onNuevaResena }) {
   const [permiso, setPermiso] = useState(null);
@@ -13,15 +27,16 @@ function FormCalificacion({ servicioId, showModal, onNuevaResena }) {
   const [editando, setEditando] = useState(false);
 
   useEffect(() => {
-    const id_cliente = Number(localStorage.getItem("usuarioId"));
-    if (!id_cliente || !servicioId) return;
+    if (!localStorage.getItem("token") || !servicioId) return;
 
-    apiFetch(`${API_CALIFICACIONES}/puede-calificar?id_cliente=${id_cliente}&id_servicio=${servicioId}`)
-      .then(({ data }) => {
-        setPermiso(data);
-        if (data.mi_calificacion) {
-          setEstrellas(data.mi_calificacion.puntuacion);
-          setComentario(data.mi_calificacion.comentario || "");
+    apiFetch(`${API_CALIFICACIONES}/estado?id_servicio=${encodeURIComponent(servicioId)}`)
+      .then(({ ok, data }) => {
+        if (!ok) return setPermiso(null);
+        const permiso = adaptarPermiso(data);
+        setPermiso(permiso);
+        if (permiso.mi_calificacion) {
+          setEstrellas(permiso.mi_calificacion.puntuacion);
+          setComentario(permiso.mi_calificacion.comentario || "");
         }
       })
       .catch(() => setPermiso(null));
@@ -29,25 +44,32 @@ function FormCalificacion({ servicioId, showModal, onNuevaResena }) {
 
   const handleEnviar = async () => {
     if (estrellas === 0) { showModal("error", "Selecciona una puntuación"); return; }
-    const id_cliente = Number(localStorage.getItem("usuarioId"));
     setEnviando(true);
     try {
       const { ok, data } = await apiFetch(API_CALIFICACIONES, {
         method: "POST",
         body: JSON.stringify({
-          id_solicitud: permiso.id_solicitud,
-          id_cliente,
           id_servicio: Number(servicioId),
           puntuacion: estrellas,
-          comentario: comentario || null
+          comentario: comentario.trim() || null
         })
       });
       if (ok) {
         showModal("success", "¡Reseña enviada!");
-        setPermiso(p => ({ ...p, puede: false, yaCalifico: true }));
+        setPermiso(p => ({
+          ...p,
+          puede: false,
+          yaCalifico: true,
+          mi_calificacion: {
+            id_calificacion: data.id_calificacion,
+            puntuacion: estrellas,
+            comentario: comentario.trim(),
+            fecha: formatearFecha(new Date().toISOString()),
+          },
+        }));
         onNuevaResena();
       } else {
-        showModal("error", data?.error || "Error al enviar reseña");
+        showModal("error", mensajeError(data, "Error al enviar reseña"));
       }
     } catch {
       showModal("error", "Error de conexión");
@@ -58,25 +80,25 @@ function FormCalificacion({ servicioId, showModal, onNuevaResena }) {
 
   const handleActualizar = async () => {
     if (estrellas === 0) { showModal("error", "Selecciona una puntuación"); return; }
-    const id_cliente = Number(localStorage.getItem("usuarioId"));
     setEnviando(true);
     try {
       const { ok, data } = await apiFetch(`${API_CALIFICACIONES}/${permiso.mi_calificacion.id_calificacion}`, {
         method: "PUT",
         body: JSON.stringify({
-          id_calificacion: permiso.mi_calificacion.id_calificacion,
-          id_cliente,
-          id_servicio: Number(servicioId),
           puntuacion: estrellas,
-          comentario: comentario || null
+          comentario: comentario.trim() || null
         })
       });
       if (ok) {
         showModal("success", "¡Reseña actualizada!");
+        setPermiso(p => ({
+          ...p,
+          mi_calificacion: { ...p.mi_calificacion, puntuacion: estrellas, comentario: comentario.trim(), fecha_modificacion: "después de publicarla" },
+        }));
         setEditando(false);
         onNuevaResena();
       } else {
-        showModal("error", data?.error || "Error al actualizar reseña");
+        showModal("error", mensajeError(data, "Error al actualizar reseña"));
       }
     } catch {
       showModal("error", "Error de conexión");
@@ -115,6 +137,7 @@ function FormCalificacion({ servicioId, showModal, onNuevaResena }) {
             value={comentario}
             onChange={e => setComentario(e.target.value)}
             rows={3}
+            maxLength={1000}
             style={{ marginBottom: "12px" }}
           />
 
@@ -160,7 +183,7 @@ function FormCalificacion({ servicioId, showModal, onNuevaResena }) {
             )}
             <p style={{ margin: "4px 0 0 0", fontSize: "12px", color: "#999" }}>
               Publicada el {permiso.mi_calificacion.fecha}
-              {permiso.mi_calificacion.fecha_modificacion && ` · Editada el ${permiso.mi_calificacion.fecha_modificacion}`}
+              {permiso.mi_calificacion.fecha_modificacion && " · Editada"}
             </p>
           </div>
           <button
@@ -202,6 +225,7 @@ function FormCalificacion({ servicioId, showModal, onNuevaResena }) {
         value={comentario}
         onChange={e => setComentario(e.target.value)}
         rows={3}
+        maxLength={1000}
         style={{ marginBottom: "12px" }}
       />
 

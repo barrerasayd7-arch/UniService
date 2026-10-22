@@ -2,27 +2,24 @@ import { useState, useEffect, useCallback, useRef } from "react";
 import ChatList from "./ChatList";
 import ChatWindow from "./ChatWindow";
 import { API_CHAT } from "../shared/constantes";
-import { apiFetch } from "../../utils/apiFetch";
-import {
-  iniciarSignalR,
-  on,
-  detenerSignalR,
-} from "../../Services/SignalRService";
+import { apiFetch, mensajeError } from "../../utils/apiFetch";
+import { misChats } from "../shared/chat";
+import { iniciarSignalR, on } from "../../Services/SignalRService";
 
 export default function ChatPanel({ abierto, onCerrar, targetUsuario = null }) {
   const [chats, setChats] = useState([]);
   const [chatSeleccionado, setChatSeleccionado] = useState(null);
-  const [usuariosOnline, setUsuariosOnline] = useState(new Set());
+  // "En línea" lo calcula la API con la última actividad de cada usuario (mis-chats → en_linea).
+  const usuariosOnline = new Set(chats.filter((c) => c.en_linea).map((c) => c.id_otro_usuario));
   const [cargando, setCargando] = useState(false);
+  const [error, setError] = useState("");
   const usuarioId = localStorage.getItem("usuarioId");
   const targetProcessed = useRef(false);
 
   const cargarChats = useCallback(() => {
-    if (!usuarioId) return;
-    return apiFetch(`${API_CHAT}/mis-chats/${usuarioId}`)
-      .then((r) => r.data)
-      .then((data) => {
-        const chatsData = Array.isArray(data) ? data : [];
+    if (!usuarioId) return Promise.resolve([]);
+    return misChats()
+      .then((chatsData) => {
         setChats(chatsData);
         return chatsData;
       })
@@ -34,27 +31,11 @@ export default function ChatPanel({ abierto, onCerrar, targetUsuario = null }) {
 
   useEffect(() => {
     if (abierto && usuarioId) {
-      iniciarSignalR(parseInt(usuarioId));
+      iniciarSignalR();
 
-      const unsubMensaje = on("onMensaje", (data) => {
+      const unsubMensaje = on("onMensaje", () => {
         cargarChats();
         window.dispatchEvent(new CustomEvent("nuevo-mensaje-chat"));
-      });
-
-      const unsubEscribiendo = on("onUsuarioEscribiendo", () => {
-        cargarChats();
-      });
-
-      const unsubConectado = on("onUsuarioConectado", (id) => {
-        setUsuariosOnline((prev) => new Set(prev).add(id));
-      });
-
-      const unsubDesconectado = on("onUsuarioDesconectado", (id) => {
-        setUsuariosOnline((prev) => {
-          const next = new Set(prev);
-          next.delete(id);
-          return next;
-        });
       });
 
       cargarChats();
@@ -63,9 +44,6 @@ export default function ChatPanel({ abierto, onCerrar, targetUsuario = null }) {
       return () => {
         clearInterval(interval);
         unsubMensaje();
-        unsubEscribiendo();
-        unsubConectado();
-        unsubDesconectado();
       };
     }
   }, [abierto, usuarioId, cargarChats]);
@@ -73,36 +51,33 @@ export default function ChatPanel({ abierto, onCerrar, targetUsuario = null }) {
   useEffect(() => {
     if (abierto && targetUsuario && usuarioId && !targetProcessed.current) {
       targetProcessed.current = true;
-      const targetId = targetUsuario.id;
-      console.log("[ChatPanel] Iniciando chat con:", targetUsuario);
+      const targetId = Number(targetUsuario.id);
+      setError("");
 
       cargarChats().then((chatsData) => {
-        console.log("[ChatPanel] Chats cargados:", chatsData);
         const chatExistente = chatsData.find(
           (c) => c.id_otro_usuario === targetId
         );
         if (chatExistente) {
-          console.log("[ChatPanel] Chat existente encontrado:", chatExistente);
           setChatSeleccionado(chatExistente);
         } else {
-          console.log("[ChatPanel] Creando nuevo chat...");
           setCargando(true);
           apiFetch(`${API_CHAT}/iniciar`, {
             method: "POST",
-            body: JSON.stringify({
-              id_usuario1: parseInt(usuarioId),
-              id_usuario2: targetId,
-            }),
+            body: JSON.stringify({ id_usuario: targetId }),
           })
-            .then((r) => r.data)
-            .then((data) => {
-              console.log("[ChatPanel] Respuesta del servidor:", data);
+            .then(({ ok, data }) => {
+              if (!ok) {
+                setError(mensajeError(data, "No se pudo iniciar el chat"));
+                return;
+              }
               if (data.id_chat) {
                 const nuevoChat = {
                   id_chat: data.id_chat,
                   id_otro_usuario: targetId,
                   nombre_otro: targetUsuario.nombre,
                   avatar_otro: targetUsuario.avatar || "",
+                  disponible: true,
                   no_leidos: 0,
                   ultimo_mensaje_texto: null,
                   ultimo_mensaje_fecha: null,
@@ -134,6 +109,7 @@ export default function ChatPanel({ abierto, onCerrar, targetUsuario = null }) {
         <button className="chat-panel-close" onClick={onCerrar}>
           <i className="bi bi-x-lg"></i>
         </button>
+        {error && <p className="chat-error" role="alert" style={{ color: "#f87171", padding: "8px 16px", margin: 0 }}>{error}</p>}
         <div className="chat-panel-content">
           <ChatList
             chats={chats}

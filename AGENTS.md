@@ -2,7 +2,7 @@
 
 ## Architecture
 
-Full-stack app: **React 18 + Vite** frontend → **.NET 8 API** (ASP.NET Core) → **SQL Server 2025** (Docker) or **Supabase PostgreSQL** (production).
+Full-stack app: **React 18 + Vite** frontend → **.NET 8 API** (ASP.NET Core) → **Supabase PostgreSQL** (shared with the Flutter app).
 
 ```
 Proyecto/
@@ -38,27 +38,24 @@ Proyecto/
 
 ## Backend Structure
 
-- Framework: ASP.NET Core 8, controllers under `UniserviceAPI/UniserviceAPI/Controllers/`
-- DB: Npgsql (PostgreSQL for Supabase) + EF Core 8
-- Auth: JWT Bearer tokens, BCrypt for passwords, Google OAuth
-- Email: MailKit via Gmail SMTP
-- Storage: Supabase Storage bucket `imagenes-servicios`
-- DTOs: `UniserviceAPI/UniserviceAPI/DTOs/`
-- SignalR hub at `/chathub` for real-time chat
+- `UniserviceAPI/` is a copy of the API of the mobile app (`UniserviceAPP/UniserviceAPI`): both share the same Supabase DB, so keep them in sync when the schema changes.
+- Framework: ASP.NET Core 8, controllers under `UniserviceAPI/UniserviceAPI/Controllers/`. Raw Npgsql queries.
+- Routes: `/api/auth` (login, register, logout, change-password), `/api/auth/institutional-email` (OTP send/verify), `/api/servicios`, `/api/solicitudes`, `/api/calificaciones`, `/api/perfil`, `/api/chat`, `/api/reportes`, `/api/admin` (+ `/api/admin/acceso`).
+- Auth: JWT (`token` in localStorage). The user always comes from the token, never from the body/URL. Sessions are revocable (logout and password changes invalidate old tokens).
+- Registration: only `@unicesar.edu.co`; send-code → verify-code (returns `verificacion_token`) → register. Google login and change-email are disabled.
+- Admin panel: account login + per-admin admin password (`/api/admin/acceso/verificar`); its token goes in `X-Admin-Elevacion` (`apiFetch` adds it to `/api/admin/*`).
+- Services: `estado` pendiente → aprobado ⇄ pausado, or rechazado. Any edit (text or images) returns it to pendiente.
+- Email: Brevo API. Storage: Supabase Storage bucket `imagenes-servicios`. SignalR hub at `/chathub` (JWT in `?access_token=`); messages are sent by REST.
+- Frontend API helpers: `frontend/src/utils/apiFetch.js`, adapters in `frontend/src/Pages/shared/{servicios,solicitudes,chat}.js`.
 
 ## Database
 
-- Dev: SQL Server 2025 via Docker (`docker-compose up`). Auto-imports `database/*.sql` on first run.
-- Production: Supabase PostgreSQL (connection string in `.env`).
-- Migration files are numbered: `01_...`, `02_...`, etc. Run in order.
-- Key tables: `usuarios`, `servicios`, `solicitudes`, `reportes`, `chat_mensajes`, `seguidores`
-- `reportes` table has `id_usuario_reportado` column (added by `10_Migracion_Reportes_Usuarios.sql`). If running on existing DB, execute that migration file.
+- Supabase PostgreSQL shared with the mobile app. Current migrations (already applied): `database/supabase/` (see its README). Do not run the old `database/*.sql` scripts against Supabase.
+- Docker/SQL Server (`docker-compose.yml`) is the old local setup and does not match the current schema.
 
 ## Environment
 
-- API needs `.env` in `UniserviceAPI/` (copy from `.env.example`). Key vars: `ConnectionStrings__DefaultConnection`, `Supabase__Url`, `Supabase__ServiceKey`, `Jwt__Key`, `Google__ClientId`, `EmailSettings__*`
-- Frontend has hardcoded Google Client ID in `main.jsx` — not using env vars.
-- Docker DB password: `Uniservicio58414555` (in `docker-compose.yml`)
+- API config: `UniserviceAPI/UniserviceAPI/appsettings.json` or `.env` next to `Program.cs` (see `UniserviceAPI/.env.example`). Neither is committed. Required: `ConnectionStrings__DefaultConnection`, `Jwt__Key` (≥32 chars, not the old default), `InstitutionalEmail__CodeKey`, `Brevo__*`, `Supabase__Url`, `Supabase__ServiceKey`.
 
 ## Conventions
 

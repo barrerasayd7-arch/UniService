@@ -1,6 +1,8 @@
 import { useState, useEffect } from "react";
-import { Badge, formatFecha } from "./UtilidadesAdmin";
-import { apiFetch } from "../../utils/apiFetch";
+import { Paginacion } from "./UtilidadesAdmin";
+import { apiFetch, mensajeError } from "../../utils/apiFetch";
+
+const POR_PAGINA = 20;
 
 const ESTADOS = [
   "Pendiente",
@@ -36,25 +38,23 @@ export default function SeccionReportes() {
   const [notasAdmin, setNotasAdmin] = useState("");
   const [nuevoEstado, setNuevoEstado] = useState("");
   const [guardando, setGuardando] = useState(false);
-
-  const id_admin = parseInt(
-    localStorage.getItem("usuarioId") ||
-      localStorage.getItem("id_usuario") ||
-      localStorage.getItem("userId") ||
-      "0",
-  );
+  const [error, setError] = useState("");
+  const [pagina, setPagina] = useState(1);
+  const [total, setTotal] = useState(0);
 
   const cargar = async () => {
     setCargando(true);
+    const params = new URLSearchParams({ page: pagina, pageSize: POR_PAGINA });
+    if (filtro !== "todos") params.set("estado", filtro);
     try {
-      const url =
-        filtro === "todos"
-          ? `/api/reportes/admin`
-          : `/api/reportes/admin?estado=${filtro}`;
-      const { data } = await apiFetch(url);
-      setReportes(Array.isArray(data) ? data : []);
-    } catch {
+      const { ok, data } = await apiFetch(`/api/admin/reportes?${params}`);
+      if (!ok) throw new Error(mensajeError(data, "No se pudieron cargar los reportes"));
+      setReportes(data.items);
+      setTotal(data.total);
+      setError("");
+    } catch (err) {
       setReportes([]);
+      setError(err.message);
     } finally {
       setCargando(false);
     }
@@ -62,7 +62,7 @@ export default function SeccionReportes() {
 
   useEffect(() => {
     cargar();
-  }, [filtro]);
+  }, [filtro, pagina]);
 
   const abrirGestion = (reporte) => {
     setResolviendo(reporte.id_reporte);
@@ -74,21 +74,19 @@ export default function SeccionReportes() {
     if (!nuevoEstado) return;
     setGuardando(true);
     try {
-      const { ok } = await apiFetch(`/api/reportes/${resolviendo}/estado`, {
+      const { ok, data } = await apiFetch(`/api/admin/reportes/${resolviendo}`, {
         method: "PATCH",
         body: JSON.stringify({
           estado: nuevoEstado,
-          resolucion_notas: notasAdmin || null,
-          id_admin,
+          resolucion_notas: notasAdmin.trim() || null,
         }),
       });
-      if (ok) {
-        setResolviendo(null);
-        setExpandido(null);
-        cargar();
-      }
-    } catch {
-      /* silencioso */
+      if (!ok) throw new Error(mensajeError(data, "No se pudo actualizar el reporte"));
+      setResolviendo(null);
+      setExpandido(null);
+      cargar();
+    } catch (err) {
+      setError(err.message);
     } finally {
       setGuardando(false);
     }
@@ -126,7 +124,7 @@ export default function SeccionReportes() {
         {["todos", ...ESTADOS].map((f) => (
           <button
             key={f}
-            onClick={() => setFiltro(f)}
+            onClick={() => { setFiltro(f); setPagina(1); }}
             style={{
               padding: "6px 14px",
               borderRadius: "8px",
@@ -155,6 +153,8 @@ export default function SeccionReportes() {
         >
           Cargando reportes...
         </p>
+      ) : error ? (
+        <p style={{ color: "#f87171", textAlign: "center", padding: "20px" }}>{error}</p>
       ) : reportes.length === 0 ? (
         <p
           style={{
@@ -266,7 +266,7 @@ export default function SeccionReportes() {
                           flexWrap: "wrap",
                         }}
                       >
-                        {r.evidencia.split(",").map((url, i) => {
+                        {r.evidencia.split(",").filter((u) => u.trim()).map((url, i) => {
                           const esImagen = /\.(jpg|jpeg|png|webp)(\?|$)/i.test(
                             url,
                           );
@@ -279,7 +279,7 @@ export default function SeccionReportes() {
                             >
                               <img
                                 src={url.trim()}
-                                alt={`Evidencia ${i + 1} del reporte ${reporte.titulo || reporte.id_reporte}`}
+                                alt={`Evidencia ${i + 1} del reporte ${r.titulo || r.id_reporte}`}
                                 loading="lazy"
                                 decoding="async"
                                 style={{
@@ -353,6 +353,7 @@ export default function SeccionReportes() {
                       }}
                     >
                       Notas de resolución: {r.resolucion_notas}
+                      {r.admin_responde && ` — ${r.admin_responde}`}
                     </p>
                   )}
 
@@ -454,6 +455,8 @@ export default function SeccionReportes() {
           ))}
         </div>
       )}
+
+      <Paginacion pagina={pagina} total={total} porPagina={POR_PAGINA} onCambiar={setPagina} />
     </section>
   );
 }

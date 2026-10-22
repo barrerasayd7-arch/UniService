@@ -4,3 +4,11 @@ obj/
 *.zip
 *.user
 *.suo
+
+# Secretos: la imagen recibe la configuración por variables de entorno del hosting
+.env
+.env.*
+appsettings.json
+appsettings.*.json
+Properties/launchSettings.json
+wwwroot/avatars/

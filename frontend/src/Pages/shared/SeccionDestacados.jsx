@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { calcularEstrellas } from "./utilidades";
 import { ICONOS_POR_NOMBRE_CATEGORIA } from "./constantes";
 import StarRating from "../../Components/StarRating";
+import { formatPrecio } from "../../utils/helpers";
 
 export default function SeccionDestacados({ top3, linkBase = "/servicio?id=" }) {
   const [slide, setSlide] = useState(0);
@@ -64,7 +65,7 @@ export default function SeccionDestacados({ top3, linkBase = "/servicio?id=" }) 
                         <div className="top-card-rating">
                           <StarRating rating={promNum} size={16} color="#0ea5a0" />
                           <span className="rating-text">
-                            {Array.isArray(s.estrellas) ? s.estrellas.length : 0} puntuaciones
+                            {s.num_resenas ?? 0} puntuaciones
                           </span>
                         </div>
                         <div className="top-card-footer">
@@ -72,7 +73,7 @@ export default function SeccionDestacados({ top3, linkBase = "/servicio?id=" }) 
                             <div className="top3 top3-verde"><i className="bi bi-person"></i></div>
                             <span>{s.proveedor || "Anónimo"}</span>
                           </div>
-                          <span className="price">${s.precio_hora || 0}</span>
+                          <span className="price">{formatPrecio(s.precio_hora, s.unidad_precio)}</span>
                         </div>
                       </div>
                     </a>

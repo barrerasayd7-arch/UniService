@@ -1,1055 +1,540 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Threading.Tasks;
 using Microsoft.AspNetCore.Authorization;
-using Microsoft.AspNetCore.Http.Features;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.Extensions.Configuration;
 using Npgsql;
+using NpgsqlTypes;
 using UniserviceAPI.DTOs;
 using UniserviceAPI.Services;
+using static UniserviceAPI.Services.ServiciosComun;
 
-[ApiController]
-[Route("api/[controller]")]
-public class ServicesController : ControllerBase
+namespace UniserviceAPI.Controllers;
+
+// Servicios que publican los estudiantes.
+// - Invitados: listado y detalle de servicios aprobados (sin contacto ni dirección).
+// - Publicar, editar e imágenes: correo institucional verificado. El dueño siempre sale del JWT.
+// - Todo cambio de contenido (texto o imágenes) vuelve el servicio a 'pendiente' para revisión.
+[ApiController, Route("api/servicios")]
+public class ServiciosController(IConfiguration config, SupabaseStorageService storage, EmailService email) : ControllerBase
 {
-    private readonly IConfiguration _config;
-    private readonly SupabaseStorageService _storageService;
-    private readonly UniserviceAPI.Services.EmailService _emailService;
+    private const int MaxImagenes = 5;
+    private const int MaxBytesImagen = 5 * 1024 * 1024;
+    private const int MaxPendientesPorUsuario = 10;
+    private const int CategoriaArriendo = 6;
+    private static readonly string[] Ordenes = ["recientes", "antiguos", "precio-menor", "precio-mayor", "rating-mayor", "rating-menor"];
 
-    public ServicesController(IConfiguration config, SupabaseStorageService storageService, UniserviceAPI.Services.EmailService emailService)
-    {
-        _config = config;
-        _storageService = storageService;
-        _emailService = emailService;
-    }
+    private int UserId => InstitutionalAccess.UserId(User)!.Value;
 
-    // =========================
-    // GET TODOS LOS SERVICIOS (ADMIN - INCLUYE PENDIENTES)
-    // =========================
-    [HttpGet("admin/all")]
-    public async Task<IActionResult> GetAllAdmin()
+    [HttpGet, AllowAnonymous]
+    public async Task<IActionResult> Listar([FromQuery] int pagina = 1, [FromQuery] int por_pagina = 12,
+        [FromQuery] int? categoria = null, [FromQuery] string? busqueda = null, [FromQuery] string orden = "recientes",
+        CancellationToken ct = default)
     {
-        try
+        if (pagina is < 1 or > 10000 || por_pagina is < 1 or > 50) return BadRequest(new { error = "Paginación inválida" });
+        if (!Ordenes.Contains(orden)) return BadRequest(new { error = "Orden inválido" });
+        if (busqueda?.Length > 100) return BadRequest(new { error = "La búsqueda es demasiado larga" });
+
+        await using var conn = await Open(config, ct);
+        await using var cmd = new NpgsqlCommand(
+            "SELECT * FROM uniservice_mobile.listar_servicios(@pagina, @por_pagina, @categoria, @busqueda, @orden)", conn);
+        cmd.Parameters.AddWithValue("pagina", pagina);
+        cmd.Parameters.AddWithValue("por_pagina", por_pagina);
+        cmd.Parameters.Add("categoria", NpgsqlDbType.Integer).Value = (object?)categoria ?? DBNull.Value;
+        cmd.Parameters.Add("busqueda", NpgsqlDbType.Text).Value = string.IsNullOrWhiteSpace(busqueda) ? DBNull.Value : busqueda.Trim();
+        cmd.Parameters.AddWithValue("orden", orden);
+
+        var servicios = new List<object>();
+        long total = 0;
+        await using (var r = await cmd.ExecuteReaderAsync(ct))
         {
-            using var conn = new NpgsqlConnection(_config.GetConnectionString("DefaultConnection"));
-            await conn.OpenAsync();
-
-            var servicios = new List<object>();
-
-            using var cmd = new NpgsqlCommand(@"
-                SELECT 
-                    s.id_servicio, s.id_proveedor, s.titulo, s.descripcion,
-                    s.precio_hora, s.icono, s.fecha_publicacion, s.modalidad,
-                    s.disponibilidad, c.nombre_categoria, u.nombre AS proveedor, u.universidad
-                FROM servicios s
-                LEFT JOIN usuarios u ON s.id_proveedor = u.id_usuario
-                LEFT JOIN categorias c ON s.id_categoria = c.id_categoria
-                ORDER BY s.fecha_publicacion DESC
-            ", conn);
-
-            using var reader = await cmd.ExecuteReaderAsync();
-            while (await reader.ReadAsync())
+            while (await r.ReadAsync(ct))
             {
+                total = r.Get<long>("total");
                 servicios.Add(new
                 {
-                    id_servicio = Convert.ToInt32(reader["id_servicio"]),
-                    id_proveedor = reader["id_proveedor"] != DBNull.Value ? Convert.ToInt32(reader["id_proveedor"]) : 0,
-                    titulo = reader["titulo"]?.ToString(),
-                    descripcion = reader["descripcion"]?.ToString(),
-                    precio_hora = reader["precio_hora"],
-                    icono = reader["icono"]?.ToString() ?? "bi-pin",
-                    fecha_publicacion = reader["fecha_publicacion"] != DBNull.Value ? Convert.ToDateTime(reader["fecha_publicacion"]).ToString("yyyy-MM-dd") : "",
-                    modalidad = MapModalidad(reader["modalidad"]),
-                    disponibilidad = MapDisponibilidad(reader["disponibilidad"]),
-                    nombre_categoria = reader["nombre_categoria"]?.ToString(),
-                    proveedor = reader["proveedor"]?.ToString(),
-                    universidad = reader["universidad"]?.ToString()
+                    id_servicio = r.Get<int>("id_servicio"),
+                    id_proveedor = r.Get<int>("id_proveedor"),
+                    titulo = r.Get<string>("titulo"),
+                    descripcion = r.Get<string>("descripcion"),
+                    id_categoria = r.Get<int?>("id_categoria"),
+                    categoria = r.Get<string?>("categoria"),
+                    precio = r.Get<decimal>("precio"),
+                    unidad_precio = r.Get<string>("unidad_precio"),
+                    modalidad = Modalidad(r.Get<int>("modalidad")),
+                    disponibilidad = Disponibilidad(r.Get<int>("disponibilidad")),
+                    fecha_publicacion = r.Utc("fecha_publicacion"),
+                    proveedor = r.Get<string>("proveedor"),
+                    universidad = r.Get<string?>("universidad"),
+                    avatar = UrlPublica(r.Get<string?>("avatar")),
+                    imagen = UrlPublica(r.Get<string?>("imagen")),
+                    num_resenas = r.Get<int>("num_resenas"),
+                    promedio = (double)r.Get<decimal>("promedio")
                 });
             }
-            reader.Close();
-
-            return Ok(servicios);
         }
-        catch (Exception ex)
-        {
-            return StatusCode(500, new { error = ex.Message });
-        }
+        return Ok(new { servicios, pagina, por_pagina, total, total_paginas = (int)Math.Ceiling(total / (double)por_pagina) });
     }
 
-    // =========================
-    // GET TODOS LOS SERVICIOS (CON PAGINACIÓN Y FILTROS)
-    // =========================
-    // Soporta: ?page=1&pageSize=8&categoria=1&busqueda=texto&orden=recientes
-    // También mantiene compatibilidad: sin parámetros = devuelve todos (legacy)
-    // =========================
-    [AllowAnonymous]
-    [HttpGet]
-    public async Task<IActionResult> GetAll(
-        [FromQuery] int page = 0,
-        [FromQuery] int pageSize = 0,
-        [FromQuery] string? categoria = null,
-        [FromQuery] string? busqueda = null,
-        [FromQuery] string? orden = null)
+    [HttpGet("categorias"), AllowAnonymous]
+    public async Task<IActionResult> Categorias(CancellationToken ct)
     {
-        try
-        {
-            using var conn = new NpgsqlConnection(_config.GetConnectionString("DefaultConnection"));
-            await conn.OpenAsync();
-
-            // Convertir categoría: acepta ID numérico o nombre (tutorias, arriendo, etc.)
-            int? catId = null;
-            if (!string.IsNullOrEmpty(categoria))
-            {
-                if (int.TryParse(categoria, out int parsedId))
-                {
-                    catId = parsedId;
-                }
-                else
-                {
-                    // Mapeo de nombre a ID
-                    catId = categoria.ToLower() switch
-                    {
-                        "tutorias" or "tutorías" => 1,
-                        "ensayos" or "ensayos y redacción" => 2,
-                        "proyectos" => 3,
-                        "programacion" or "programación" => 4,
-                        "diseno" or "diseño" => 5,
-                        "arriendo" or "arriendo de habitaciones" => 6,
-                        "otros" or "otros servicios" => 7,
-                        _ => null
-                    };
-                }
-            }
-
-            // Si no se envían parámetros de paginación, usar comportamiento legacy (todos los datos)
-            bool usarPaginacion = page > 0 && pageSize > 0;
-
-            if (usarPaginacion)
-            {
-                // NUEVO: Usar función optimizada con paginación en BD
-                using var cmd = new NpgsqlCommand(@"
-                    SELECT * FROM sp_ObtenerServiciosPaginados(
-                        @page, @pageSize, @categoria, @busqueda, @orden
-                    )
-                ", conn);
-
-                cmd.Parameters.AddWithValue("@page", page);
-                cmd.Parameters.AddWithValue("@pageSize", pageSize);
-                cmd.Parameters.AddWithValue("@categoria", catId.HasValue ? (object)catId.Value : DBNull.Value);
-                cmd.Parameters.AddWithValue("@busqueda", string.IsNullOrEmpty(busqueda) ? DBNull.Value : busqueda.ToLower());
-                cmd.Parameters.AddWithValue("@orden", string.IsNullOrEmpty(orden) ? "recientes" : orden);
-
-                var servicios = new List<object>();
-                long totalResults = 0;
-
-                using var reader = await cmd.ExecuteReaderAsync();
-                while (await reader.ReadAsync())
-                {
-                    double prom = reader["promedio_estrellas"] != DBNull.Value 
-                        ? Convert.ToDouble(reader["promedio_estrellas"]) : 0;
-                    long numResenasLong = Convert.ToInt64(reader["num_resenas"]);
-                    int numResenas = (int)numResenasLong;
-                    totalResults = Convert.ToInt64(reader["total_results"]);
-
-                    var estrellasArr = numResenas > 0 
-                        ? Enumerable.Repeat(prom, numResenas).ToArray() 
-                        : Array.Empty<double>();
-
-                    servicios.Add(new
-                    {
-                        id_servicio = Convert.ToInt32(reader["id_servicio"]),
-                        id_proveedor = Convert.ToInt32(reader["id_proveedor"]),
-                        titulo = reader["titulo"]?.ToString(),
-                        descripcion = reader["descripcion"]?.ToString(),
-                        precio_hora = reader["precio_hora"],
-                        icono = reader["icono"]?.ToString() ?? "bi-pin",
-                        fecha_publicacion = Convert.ToDateTime(reader["fecha_publicacion"]).ToString("yyyy-MM-dd"),
-                        modalidad = MapModalidad(reader["modalidad"]),
-                        disponibilidad = MapDisponibilidad(reader["disponibilidad"]),
-                        nombre_categoria = reader["nombre_categoria"]?.ToString(),
-                        proveedor = reader["proveedor"]?.ToString(),
-                        universidad = reader["universidad"]?.ToString(),
-                        estrellas = estrellasArr
-                    });
-                }
-                reader.Close();
-
-                // Obtener imágenes solo para los servicios de esta página
-                var idsEnPagina = servicios.Select(s => (int)((dynamic)s).id_servicio).ToArray();
-                if (idsEnPagina.Length > 0)
-                {
-                    using var cmdImg = new NpgsqlCommand(@"
-                        SELECT id_servicio, id_imagen, url_imagen, es_principal, fecha_subida
-                        FROM servicios_imagenes
-                        WHERE id_servicio = ANY(@ids)
-                        ORDER BY id_servicio, fecha_subida ASC
-                    ", conn);
-                    cmdImg.Parameters.AddWithValue("@ids", idsEnPagina);
-                    
-                    using var rImg = await cmdImg.ExecuteReaderAsync();
-                    var imagenesPorServicio = new Dictionary<int, List<object>>();
-                    while (await rImg.ReadAsync())
-                    {
-                        int idServ = Convert.ToInt32(rImg["id_servicio"]);
-                        if (!imagenesPorServicio.ContainsKey(idServ))
-                            imagenesPorServicio[idServ] = new List<object>();
-                        
-                        imagenesPorServicio[idServ].Add(new
-                        {
-                            id_imagen = rImg["id_imagen"],
-                            url_imagen = rImg["url_imagen"],
-                            es_principal = Convert.ToBoolean(rImg["es_principal"]),
-                            fecha_subida = rImg["fecha_subida"]
-                        });
-                    }
-                    rImg.Close();
-
-                    // Combinar
-                    for (int i = 0; i < servicios.Count; i++)
-                    {
-                        dynamic s = servicios[i];
-                        int id = s.id_servicio;
-                        imagenesPorServicio.TryGetValue(id, out var imgs);
-                        
-                        servicios[i] = new
-                        {
-                            s.id_servicio,
-                            s.id_proveedor,
-                            s.titulo,
-                            s.descripcion,
-                            s.precio_hora,
-                            s.icono,
-                            s.fecha_publicacion,
-                            s.modalidad,
-                            s.disponibilidad,
-                            s.nombre_categoria,
-                            s.proveedor,
-                            s.universidad,
-                            s.estrellas,
-                            imagenes = imgs ?? new List<object>()
-                        };
-                    }
-                }
-
-                return Ok(new
-                {
-                    servicios,
-                    paginacion = new
-                    {
-                        pagina = page,
-                        porPagina = pageSize,
-                        total = totalResults,
-                        totalPaginas = (int)Math.Ceiling((double)totalResults / pageSize)
-                    }
-                });
-            }
-            else
-            {
-                // LEGACY: Sin paginación (comportamiento original para no romper frontend actual)
-                var servicios = new List<object>();
-
-                using var cmd = new NpgsqlCommand(@"
-                SELECT 
-                    s.id_servicio,
-                    s.id_proveedor, 
-                    s.titulo,
-                    s.descripcion,
-                    s.precio_hora,
-                    s.icono,
-                    s.fecha_publicacion,
-                    s.modalidad,
-                    s.disponibilidad,
-                    c.nombre_categoria,
-                    u.nombre AS proveedor,
-                    u.universidad,
-                    COUNT(cal.id_calificacion)      AS num_resenas,
-                    COALESCE(AVG(CAST(cal.puntuacion AS FLOAT)), 0) AS promedio_estrellas
-                FROM servicios s
-                LEFT JOIN usuarios u ON s.id_proveedor = u.id_usuario
-                LEFT JOIN categorias c ON s.id_categoria = c.id_categoria
-                LEFT JOIN calificaciones cal ON cal.id_servicio = s.id_servicio
-                WHERE s.disponibilidad >= 0
-                GROUP BY
-                    s.id_servicio, s.id_proveedor, s.titulo, s.descripcion,
-                    s.precio_hora, s.icono, s.fecha_publicacion, s.modalidad,
-                    s.disponibilidad, c.nombre_categoria, u.nombre, u.universidad
-                ORDER BY s.fecha_publicacion DESC
-            ", conn);
-
-                using var reader = await cmd.ExecuteReaderAsync();
-
-                var serviciosTemp = new List<dynamic>();
-                while (await reader.ReadAsync())
-                {
-                    double prom = (double)reader["promedio_estrellas"];
-                    int numResenas = Convert.ToInt32(reader["num_resenas"]);
-                    int idServicio = Convert.ToInt32(reader["id_servicio"]);
-
-                    var estrellasArr = Enumerable.Repeat(prom, numResenas).ToArray();
-
-                    serviciosTemp.Add(new
-                    {
-                        id_servicio = idServicio,
-                        id_proveedor = (int)reader["id_proveedor"],
-                        titulo = reader["titulo"]?.ToString(),
-                        descripcion = reader["descripcion"]?.ToString(),
-                        precio_hora = reader["precio_hora"],
-                        icono = reader["icono"]?.ToString() ?? "bi-pin",
-                        fecha_publicacion = Convert.ToDateTime(reader["fecha_publicacion"]).ToString("yyyy-MM-dd"),
-                        modalidad = MapModalidad(reader["modalidad"]),
-                        disponibilidad = MapDisponibilidad(reader["disponibilidad"]),
-                        nombre_categoria = reader["nombre_categoria"]?.ToString(),
-                        proveedor = reader["proveedor"]?.ToString(),
-                        universidad = reader["universidad"]?.ToString(),
-                        estrellas = estrellasArr
-                    });
-                }
-                reader.Close();
-
-                // Obtener imágenes para todos los servicios en una sola consulta
-                using var cmdImg = new NpgsqlCommand(@"
-                    SELECT id_servicio, id_imagen, url_imagen, es_principal, fecha_subida
-                    FROM servicios_imagenes
-                    ORDER BY id_servicio, fecha_subida ASC
-                ", conn);
-                using var rImg = await cmdImg.ExecuteReaderAsync();
-                
-                var imagenesPorServicio = new Dictionary<int, List<object>>();
-                while (await rImg.ReadAsync())
-                {
-                    int idServ = Convert.ToInt32(rImg["id_servicio"]);
-                    if (!imagenesPorServicio.ContainsKey(idServ))
-                        imagenesPorServicio[idServ] = new List<object>();
-                    
-                    imagenesPorServicio[idServ].Add(new
-                    {
-                        id_imagen = rImg["id_imagen"],
-                        url_imagen = rImg["url_imagen"],
-                        es_principal = Convert.ToBoolean(rImg["es_principal"]),
-                        fecha_subida = rImg["fecha_subida"]
-                    });
-                }
-                rImg.Close();
-
-                // Combinar servicios con sus imágenes
-                foreach (var s in serviciosTemp)
-                {
-                    int id = s.id_servicio;
-                    imagenesPorServicio.TryGetValue(id, out var imgs);
-                    
-                    servicios.Add(new
-                    {
-                        s.id_servicio,
-                        s.id_proveedor,
-                        s.titulo,
-                        s.descripcion,
-                        s.precio_hora,
-                        s.icono,
-                        s.fecha_publicacion,
-                        s.modalidad,
-                        s.disponibilidad,
-                        s.nombre_categoria,
-                        s.proveedor,
-                        s.universidad,
-                        s.estrellas,
-                        imagenes = imgs ?? new List<object>()
-                    });
-                }
-
-                Console.WriteLine($"[DEBUG] GetAll: {servicios.Count} servicios, {imagenesPorServicio.Count} con imágenes");
-
-                return Ok(servicios);
-            }
-        }
-        catch (Exception ex)
-        {
-            Console.WriteLine($"[ERROR] GetAll: {ex.Message}");
-            return StatusCode(500, new { error = ex.Message });
-        }
+        await using var conn = await Open(config, ct);
+        await using var cmd = new NpgsqlCommand("SELECT id_categoria, nombre_categoria FROM categorias ORDER BY id_categoria", conn);
+        var lista = new List<object>();
+        await using var r = await cmd.ExecuteReaderAsync(ct);
+        while (await r.ReadAsync(ct)) lista.Add(new { id_categoria = r.GetInt32(0), nombre = r.GetString(1) });
+        return Ok(lista);
     }
 
-    // =========================
-    // GET POR ID
-    // =========================
-    [HttpGet("{id}")]
-    public async Task<IActionResult> GetById(int id)
+    // Visible si está aprobado y el proveedor activo; el dueño y los admins ven también sus otros estados.
+    [HttpGet("{id:int}"), AllowAnonymous]
+    public async Task<IActionResult> Detalle(int id, CancellationToken ct)
     {
-        try
-        {
-            using var conn = new NpgsqlConnection(_config.GetConnectionString("DefaultConnection"));
-            await conn.OpenAsync();
-
-            // 1. Datos del servicio (incluyendo ubicación)
-            using var cmd = new NpgsqlCommand(@"
-            SELECT 
-                s.id_servicio,
-                s.id_proveedor,
-                s.titulo,
-                s.descripcion,
-                s.precio_hora,
-                s.icono,
-                s.contacto,
-                s.fecha_publicacion,
-                s.modalidad,
-                s.disponibilidad,
-                c.nombre_categoria,
-                u.nombre AS proveedor,
-                u.universidad,
-                u.avatar,
-                s.ubicacion_lat,
-                s.ubicacion_lng,
-                s.direccion
+        var usuario = InstitutionalAccess.UserId(User);
+        await using var conn = await Open(config, ct);
+        await using var cmd = new NpgsqlCommand("""
+            SELECT s.*, c.nombre_categoria, u.nombre AS proveedor, u.universidad, u.avatar, u.estado IS TRUE AS proveedor_activo,
+              (SELECT count(*)::integer FROM servicios p WHERE p.id_proveedor = s.id_proveedor AND p.estado = 'aprobado') AS proveedor_servicios,
+              pr.num AS proveedor_resenas, pr.prom AS proveedor_promedio
             FROM servicios s
-            LEFT JOIN usuarios u ON s.id_proveedor = u.id_usuario
-            LEFT JOIN categorias c ON s.id_categoria = c.id_categoria
+            JOIN usuarios u ON u.id_usuario = s.id_proveedor
+            LEFT JOIN categorias c ON c.id_categoria = s.id_categoria
+            LEFT JOIN LATERAL (
+              SELECT count(*)::integer AS num, round(avg(cal.puntuacion), 2) AS prom
+              FROM calificaciones cal JOIN servicios p ON p.id_servicio = cal.id_servicio
+              WHERE p.id_proveedor = s.id_proveedor) pr ON true
             WHERE s.id_servicio = @id
-        ", conn);
-            cmd.Parameters.AddWithValue("@id", id);
+            """, conn);
+        cmd.Parameters.AddWithValue("id", id);
 
-            using var reader = await cmd.ExecuteReaderAsync();
-            if (!await reader.ReadAsync())
-            {
-                reader.Close();
+        object servicio;
+        await using (var r = await cmd.ExecuteReaderAsync(ct))
+        {
+            if (!await r.ReadAsync(ct)) return NotFound(new { error = "Servicio no encontrado" });
+            var idProveedor = r.Get<int>("id_proveedor");
+            var esPropio = usuario == idProveedor;
+            var estado = r.Get<string>("estado")!;
+            if (!(estado == "aprobado" && r.Get<bool>("proveedor_activo")) && !esPropio && !EsAdmin(User))
                 return NotFound(new { error = "Servicio no encontrado" });
-            }
 
-            int idServicio = reader["id_servicio"] != DBNull.Value ? Convert.ToInt32(reader["id_servicio"]) : 0;
-            int idProveedor = reader["id_proveedor"] != DBNull.Value ? Convert.ToInt32(reader["id_proveedor"]) : 0;
-            DateTime fechaPub = reader["fecha_publicacion"] != DBNull.Value ? Convert.ToDateTime(reader["fecha_publicacion"]) : DateTime.Now;
-
-            var servicio = new
+            var conSesion = usuario != null;
+            servicio = new
             {
-                id_servicio = idServicio,
-                id_proveedor = idProveedor,
-                titulo = reader["titulo"]?.ToString() ?? "Sin título",
-                descripcion = reader["descripcion"]?.ToString() ?? "Sin descripción",
-                precio_hora = reader["precio_hora"] != DBNull.Value ? reader["precio_hora"] : 0,
-                icono = reader["icono"]?.ToString() ?? "bi-pin",
-                contacto = reader["contacto"]?.ToString() ?? "",
-                fecha_publicacion = fechaPub.ToString("yyyy-MM-dd"),
-                modalidad = MapModalidad(reader["modalidad"]),
-                disponibilidad = MapDisponibilidad(reader["disponibilidad"]),
-                nombre_categoria = reader["nombre_categoria"]?.ToString() ?? "",
-                proveedor = reader["proveedor"]?.ToString() ?? "Proveedor anónimo",
-                avatar = reader["avatar"]?.ToString() ?? "",
-                universidad = reader["universidad"]?.ToString() ?? "",
-                ubicacion_lat = reader["ubicacion_lat"] != DBNull.Value ? Convert.ToDecimal(reader["ubicacion_lat"]) : (decimal?)null,
-                ubicacion_lng = reader["ubicacion_lng"] != DBNull.Value ? Convert.ToDecimal(reader["ubicacion_lng"]) : (decimal?)null,
-                direccion = reader["direccion"]?.ToString() ?? ""
+                id_servicio = id,
+                titulo = r.Get<string>("titulo"),
+                descripcion = r.Get<string>("descripcion"),
+                id_categoria = r.Get<int?>("id_categoria"),
+                categoria = r.Get<string?>("nombre_categoria"),
+                precio = r.Get<decimal>("precio_hora"),
+                unidad_precio = r.Get<string>("unidad_precio"),
+                modalidad = Modalidad(r.Get<int>("modalidad")),
+                disponibilidad = Disponibilidad(r.Get<int>("disponibilidad")),
+                fecha_publicacion = r.Utc("fecha_publicacion"),
+                estado,
+                motivo_rechazo = esPropio ? r.Get<string?>("motivo_rechazo") : null,
+                es_propio = esPropio,
+                // Contacto y ubicación exacta sólo con sesión iniciada.
+                contacto = conSesion ? r.Get<string?>("contacto") : null,
+                direccion = conSesion ? r.Get<string?>("direccion") : null,
+                ubicacion_lat = conSesion ? r.Get<decimal?>("ubicacion_lat") : null,
+                ubicacion_lng = conSesion ? r.Get<decimal?>("ubicacion_lng") : null,
+                tiene_ubicacion = r.Get<decimal?>("ubicacion_lat") != null,
+                proveedor = new
+                {
+                    id_usuario = idProveedor,
+                    nombre = r.Get<string>("proveedor"),
+                    universidad = r.Get<string?>("universidad"),
+                    avatar = UrlPublica(r.Get<string?>("avatar")),
+                    servicios_publicados = r.Get<int>("proveedor_servicios"),
+                    num_resenas = r.Get<int>("proveedor_resenas"),
+                    promedio = (double)(r.Get<decimal?>("proveedor_promedio") ?? 0)
+                }
             };
-            reader.Close();
+        }
 
-            // 2. Imágenes del servicio (galería real)
-            var imagenes = new List<object>();
-            using var cmdImagenes = new NpgsqlCommand(@"
-                SELECT id_imagen, url_imagen, es_principal, fecha_subida
-                FROM servicios_imagenes
-                WHERE id_servicio = @id
-                ORDER BY fecha_subida ASC
-            ", conn);
-            cmdImagenes.Parameters.AddWithValue("@id", id);
-            using var rImagenes = await cmdImagenes.ExecuteReaderAsync();
-            while (await rImagenes.ReadAsync())
-            {
-                var esPrincipalVal = rImagenes["es_principal"];
-                bool esPrincipal = esPrincipalVal switch
-                {
-                    bool b => b,
-                    int i => i != 0,
-                    long l => l != 0,
-                    byte b => b != 0,
-                    short s => s != 0,
-                    _ => false
-                };
+        var imagenes = new List<object>();
+        await using (var img = new NpgsqlCommand(
+            "SELECT id_imagen, url_imagen, orden FROM servicios_imagenes WHERE id_servicio = @id ORDER BY orden", conn))
+        {
+            img.Parameters.AddWithValue("id", id);
+            await using var r = await img.ExecuteReaderAsync(ct);
+            while (await r.ReadAsync(ct))
+                if (UrlPublica(r.GetString(1)) is { } url) imagenes.Add(new { id_imagen = r.GetInt32(0), url, orden = r.GetInt16(2) });
+        }
 
-                imagenes.Add(new
-                {
-                    id_imagen = rImagenes["id_imagen"] != DBNull.Value ? Convert.ToInt32(rImagenes["id_imagen"]) : 0,
-                    url_imagen = rImagenes["url_imagen"]?.ToString() ?? "",
-                    es_principal = esPrincipal,
-                    fecha_subida = rImagenes["fecha_subida"]?.ToString() ?? ""
-                });
-            }
-            rImagenes.Close();
-
-            // 3. Reseñas
-            using var cmdResenas = new NpgsqlCommand(@"
-            SELECT 
-                c.puntuacion,
-                c.comentario,
-                c.fecha_calificacion,
-                u.nombre AS autor
-            FROM calificaciones c
-            INNER JOIN usuarios u ON c.id_cliente = u.id_usuario
-            WHERE c.id_servicio = @id
-            ORDER BY c.fecha_calificacion DESC
-        ", conn);
-            cmdResenas.Parameters.AddWithValue("@id", id);
-
-            var resenas = new List<object>();
-            using var rReader = await cmdResenas.ExecuteReaderAsync();
-            while (await rReader.ReadAsync())
-            {
-                byte puntuacion = rReader["puntuacion"] != DBNull.Value ? Convert.ToByte(rReader["puntuacion"]) : (byte)5;
-                DateTime fechaCal = rReader["fecha_calificacion"] != DBNull.Value ? Convert.ToDateTime(rReader["fecha_calificacion"]) : DateTime.Now;
-
+        var resenas = new List<object>();
+        await using (var res = new NpgsqlCommand("""
+            SELECT c.id_calificacion, c.id_cliente, u.nombre AS autor, u.avatar, c.puntuacion, c.comentario,
+                   c.fecha_calificacion, c.fecha_modificacion
+            FROM calificaciones c JOIN usuarios u ON u.id_usuario = c.id_cliente
+            WHERE c.id_servicio = @id ORDER BY c.fecha_calificacion DESC NULLS LAST LIMIT 50
+            """, conn))
+        {
+            res.Parameters.AddWithValue("id", id);
+            await using var r = await res.ExecuteReaderAsync(ct);
+            while (await r.ReadAsync(ct))
                 resenas.Add(new
                 {
-                    estrellas = puntuacion,
-                    comentario = rReader["comentario"]?.ToString() ?? "",
-                    fecha = fechaCal.ToString("dd MMM yyyy"),
-                    autor = rReader["autor"]?.ToString() ?? "Anónimo"
+                    id_calificacion = r.Get<int>("id_calificacion"),
+                    id_cliente = r.Get<int>("id_cliente"),
+                    autor = r.Get<string>("autor"),
+                    avatar = UrlPublica(r.Get<string?>("avatar")),
+                    puntuacion = (int)r.Get<short>("puntuacion"),
+                    comentario = r.Get<string?>("comentario"),
+                    fecha = r.Utc("fecha_calificacion"),
+                    editada = r.Get<DateTime?>("fecha_modificacion") != null
                 });
-            }
-            rReader.Close();
-
-            double prom = resenas.Count > 0
-                ? resenas.Average(r => (double)((dynamic)r).estrellas)
-                : 0;
-
-            return Ok(new
-            {
-                servicio.id_servicio,
-                servicio.id_proveedor,
-                servicio.titulo,
-                servicio.descripcion,
-                servicio.precio_hora,
-                servicio.icono,
-                servicio.contacto,
-                servicio.fecha_publicacion,
-                servicio.modalidad,
-                servicio.disponibilidad,
-                servicio.nombre_categoria,
-                servicio.proveedor,
-                servicio.universidad,
-                servicio.ubicacion_lat,
-                servicio.ubicacion_lng,
-                servicio.direccion,
-                imagenes,
-                resenas,
-                estrellas = prom.ToString("0.0")
-            });
         }
-        catch (Exception ex)
+
+        int numResenas; double promedio;
+        await using (var stats = new NpgsqlCommand(
+            "SELECT count(*)::integer, coalesce(round(avg(puntuacion), 2), 0) FROM calificaciones WHERE id_servicio = @id", conn))
         {
-            return StatusCode(500, new { error = ex.Message, detalle = ex.StackTrace });
+            stats.Parameters.AddWithValue("id", id);
+            await using var r = await stats.ExecuteReaderAsync(ct);
+            await r.ReadAsync(ct);
+            numResenas = r.GetInt32(0); promedio = (double)r.GetDecimal(1);
+        }
+
+        return Ok(new { servicio, imagenes, resenas, num_resenas = numResenas, promedio });
+    }
+
+    [HttpGet("mios")]
+    public async Task<IActionResult> Mios(CancellationToken ct)
+    {
+        await using var conn = await Open(config, ct);
+        await using var cmd = new NpgsqlCommand("""
+            SELECT s.id_servicio, s.titulo, s.estado, s.motivo_rechazo, s.precio_hora, s.unidad_precio,
+                   s.fecha_publicacion, c.nombre_categoria,
+                   (SELECT i.url_imagen FROM servicios_imagenes i WHERE i.id_servicio = s.id_servicio ORDER BY i.orden LIMIT 1) AS imagen,
+                   (SELECT count(*)::integer FROM servicios_imagenes i WHERE i.id_servicio = s.id_servicio) AS num_imagenes,
+                   (SELECT count(*)::integer FROM calificaciones cal WHERE cal.id_servicio = s.id_servicio) AS num_resenas,
+                   (SELECT coalesce(round(avg(cal.puntuacion), 2), 0) FROM calificaciones cal WHERE cal.id_servicio = s.id_servicio) AS promedio,
+                   (SELECT count(*)::integer FROM solicitudes so WHERE so.id_servicio = s.id_servicio AND so.estado = 'Pendiente') AS solicitudes_pendientes
+            FROM servicios s LEFT JOIN categorias c ON c.id_categoria = s.id_categoria
+            WHERE s.id_proveedor = @user ORDER BY s.fecha_publicacion DESC, s.id_servicio DESC
+            """, conn);
+        cmd.Parameters.AddWithValue("user", UserId);
+        var lista = new List<object>();
+        await using var r = await cmd.ExecuteReaderAsync(ct);
+        while (await r.ReadAsync(ct))
+            lista.Add(new
+            {
+                id_servicio = r.Get<int>("id_servicio"),
+                titulo = r.Get<string>("titulo"),
+                estado = r.Get<string>("estado"),
+                motivo_rechazo = r.Get<string?>("motivo_rechazo"),
+                precio = r.Get<decimal>("precio_hora"),
+                unidad_precio = r.Get<string>("unidad_precio"),
+                categoria = r.Get<string?>("nombre_categoria"),
+                fecha_publicacion = r.Utc("fecha_publicacion"),
+                imagen = UrlPublica(r.Get<string?>("imagen")),
+                num_imagenes = r.Get<int>("num_imagenes"),
+                num_resenas = r.Get<int>("num_resenas"),
+                promedio = (double)r.Get<decimal>("promedio"),
+                solicitudes_pendientes = r.Get<int>("solicitudes_pendientes")
+            });
+        return Ok(lista);
+    }
+
+    [HttpPost, ServiceFilter(typeof(ActiveStudentFilter))]
+    public async Task<IActionResult> Crear(GuardarServicioDTO dto, CancellationToken ct)
+    {
+        if (Validar(dto) is { } error) return BadRequest(new { error });
+        await using var conn = await Open(config, ct);
+        await using var tx = await conn.BeginTransactionAsync(ct);
+
+        await using (var limite = new NpgsqlCommand("""
+            SELECT count(*) FROM servicios WHERE id_proveedor = @user AND estado = 'pendiente'
+            """, conn, tx))
+        {
+            limite.Parameters.AddWithValue("user", UserId);
+            if (Convert.ToInt32(await limite.ExecuteScalarAsync(ct)) >= MaxPendientesPorUsuario)
+                return Conflict(new { error = $"Tienes {MaxPendientesPorUsuario} servicios esperando revisión. Espera a que se revisen antes de publicar más." });
+        }
+
+        await using var insert = new NpgsqlCommand("""
+            INSERT INTO servicios(id_proveedor, titulo, descripcion, id_categoria, precio_hora, unidad_precio,
+              modalidad, disponibilidad, contacto, direccion, ubicacion_lat, ubicacion_lng)
+            SELECT @user, @titulo, @descripcion, c.id_categoria, @precio, @unidad, @modalidad, @disponibilidad,
+              @contacto, @direccion, @lat, @lng
+            FROM categorias c WHERE c.id_categoria = @categoria
+            RETURNING id_servicio
+            """, conn, tx);
+        insert.Parameters.AddWithValue("user", UserId);
+        Parametros(insert, dto);
+        var id = await insert.ExecuteScalarAsync(ct);
+        if (id == null) return BadRequest(new { error = "La categoría no existe" });
+        await tx.CommitAsync(ct);
+
+        NotificarAdmins(Convert.ToInt32(id), dto.titulo.Trim());
+        return Created($"/api/servicios/{id}", new { id_servicio = id, estado = "pendiente" });
+    }
+
+    [HttpPut("{id:int}"), ServiceFilter(typeof(ActiveStudentFilter))]
+    public async Task<IActionResult> Editar(int id, GuardarServicioDTO dto, CancellationToken ct)
+    {
+        if (Validar(dto) is { } error) return BadRequest(new { error });
+        await using var conn = await Open(config, ct);
+        await using var cmd = new NpgsqlCommand("""
+            UPDATE servicios s SET titulo = @titulo, descripcion = @descripcion, id_categoria = c.id_categoria,
+              precio_hora = @precio, unidad_precio = @unidad, modalidad = @modalidad, disponibilidad = @disponibilidad,
+              contacto = @contacto, direccion = @direccion, ubicacion_lat = @lat, ubicacion_lng = @lng,
+              estado = 'pendiente', motivo_rechazo = NULL, revisado_en = NULL, revisado_por = NULL
+            FROM categorias c
+            WHERE s.id_servicio = @id AND s.id_proveedor = @user AND c.id_categoria = @categoria
+            RETURNING s.id_servicio
+            """, conn);
+        cmd.Parameters.AddWithValue("id", id);
+        cmd.Parameters.AddWithValue("user", UserId);
+        Parametros(cmd, dto);
+        if (await cmd.ExecuteScalarAsync(ct) == null)
+            return await EstadoPropio(conn, id, ct) == null
+                ? NotFound(new { error = "Servicio no encontrado" })
+                : BadRequest(new { error = "La categoría no existe" });
+
+        NotificarAdmins(id, dto.titulo.Trim());
+        return Ok(new { ok = true, estado = "pendiente" });
+    }
+
+    // El proveedor pausa un servicio aprobado o reanuda uno pausado (no necesita nueva revisión).
+    [HttpPatch("{id:int}/pausa")]
+    public async Task<IActionResult> Pausar(int id, PausarServicioDTO dto, CancellationToken ct)
+    {
+        await using var conn = await Open(config, ct);
+        await using var cmd = new NpgsqlCommand("""
+            UPDATE servicios SET estado = @nuevo
+            WHERE id_servicio = @id AND id_proveedor = @user AND estado = @actual
+            RETURNING estado
+            """, conn);
+        cmd.Parameters.AddWithValue("id", id);
+        cmd.Parameters.AddWithValue("user", UserId);
+        cmd.Parameters.AddWithValue("nuevo", dto.pausado ? "pausado" : "aprobado");
+        cmd.Parameters.AddWithValue("actual", dto.pausado ? "aprobado" : "pausado");
+        if (await cmd.ExecuteScalarAsync(ct) is string estado) return Ok(new { ok = true, estado });
+
+        return await EstadoPropio(conn, id, ct) == null
+            ? NotFound(new { error = "Servicio no encontrado" })
+            : Conflict(new { error = dto.pausado ? "Sólo puedes pausar un servicio aprobado" : "Sólo puedes reanudar un servicio pausado" });
+    }
+
+    [HttpDelete("{id:int}")]
+    public async Task<IActionResult> Eliminar(int id, CancellationToken ct)
+    {
+        await using var conn = await Open(config, ct);
+        await using var tx = await conn.BeginTransactionAsync(ct);
+        if (await EstadoPropio(conn, id, ct, tx, bloquear: true) == null) return NotFound(new { error = "Servicio no encontrado" });
+
+        await using (var activas = new NpgsqlCommand(
+            "SELECT EXISTS(SELECT 1 FROM solicitudes WHERE id_servicio = @id AND estado = 'Aceptada')", conn, tx))
+        {
+            activas.Parameters.AddWithValue("id", id);
+            if (await activas.ExecuteScalarAsync(ct) is true)
+                return Conflict(new { error = "Tienes solicitudes aceptadas en curso. Complétalas o cancélalas antes de eliminar el servicio." });
+        }
+
+        var urls = await UrlsImagenes(conn, tx, id, ct);
+        // Solicitudes, calificaciones e imágenes se borran en cascada (migración 008).
+        await using (var delete = new NpgsqlCommand("DELETE FROM servicios WHERE id_servicio = @id", conn, tx))
+        {
+            delete.Parameters.AddWithValue("id", id);
+            await delete.ExecuteNonQueryAsync(ct);
+        }
+        await tx.CommitAsync(ct);
+        await BorrarArchivos(urls);
+        return Ok(new { ok = true });
+    }
+
+    [HttpPost("{id:int}/imagenes"), ServiceFilter(typeof(ActiveStudentFilter))]
+    [RequestSizeLimit(MaxImagenes * MaxBytesImagen + 1024 * 1024)]
+    public async Task<IActionResult> SubirImagenes(int id, [FromForm] List<IFormFile> imagenes, CancellationToken ct)
+    {
+        if (imagenes.Count is 0 or > MaxImagenes) return BadRequest(new { error = $"Envía entre 1 y {MaxImagenes} imágenes" });
+        var archivos = new List<(byte[] Datos, string ContentType, string Extension)>();
+        foreach (var imagen in imagenes)
+        {
+            if (imagen.Length is 0 or > MaxBytesImagen) return BadRequest(new { error = "Cada imagen debe pesar menos de 5 MB" });
+            using var ms = new MemoryStream();
+            await imagen.CopyToAsync(ms, ct);
+            var datos = ms.ToArray();
+            if (TipoImagen(datos) is not { } tipo) return BadRequest(new { error = "Sólo se permiten imágenes JPG, PNG o WebP" });
+            archivos.Add((datos, tipo.ContentType, tipo.Extension));
+        }
+
+        await using var conn = await Open(config, ct);
+        await using var tx = await conn.BeginTransactionAsync(ct);
+        if (await EstadoPropio(conn, id, ct, tx, bloquear: true) == null) return NotFound(new { error = "Servicio no encontrado" });
+        int existentes;
+        await using (var count = new NpgsqlCommand("SELECT count(*)::integer FROM servicios_imagenes WHERE id_servicio = @id", conn, tx))
+        {
+            count.Parameters.AddWithValue("id", id);
+            existentes = Convert.ToInt32(await count.ExecuteScalarAsync(ct));
+        }
+        if (existentes + archivos.Count > MaxImagenes)
+            return Conflict(new { error = $"Un servicio admite {MaxImagenes} imágenes; ya tiene {existentes}" });
+
+        var subidas = new List<string>();
+        try
+        {
+            foreach (var (datos, contentType, extension) in archivos)
+                subidas.Add(await storage.SubirAsync($"servicios/{id}/{Guid.NewGuid():N}.{extension}", datos, contentType, ct));
+
+            await using (var insert = new NpgsqlCommand("""
+                INSERT INTO servicios_imagenes(id_servicio, url_imagen, orden)
+                SELECT @id, x.url, @desde + x.n - 1 FROM unnest(@urls) WITH ORDINALITY x(url, n);
+                UPDATE servicios SET estado = 'pendiente', motivo_rechazo = NULL, revisado_en = NULL, revisado_por = NULL
+                WHERE id_servicio = @id;
+                """, conn, tx))
+            {
+                insert.Parameters.AddWithValue("id", id);
+                insert.Parameters.AddWithValue("desde", existentes);
+                insert.Parameters.AddWithValue("urls", subidas.ToArray());
+                await insert.ExecuteNonQueryAsync(ct);
+            }
+            await tx.CommitAsync(ct);
+        }
+        catch
+        {
+            await BorrarArchivos(subidas); // no dejar archivos sin registro en la BD
+            throw;
+        }
+        return Ok(new { ok = true, estado = "pendiente", urls = subidas });
+    }
+
+    [HttpDelete("{id:int}/imagenes/{idImagen:int}")]
+    public async Task<IActionResult> EliminarImagen(int id, int idImagen, CancellationToken ct)
+    {
+        await using var conn = await Open(config, ct);
+        await using var tx = await conn.BeginTransactionAsync(ct);
+        if (await EstadoPropio(conn, id, ct, tx, bloquear: true) == null) return NotFound(new { error = "Servicio no encontrado" });
+
+        // Borra la imagen y corre las siguientes una posición para que el orden siga siendo 0..n-1 (0 = portada).
+        await using var delete = new NpgsqlCommand("""
+            WITH borrada AS (
+              DELETE FROM servicios_imagenes WHERE id_imagen = @img AND id_servicio = @id RETURNING url_imagen, orden),
+            corridas AS (
+              UPDATE servicios_imagenes SET orden = orden - 1
+              WHERE id_servicio = @id AND orden > (SELECT orden FROM borrada))
+            SELECT url_imagen FROM borrada
+            """, conn, tx);
+        delete.Parameters.AddWithValue("img", idImagen);
+        delete.Parameters.AddWithValue("id", id);
+        if (await delete.ExecuteScalarAsync(ct) is not string url) return NotFound(new { error = "Imagen no encontrada" });
+        await tx.CommitAsync(ct);
+        await BorrarArchivos([url]);
+        return Ok(new { ok = true });
+    }
+
+    // Recibe todos los id_imagen del servicio en el orden deseado; el primero queda de portada.
+    [HttpPut("{id:int}/imagenes/orden")]
+    public async Task<IActionResult> OrdenarImagenes(int id, OrdenImagenesDTO dto, CancellationToken ct)
+    {
+        await using var conn = await Open(config, ct);
+        await using var tx = await conn.BeginTransactionAsync(ct);
+        if (await EstadoPropio(conn, id, ct, tx, bloquear: true) == null) return NotFound(new { error = "Servicio no encontrado" });
+
+        var actuales = new HashSet<int>();
+        await using (var ids = new NpgsqlCommand("SELECT id_imagen FROM servicios_imagenes WHERE id_servicio = @id", conn, tx))
+        {
+            ids.Parameters.AddWithValue("id", id);
+            await using var r = await ids.ExecuteReaderAsync(ct);
+            while (await r.ReadAsync(ct)) actuales.Add(r.GetInt32(0));
+        }
+        if (dto.imagenes.Distinct().Count() != dto.imagenes.Length || !actuales.SetEquals(dto.imagenes))
+            return BadRequest(new { error = "Envía todas las imágenes del servicio, sin repetir" });
+
+        await using (var update = new NpgsqlCommand("""
+            UPDATE servicios_imagenes i SET orden = x.n - 1
+            FROM unnest(@ids) WITH ORDINALITY x(id, n)
+            WHERE i.id_imagen = x.id AND i.id_servicio = @id
+            """, conn, tx))
+        {
+            update.Parameters.AddWithValue("ids", dto.imagenes);
+            update.Parameters.AddWithValue("id", id);
+            await update.ExecuteNonQueryAsync(ct);
+        }
+        await tx.CommitAsync(ct);
+        return Ok(new { ok = true });
+    }
+
+    // ── Auxiliares ──
+
+    private static string? Validar(GuardarServicioDTO dto)
+    {
+        if (dto.titulo.Trim().Length < 5) return "El título debe tener al menos 5 caracteres";
+        if (dto.descripcion.Trim().Length < 20) return "La descripción debe tener al menos 20 caracteres";
+        if (dto.contacto.Trim().Length < 5) return "Indica un correo o teléfono de contacto";
+        if ((dto.ubicacion_lat == null) != (dto.ubicacion_lng == null)) return "La ubicación necesita latitud y longitud";
+        return null;
+    }
+
+    private static void Parametros(NpgsqlCommand cmd, GuardarServicioDTO dto)
+    {
+        cmd.Parameters.AddWithValue("titulo", dto.titulo.Trim());
+        cmd.Parameters.AddWithValue("descripcion", dto.descripcion.Trim());
+        cmd.Parameters.AddWithValue("categoria", dto.id_categoria);
+        cmd.Parameters.AddWithValue("precio", dto.precio);
+        cmd.Parameters.AddWithValue("unidad", dto.unidad_precio ?? (dto.id_categoria == CategoriaArriendo ? "mes" : "hora"));
+        cmd.Parameters.AddWithValue("modalidad", Array.IndexOf(Modalidades, dto.modalidad));
+        cmd.Parameters.AddWithValue("disponibilidad", Array.IndexOf(Disponibilidades, dto.disponibilidad));
+        cmd.Parameters.AddWithValue("contacto", dto.contacto.Trim());
+        cmd.Parameters.Add("direccion", NpgsqlDbType.Text).Value =
+            string.IsNullOrWhiteSpace(dto.direccion) ? DBNull.Value : dto.direccion.Trim();
+        cmd.Parameters.Add("lat", NpgsqlDbType.Numeric).Value = (object?)dto.ubicacion_lat ?? DBNull.Value;
+        cmd.Parameters.Add("lng", NpgsqlDbType.Numeric).Value = (object?)dto.ubicacion_lng ?? DBNull.Value;
+    }
+
+    // Estado del servicio si pertenece al usuario; null si no existe o es de otro.
+    private async Task<string?> EstadoPropio(NpgsqlConnection conn, int id, CancellationToken ct,
+        NpgsqlTransaction? tx = null, bool bloquear = false)
+    {
+        await using var cmd = new NpgsqlCommand(
+            "SELECT estado FROM servicios WHERE id_servicio = @id AND id_proveedor = @user" + (bloquear ? " FOR UPDATE" : ""), conn, tx);
+        cmd.Parameters.AddWithValue("id", id);
+        cmd.Parameters.AddWithValue("user", UserId);
+        return await cmd.ExecuteScalarAsync(ct) as string;
+    }
+
+    private static async Task<List<string>> UrlsImagenes(NpgsqlConnection conn, NpgsqlTransaction tx, int id, CancellationToken ct)
+    {
+        await using var cmd = new NpgsqlCommand("SELECT url_imagen FROM servicios_imagenes WHERE id_servicio = @id", conn, tx);
+        cmd.Parameters.AddWithValue("id", id);
+        var urls = new List<string>();
+        await using var r = await cmd.ExecuteReaderAsync(ct);
+        while (await r.ReadAsync(ct)) urls.Add(r.GetString(0));
+        return urls;
+    }
+
+    // Si Storage falla, el archivo queda huérfano pero la BD ya es consistente: no se interrumpe la respuesta.
+    private async Task BorrarArchivos(IEnumerable<string> urls)
+    {
+        foreach (var url in urls.Where(u => UrlPublica(u) != null))
+        {
+            try { await storage.EliminarImagenAsync(url); }
+            catch (Exception ex) { Console.WriteLine($"[STORAGE] No se pudo borrar {url}: {ex.Message}"); }
         }
     }
 
-    // =========================
-    // CREATE SERVICIO
-    // =========================
-    [HttpPost]
-    public async Task<IActionResult> Create([FromBody] ServicioDTO dto)
+    // En segundo plano: el correo no debe retrasar ni hacer fallar la publicación.
+    private void NotificarAdmins(int idServicio, string titulo)
     {
-        try
+        var proveedor = UserId;
+        _ = Task.Run(async () =>
         {
-            using var conn = new NpgsqlConnection(_config.GetConnectionString("DefaultConnection"));
-            await conn.OpenAsync();
-
-            using var cmd = new NpgsqlCommand(@"
-                INSERT INTO servicios
-                (id_proveedor, titulo, descripcion, id_categoria, precio_hora, contacto, modalidad, icono, disponibilidad, fecha_publicacion, ubicacion_lat, ubicacion_lng, direccion)
-                VALUES
-                (@id_proveedor, @titulo, @descripcion, @id_categoria, @precio_hora, @contacto, @modalidad, @icono, -1, NOW(), @ubicacion_lat, @ubicacion_lng, @direccion)
-                RETURNING id_servicio
-            ", conn);
-
-            cmd.Parameters.AddWithValue("@id_proveedor", dto.id_proveedor);
-            cmd.Parameters.AddWithValue("@titulo", dto.titulo);
-            cmd.Parameters.AddWithValue("@descripcion", dto.descripcion);
-            cmd.Parameters.AddWithValue("@id_categoria", dto.id_categoria);
-            cmd.Parameters.AddWithValue("@precio_hora", dto.precio_hora);
-            cmd.Parameters.AddWithValue("@contacto", dto.contacto ?? "");
-            cmd.Parameters.AddWithValue("@modalidad", dto.modalidad);
-            cmd.Parameters.AddWithValue("@icono", dto.icono ?? "📌");
-            cmd.Parameters.AddWithValue("@ubicacion_lat", dto.ubicacion_lat.HasValue ? (object)dto.ubicacion_lat.Value : DBNull.Value);
-            cmd.Parameters.AddWithValue("@ubicacion_lng", dto.ubicacion_lng.HasValue ? (object)dto.ubicacion_lng.Value : DBNull.Value);
-            cmd.Parameters.AddWithValue("@direccion", (object)dto.direccion ?? DBNull.Value);
-
-            var idServicio = await cmd.ExecuteScalarAsync();
-            // Notificar a todos los admins del nuevo servicio pendiente
             try
             {
-                using var cmdAdmins = new NpgsqlCommand(
-                    "SELECT email, nombre FROM usuarios WHERE rol = 1", conn);
-                using var rAdmins = await cmdAdmins.ExecuteReaderAsync();
-                var admins = new List<(string email, string nombre)>();
-                while (await rAdmins.ReadAsync())
-                    admins.Add((rAdmins["email"].ToString()!, rAdmins["nombre"].ToString()!));
-                rAdmins.Close();
-
-                // Obtener nombre del proveedor
-                using var cmdProv = new NpgsqlCommand(
-                    "SELECT nombre FROM usuarios WHERE id_usuario = @id", conn);
-                cmdProv.Parameters.AddWithValue("@id", dto.id_proveedor);
-                var nombreProv = (await cmdProv.ExecuteScalarAsync())?.ToString() ?? "Usuario";
-
-                foreach (var (email, nombre) in admins)
-                {
-                    _ = _emailService.EnviarNotificacionNuevoServicio(
-                        email, nombre, nombreProv, dto.titulo, Convert.ToInt32(idServicio));
-                }
+                await using var c = new NpgsqlConnection(config.GetConnectionString("DefaultConnection"));
+                await c.OpenAsync();
+                await using var cmd = new NpgsqlCommand("""
+                    SELECT a.correo, a.nombre, p.nombre FROM usuarios a, usuarios p
+                    WHERE a.id_rol = 1 AND a.estado IS TRUE AND p.id_usuario = @proveedor
+                    """, c);
+                cmd.Parameters.AddWithValue("proveedor", proveedor);
+                var admins = new List<(string Correo, string Nombre, string Proveedor)>();
+                await using (var r = await cmd.ExecuteReaderAsync())
+                    while (await r.ReadAsync()) admins.Add((r.GetString(0), r.GetString(1), r.GetString(2)));
+                foreach (var (correo, nombre, nombreProveedor) in admins)
+                    await email.EnviarNotificacionNuevoServicio(correo, Html(nombre), Html(nombreProveedor), Html(titulo), idServicio);
             }
-            catch (Exception ex)
-            {
-                Console.WriteLine($"[EMAIL] No se pudo notificar a admins: {ex.Message}");
-            }
-
-            return Ok(new { ok = true, message = "Servicio creado correctamente", id_servicio = idServicio });
-        }
-        catch (Exception ex)
-        {
-            return StatusCode(500, new { error = ex.Message });
-        }
-    }
-
-    // =========================
-    // SUBIR IMÁGENES DE SERVICIO (máx 5)
-    // =========================
-    [HttpPost("{id}/imagenes")]
-    [RequestSizeLimit(52428800)]
-    [DisableRequestSizeLimit]
-    public async Task<IActionResult> SubirImagenes(int id)
-    {
-        try
-        {
-            var imagenes = Request.Form.Files.ToList();
-            
-            Console.WriteLine($"[DEBUG] Recibiendo imágenes para servicio {id}. Cantidad recibida: {imagenes?.Count ?? 0}");
-            
-            if (imagenes == null || imagenes.Count == 0)
-                return BadRequest(new { error = "No se recibieron imágenes" });
-
-            Console.WriteLine($"[DEBUG] Archivos recibidos:");
-            foreach (var img in imagenes)
-            {
-                Console.WriteLine($"  - {img.FileName} ({img.Length} bytes, {img.ContentType})");
-            }
-
-            if (imagenes.Count > 5)
-                return BadRequest(new { error = "Máximo 5 imágenes por servicio" });
-
-            // Validar tipo y tamaño
-            var tiposPermitidos = new[] { "image/jpeg", "image/png", "image/webp" };
-            long tamanoMaximo = 5 * 1024 * 1024; // 5MB
-
-            foreach (var imagen in imagenes)
-            {
-                if (!tiposPermitidos.Contains(imagen.ContentType))
-                    return BadRequest(new { error = "Solo se permiten imágenes JPG, PNG o WebP" });
-                
-                if (imagen.Length > tamanoMaximo)
-                    return BadRequest(new { error = "Cada imagen debe ser menor a 5MB" });
-            }
-
-            Console.WriteLine($"[DEBUG] Validación OK. Subiendo a Supabase...");
-
-            // Eliminar imagen por defecto ANTES de subir las nuevas
-            using var connPre = new NpgsqlConnection(_config.GetConnectionString("DefaultConnection"));
-            await connPre.OpenAsync();
-            using var cmdDeleteDefault = new NpgsqlCommand(@"
-                DELETE FROM servicios_imagenes 
-                WHERE id_servicio = @id 
-                AND (url_imagen LIKE '%default%' OR url_imagen LIKE 'img/%')
-            ", connPre);
-            cmdDeleteDefault.Parameters.AddWithValue("@id", id);
-            int eliminadas = await cmdDeleteDefault.ExecuteNonQueryAsync();
-            Console.WriteLine($"[DEBUG] Imágenes default eliminadas: {eliminadas}");
-            connPre.Close();
-
-            // Subir a Supabase Storage
-            var urls = await _storageService.SubirMultiplesImagenesAsync(id, imagenes);
-
-            Console.WriteLine($"[DEBUG] URLs generadas: {urls.Count}");
-
-            // Guardar URLs en la base de datos
-            using var conn = new NpgsqlConnection(_config.GetConnectionString("DefaultConnection"));
-            await conn.OpenAsync();
-
-            foreach (var url in urls)
-            {
-                using var cmd = new NpgsqlCommand(@"
-                    INSERT INTO servicios_imagenes (id_servicio, url_imagen, es_principal)
-                    VALUES (@id_servicio, @url, @es_principal)
-                ", conn);
-                cmd.Parameters.AddWithValue("@id_servicio", id);
-                cmd.Parameters.AddWithValue("@url", url);
-                // La primera imagen es principal, las demás no
-                cmd.Parameters.AddWithValue("@es_principal", urls.IndexOf(url) == 0);
-                await cmd.ExecuteNonQueryAsync();
-            }
-
-            Console.WriteLine($"[DEBUG] {urls.Count} imágenes guardadas en BD para servicio {id}");
-
-            return Ok(new { ok = true, message = "Imágenes subidas correctamente", urls });
-        }
-        catch (NpgsqlException ex) when (ex.Message.Contains("más de 5 imágenes"))
-        {
-            return BadRequest(new { error = ex.Message });
-        }
-        catch (Exception ex)
-        {
-            Console.WriteLine($"[ERROR] Subiendo imágenes: {ex.Message}");
-            Console.WriteLine($"[ERROR] Stack: {ex.StackTrace}");
-            return StatusCode(500, new { error = ex.Message });
-        }
-    }
-
-    // =========================
-    // ACTUALIZAR ORDEN DE IMAGEN
-    // =========================
-    [HttpPut("{idServicio}/imagenes/{idImagen}/orden")]
-    public async Task<IActionResult> ActualizarOrdenImagen(int idServicio, int idImagen, [FromBody] dynamic data)
-    {
-        try
-        {
-            int orden = data.orden;
-            bool esPrincipal = data.es_principal;
-
-            Console.WriteLine($"[DEBUG] Actualizando orden: idImagen={idImagen}, orden={orden}, esPrincipal={esPrincipal}");
-
-            using var conn = new NpgsqlConnection(_config.GetConnectionString("DefaultConnection"));
-            await conn.OpenAsync();
-
-            // Desmarcar todas como principal primero
-            using var cmdReset = new NpgsqlCommand(
-                "UPDATE servicios_imagenes SET es_principal = FALSE WHERE id_servicio = @id", conn);
-            cmdReset.Parameters.AddWithValue("@id", idServicio);
-            await cmdReset.ExecuteNonQueryAsync();
-
-            // Marcar la imagen seleccionada como principal si corresponde
-            // y actualizar fecha_subida para reflejar el orden
-            using var cmd = new NpgsqlCommand(@"
-                UPDATE servicios_imagenes 
-                SET es_principal = @es_principal,
-                    fecha_subida = NOW() + INTERVAL '1 second' * @orden
-                WHERE id_imagen = @id AND id_servicio = @id_servicio
-            ", conn);
-            cmd.Parameters.AddWithValue("@id", idImagen);
-            cmd.Parameters.AddWithValue("@id_servicio", idServicio);
-            cmd.Parameters.AddWithValue("@es_principal", esPrincipal);
-            cmd.Parameters.AddWithValue("@orden", orden);
-            await cmd.ExecuteNonQueryAsync();
-
-            Console.WriteLine($"[DEBUG] Orden actualizado exitosamente");
-
-            return Ok(new { ok = true });
-        }
-        catch (Exception ex)
-        {
-            Console.WriteLine($"[ERROR] Actualizando orden: {ex.Message}");
-            return StatusCode(500, new { error = ex.Message });
-        }
-    }
-
-    // =========================
-    // ELIMINAR IMAGEN DE SERVICIO
-    // =========================
-    [HttpDelete("{idServicio}/imagenes/{idImagen}")]
-    public async Task<IActionResult> EliminarImagen(int idServicio, int idImagen)
-    {
-        try
-        {
-            using var conn = new NpgsqlConnection(_config.GetConnectionString("DefaultConnection"));
-            await conn.OpenAsync();
-
-            // Obtener URL de la imagen
-            using var cmdGet = new NpgsqlCommand("SELECT url_imagen FROM servicios_imagenes WHERE id_imagen = @id AND id_servicio = @id_servicio", conn);
-            cmdGet.Parameters.AddWithValue("@id", idImagen);
-            cmdGet.Parameters.AddWithValue("@id_servicio", idServicio);
-            var urlImagen = await cmdGet.ExecuteScalarAsync() as string;
-
-            if (string.IsNullOrEmpty(urlImagen))
-                return NotFound(new { error = "Imagen no encontrada" });
-
-            // Solo eliminar de Supabase si es una imagen real (no default)
-            if (!urlImagen.Contains("default") && !urlImagen.StartsWith("img/"))
-            {
-                await _storageService.EliminarImagenAsync(urlImagen);
-            }
-
-            // Eliminar de la base de datos
-            using var cmdDelete = new NpgsqlCommand("DELETE FROM servicios_imagenes WHERE id_imagen = @id AND id_servicio = @id_servicio", conn);
-            cmdDelete.Parameters.AddWithValue("@id", idImagen);
-            cmdDelete.Parameters.AddWithValue("@id_servicio", idServicio);
-            await cmdDelete.ExecuteNonQueryAsync();
-
-            return Ok(new { ok = true, message = "Imagen eliminada" });
-        }
-        catch (Exception ex)
-        {
-            return StatusCode(500, new { error = ex.Message });
-        }
-    }
-
-    private string MapModalidad(object value)
-    {
-        if (value == null || value == DBNull.Value) return "🏫 Presencial";
-
-        string str = value.ToString();
-        return str switch
-        {
-            "0" => "🏫 Presencial",
-            "1" => "💻 Virtual",
-            "2" => "🔄 Mixta",
-            "Presencial" => "🏫 Presencial",
-            "Virtual" => "💻 Virtual",
-            "Mixta" => "🔄 Mixta",
-            _ => "🏫 Presencial"
-        };
-    }
-
-    private string MapDisponibilidad(object value)
-    {
-        if (value == null || value == DBNull.Value) return "📆 Entre semana";
-
-        string str = value.ToString();
-        return str switch
-        {
-            "-1" => "Pausado",
-            "0" => "📆 Entre semana",
-            "1" => "🎉 Fines de semana",
-            "2" => "⏰ Siempre disponible",
-            "Pausado" => "Pausado",
-            "Entre semana" => "📆 Entre semana",
-            "Fines de semana" => "🎉 Fines de semana",
-            "Siempre disponible" => "⏰ Siempre disponible",
-            _ => "📆 Entre semana"
-        };
-    }
-
-    // ── PUT /api/services/{id}/pausar (Admin) - Toggle disponibilidad
-    [HttpPut("{id}/pausar")]
-    public async Task<IActionResult> Pausar(int id)
-    {
-        try
-        {
-            using var conn = new NpgsqlConnection(_config.GetConnectionString("DefaultConnection"));
-            await conn.OpenAsync();
-
-            using var cmd = new NpgsqlCommand(
-                "UPDATE servicios SET disponibilidad = CASE WHEN disponibilidad = -1 THEN 2 ELSE -1 END WHERE id_servicio = @id", conn);
-            cmd.Parameters.AddWithValue("@id", id);
-
-            int filas = await cmd.ExecuteNonQueryAsync();
-            if (filas == 0)
-                return NotFound(new { error = "Servicio no encontrado" });
-
-            return Ok(new { ok = true });
-        }
-        catch (Exception ex)
-        {
-            return StatusCode(500, new { error = ex.Message });
-        }
-    }
-
-    // ── PUT /api/services/{id} (Update by owner)
-    [HttpPut("{id}")]
-    public async Task<IActionResult> Update(int id, [FromBody] EditarServicioDTO dto)
-    {
-        try
-        {
-            using var conn = new NpgsqlConnection(_config.GetConnectionString("DefaultConnection"));
-            await conn.OpenAsync();
-
-            using var cmd = new NpgsqlCommand(@"
-                UPDATE servicios
-                SET titulo = @titulo,
-                    descripcion = @descripcion,
-                    precio_hora = @precio_hora,
-                    contacto = @contacto,
-                    icono = @icono,
-                    ubicacion_lat = @ubicacion_lat,
-                    ubicacion_lng = @ubicacion_lng,
-                    direccion = @direccion
-                WHERE id_servicio = @id AND id_proveedor = @id_proveedor
-            ", conn);
-
-            cmd.Parameters.AddWithValue("@id", id);
-            cmd.Parameters.AddWithValue("@id_proveedor", dto.id_proveedor);
-            cmd.Parameters.AddWithValue("@titulo", dto.titulo ?? "");
-            cmd.Parameters.AddWithValue("@descripcion", dto.descripcion ?? "");
-            cmd.Parameters.AddWithValue("@precio_hora", dto.precio_hora);
-            cmd.Parameters.AddWithValue("@contacto", dto.contacto ?? "");
-            cmd.Parameters.AddWithValue("@icono", dto.icono ?? "");
-            cmd.Parameters.AddWithValue("@ubicacion_lat", dto.ubicacion_lat.HasValue ? (object)dto.ubicacion_lat.Value : DBNull.Value);
-            cmd.Parameters.AddWithValue("@ubicacion_lng", dto.ubicacion_lng.HasValue ? (object)dto.ubicacion_lng.Value : DBNull.Value);
-            cmd.Parameters.AddWithValue("@direccion", (object)dto.direccion ?? DBNull.Value);
-
-            int filas = await cmd.ExecuteNonQueryAsync();
-            if (filas == 0)
-                return NotFound(new { error = "Servicio no encontrado o no tienes permiso" });
-
-            return Ok(new { ok = true });
-        }
-        catch (Exception ex)
-        {
-            return StatusCode(500, new { error = ex.Message });
-        }
-    }
-
-    // ── DELETE /api/services/{id}
-    [HttpDelete("{id}")]
-    public async Task<IActionResult> Delete(int id, [FromQuery] int id_proveedor)
-    {
-        try
-        {
-            using var conn = new NpgsqlConnection(_config.GetConnectionString("DefaultConnection"));
-            await conn.OpenAsync();
-
-            // 1. Verificar que el servicio pertenece al proveedor
-            using var cmdCheck = new NpgsqlCommand(
-                "SELECT COUNT(1) FROM servicios WHERE id_servicio = @id AND id_proveedor = @id_proveedor",
-                conn);
-            cmdCheck.Parameters.AddWithValue("@id", id);
-            cmdCheck.Parameters.AddWithValue("@id_proveedor", id_proveedor);
-            int existe = Convert.ToInt32(await cmdCheck.ExecuteScalarAsync());
-            if (existe == 0)
-                return NotFound(new { error = "Servicio no encontrado o no tienes permiso" });
-
-            // 2. Eliminar calificaciones del servicio
-            using var cmdCalif = new NpgsqlCommand(
-                "DELETE FROM calificaciones WHERE id_servicio = @id", conn);
-            cmdCalif.Parameters.AddWithValue("@id", id);
-            await cmdCalif.ExecuteNonQueryAsync();
-
-            // 3. Eliminar solicitudes del servicio
-            using var cmdSol = new NpgsqlCommand(
-                "DELETE FROM solicitudes WHERE id_servicio = @id", conn);
-            cmdSol.Parameters.AddWithValue("@id", id);
-            await cmdSol.ExecuteNonQueryAsync();
-
-            // 4. Ahora sí eliminar el servicio
-            using var cmd = new NpgsqlCommand(
-                "DELETE FROM servicios WHERE id_servicio = @id AND id_proveedor = @id_proveedor",
-                conn);
-            cmd.Parameters.AddWithValue("@id", id);
-            cmd.Parameters.AddWithValue("@id_proveedor", id_proveedor);
-            await cmd.ExecuteNonQueryAsync();
-
-            return Ok(new { ok = true });
-        }
-        catch (Exception ex)
-        {
-            return StatusCode(500, new { error = ex.Message });
-        }
-    }
-
-    [HttpPut("{id}/aprobar")]
-    public async Task<IActionResult> Aprobar(int id)
-    {
-        try
-        {
-            using var conn = new NpgsqlConnection(_config.GetConnectionString("DefaultConnection"));
-            await conn.OpenAsync();
-
-            // 1. Obtener info del proveedor PRIMERO (antes del UPDATE)
-            string emailProv = "", nombreProv = "", tituloServ = "";
-            using (var cmdInfo = new NpgsqlCommand(@"
-            SELECT u.correo, u.nombre, s.titulo
-            FROM servicios s
-            INNER JOIN usuarios u ON s.id_proveedor = u.id_usuario
-            WHERE s.id_servicio = @id", conn))
-            {
-                cmdInfo.Parameters.AddWithValue("@id", id);
-                using var r = await cmdInfo.ExecuteReaderAsync();
-                if (await r.ReadAsync())
-                {
-                    emailProv = r["correo"].ToString()!;
-                    nombreProv = r["nombre"].ToString()!;
-                    tituloServ = r["titulo"].ToString()!;
-                }
-            }
-
-            // 2. Aprobar el servicio
-            using (var cmd = new NpgsqlCommand(
-                "UPDATE servicios SET disponibilidad = 2 WHERE id_servicio = @id", conn))
-            {
-                cmd.Parameters.AddWithValue("@id", id);
-                int filas = await cmd.ExecuteNonQueryAsync();
-                if (filas == 0)
-                    return NotFound(new { error = "Servicio no encontrado" });
-            }
-
-            // 3. Enviar correo
-            if (!string.IsNullOrEmpty(emailProv))
-            {
-                Console.WriteLine($"[EMAIL] Enviando aprobación a {emailProv}...");
-                await _emailService.EnviarResultadoRevision(emailProv, nombreProv, tituloServ, aprobado: true);
-            }
-            else
-            {
-                Console.WriteLine($"[EMAIL] No se encontró correo del proveedor para servicio {id}");
-            }
-
-            return Ok(new { ok = true });
-        }
-        catch (Exception ex)
-        {
-            Console.WriteLine($"[ERROR] Aprobar: {ex.Message}");
-            return StatusCode(500, new { error = ex.Message });
-        }
-    }
-    // ── PUT /api/services/{id}/rechazar (Admin)
-    [HttpPut("{id}/rechazar")]
-    public async Task<IActionResult> Rechazar(int id, [FromBody] RechazarServicioDTO dto)
-    {
-        try
-        {
-            using var conn = new NpgsqlConnection(_config.GetConnectionString("DefaultConnection"));
-            await conn.OpenAsync();
-
-            // 1. Obtener info del proveedor ANTES de borrar
-            string emailProv = "", nombreProv = "", tituloServ = "";
-            using (var cmdInfo = new NpgsqlCommand(@"
-            SELECT u.correo, u.nombre, s.titulo
-            FROM servicios s
-            INNER JOIN usuarios u ON s.id_proveedor = u.id_usuario
-            WHERE s.id_servicio = @id", conn))
-            {
-                cmdInfo.Parameters.AddWithValue("@id", id);
-                using var r = await cmdInfo.ExecuteReaderAsync();
-                if (await r.ReadAsync())
-                {
-                    emailProv = r["correo"].ToString()!;
-                    nombreProv = r["nombre"].ToString()!;
-                    tituloServ = r["titulo"].ToString()!;
-                }
-            }
-
-            // 2. Eliminar el servicio
-            using (var cmd = new NpgsqlCommand(
-                "DELETE FROM servicios WHERE id_servicio = @id", conn))
-            {
-                cmd.Parameters.AddWithValue("@id", id);
-                int filas = await cmd.ExecuteNonQueryAsync();
-                if (filas == 0)
-                    return NotFound(new { error = "Servicio no encontrado" });
-            }
-
-            // 3. Enviar correo
-            if (!string.IsNullOrEmpty(emailProv))
-            {
-                Console.WriteLine($"[EMAIL] Enviando rechazo a {emailProv}...");
-                await _emailService.EnviarResultadoRevision(
-                    emailProv, nombreProv, tituloServ,
-                    aprobado: false,
-                    razonRechazo: dto?.razon);
-            }
-            else
-            {
-                Console.WriteLine($"[EMAIL] No se encontró correo del proveedor para servicio {id}");
-            }
-
-            return Ok(new { ok = true });
-        }
-        catch (Exception ex)
-        {
-            Console.WriteLine($"[ERROR] Rechazar: {ex.Message}");
-            return StatusCode(500, new { error = ex.Message });
-        }
+            catch (Exception ex) { Console.WriteLine($"[EMAIL] No se pudo notificar a los admins: {ex.Message}"); }
+        });
     }
 }

@@ -1092,3 +1092,62 @@ body.admin-page .admin-tab.is-active {
   gap: 20px;
   flex-wrap: wrap;
 }
+
+/* ── Estados nuevos de servicios, filtros, motivo y paginación ── */
+.admin-badge--aprobado {
+  background: rgba(16, 185, 129, 0.12);
+  color: #10b981;
+  border: 1px solid rgba(16, 185, 129, 0.2);
+}
+.admin-badge--rechazado {
+  background: rgba(239, 68, 68, 0.12);
+  color: #ef4444;
+  border: 1px solid rgba(239, 68, 68, 0.2);
+}
+.admin-badge--pausado {
+  background: rgba(148, 163, 184, 0.12);
+  color: #94a3b8;
+  border: 1px solid rgba(148, 163, 184, 0.2);
+}
+.admin-filters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-bottom: 16px;
+}
+.admin-select {
+  background: var(--bg2);
+  border: 2px solid var(--borde);
+  border-radius: 12px;
+  color: var(--texto);
+  padding: 10px 14px;
+  font-size: 0.9rem;
+  outline: none;
+}
+.admin-textarea {
+  width: 100%;
+  min-height: 90px;
+  background: var(--bg2);
+  border: 1px solid var(--borde);
+  border-radius: 10px;
+  color: var(--texto);
+  padding: 10px 12px;
+  font-size: 0.9rem;
+  margin-bottom: 8px;
+  resize: vertical;
+  box-sizing: border-box;
+}
+.admin-textarea__ayuda {
+  color: var(--texto3);
+  font-size: 0.8rem;
+  margin: 0 0 12px;
+}
+.admin-pagination {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 16px;
+  margin-top: 16px;
+  color: var(--texto2);
+  font-size: 0.85rem;
+}

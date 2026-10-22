@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { useNavigate, useSearchParams, Link } from "react-router-dom";
-import { formatearFecha, calcularEstrellas, iniciales } from "../utils/helpers";
+import { formatearFecha, iniciales } from "../utils/helpers";
 import { COLORES_CATEGORIA } from "./shared/constantes";
 import "../styles/styleHome.css";
 import "../styles/styleServicio.css";
@@ -17,12 +17,37 @@ import {
   mostrarDisponibilidad,
   colorAvatar,
 } from "./Servicio/utilidades";
-import { apiImageUrl } from "../utils/apiFetch";
+import { apiFetch, apiImageUrl, limpiarSesion } from "../utils/apiFetch";
+import { formatPrecio } from "../utils/helpers";
+import { API_HOME, ESTADO_SERVICIO } from "./shared/constantes";
 import BotonTema from "../Components/B_StyleHome";
 import StarRating from "../Components/StarRating";
 
-const API = "/api/services";
-const API_USUARIO = "/api/users";
+const ETIQUETA_UNIDAD = { hora: "Precio por hora", mes: "Precio mensual", proyecto: "Precio por proyecto" };
+
+// GET /api/servicios/{id} → { servicio, imagenes, resenas, num_resenas, promedio }.
+// Se adapta a los nombres de campo que ya usa esta página.
+function adaptarDetalle({ servicio: s, imagenes, resenas, num_resenas, promedio }) {
+  return {
+    ...s,
+    id_proveedor: s.proveedor.id_usuario,
+    proveedor: s.proveedor.nombre,
+    universidad: s.proveedor.universidad,
+    avatar: s.proveedor.avatar,
+    proveedorInfo: s.proveedor,
+    nombre_categoria: s.categoria,
+    precio_hora: s.precio,
+    imagenes: imagenes.map((i) => ({ id_imagen: i.id_imagen, url_imagen: i.url, orden: i.orden })),
+    resenas: resenas.map((r) => ({
+      autor: r.autor,
+      fecha: formatearFecha(r.fecha) + (r.editada ? " (editada)" : ""),
+      comentario: r.comentario,
+      estrellas: r.puntuacion,
+    })),
+    num_resenas,
+    promedio,
+  };
+}
 
 export default function Servicio() {
   const navigate = useNavigate();
@@ -57,35 +82,10 @@ export default function Servicio() {
       return;
     }
 
-    const token = localStorage.getItem("token");
-
-    const opcionesFetch = {
-      method: "GET",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: token ? `Bearer ${token}` : undefined,
-      },
-    }
-
-    
-
-    fetch(`${API}/${idServicio}`, opcionesFetch)
-      .then((res) => {
-        if (!res.ok)
-          return res.json().then((err) => {
-            throw new Error(err.error || "Servicio no encontrado");
-          });
-        return res.json();
-      })
-      .then((data) => {
-        const s = Array.isArray(data) ? data[0] : data;
-        if (!s || !s.id_servicio) {
-          setError(true);
-          return;
-        }
-        console.log("Servicio cargado:", s);
-        console.log("Imagenes:", s.imagenes);
-        setServicio(s);
+    apiFetch(`${API_HOME}/${encodeURIComponent(idServicio)}`)
+      .then(({ ok, data }) => {
+        if (!ok) throw new Error(data?.error || "Servicio no encontrado");
+        setServicio(adaptarDetalle(data));
       })
       .catch((err) => {
         console.error("Error cargando servicio:", err);
@@ -95,15 +95,10 @@ export default function Servicio() {
   }, [idServicio, recargarResenas]);
 
   const handleCerrarSesion = async () => {
-    const id = localStorage.getItem("usuarioId");
     try {
-      await fetch(`${API_USUARIO}/${id}`, {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ estado: 0 }),
-      });
+      await apiFetch("/api/auth/logout", { method: "POST" });
     } catch {}
-    localStorage.clear();
+    limpiarSesion();
     navigate("/home-guest");
   };
 
@@ -137,8 +132,13 @@ export default function Servicio() {
       </>
     );
 
-  // CAMBIO 2: promNum en lugar de texto: estrellasTexto
-  const { promNum, prom, num } = calcularEstrellas(servicio.resenas);
+  // Calificación del servicio (la API la calcula sobre todas sus reseñas)
+  const promNum = Math.min(5, Math.max(0, Number(servicio.promedio) || 0));
+  const prom = promNum.toFixed(1);
+  const num = servicio.num_resenas ?? 0;
+  const proveedorInfo = servicio.proveedorInfo || {};
+  const esPropio = servicio.es_propio;
+  const estadoServicio = ESTADO_SERVICIO[servicio.estado];
 
   const universidad =
     servicio.universidad === 1 || servicio.universidad === "1"
@@ -154,16 +154,8 @@ export default function Servicio() {
     ?.toLowerCase()
     .includes("arriendo");
 
-  const imagenes =
-    servicio.imagenes && servicio.imagenes.length > 0
-      ? servicio.imagenes
-          .filter(
-            (img) =>
-              !img.url_imagen?.includes("default") &&
-              !img.url_imagen?.startsWith("img/"),
-          )
-          .sort((a, b) => new Date(a.fecha_subida) - new Date(b.fecha_subida))
-      : null;
+  // La API ya las devuelve ordenadas (orden 0 = portada)
+  const imagenes = servicio.imagenes.length > 0 ? servicio.imagenes : null;
 
   const iconosGaleria = [
     servicio.icono?.startsWith("bi-") ? servicio.icono : "bi-pin",
@@ -254,6 +246,7 @@ export default function Servicio() {
                   }}
                 >
                   <h1 style={{ flex: 1 }}>{servicio.titulo || "Sin título"}</h1>
+                  {!esPropio && (
                   <button
                     onClick={() => setModalReporteServicio(true)}
                     style={{
@@ -286,7 +279,32 @@ export default function Servicio() {
                     />
                     Reportar
                   </button>
+                  )}
                 </div>
+                {/* El dueño (y los admins) ven también sus servicios en revisión, rechazados o pausados */}
+                {servicio.estado !== "aprobado" && estadoServicio && (
+                  <div
+                    role="status"
+                    style={{
+                      marginTop: "12px",
+                      padding: "10px 14px",
+                      borderRadius: "10px",
+                      border: `1px solid ${estadoServicio.color}55`,
+                      background: `${estadoServicio.color}14`,
+                      color: estadoServicio.color,
+                      fontSize: "0.88rem",
+                    }}
+                  >
+                    <i className={`bi ${estadoServicio.icono}`}></i> {estadoServicio.texto}
+                    {servicio.estado === "pendiente" && " — aún no es visible para los demás usuarios."}
+                    {servicio.estado === "pausado" && " — no aparece en las búsquedas hasta que lo reanudes."}
+                    {servicio.motivo_rechazo && (
+                      <div style={{ marginTop: "4px", color: "var(--texto, inherit)" }}>
+                        Motivo: {servicio.motivo_rechazo}
+                      </div>
+                    )}
+                  </div>
+                )}
               </div>
 
               <div className="rating-grande">
@@ -326,9 +344,9 @@ export default function Servicio() {
                 </span>
               </div>
               <div className="info-row">
-                <span className="info-label">Precio por hora</span>
+                <span className="info-label">{ETIQUETA_UNIDAD[servicio.unidad_precio] || "Precio"}</span>
                 <span className="info-valor">
-                  ${servicio.precio_hora || 0} COP
+                  {formatPrecio(servicio.precio_hora, servicio.unidad_precio)} COP
                 </span>
               </div>
               <div className="info-row">
@@ -395,11 +413,13 @@ export default function Servicio() {
               )}
             </div>
 
-            <FormCalificacion
-              servicioId={idServicio}
-              showModal={showModal}
-              onNuevaResena={() => setRecargarResenas((n) => n + 1)}
-            />
+            {!esPropio && (
+              <FormCalificacion
+                servicioId={idServicio}
+                showModal={showModal}
+                onNuevaResena={() => setRecargarResenas((n) => n + 1)}
+              />
+            )}
           </div>
 
           {/* COLUMNA DERECHA: Proveedor + Contacto + Formulario */}
@@ -413,10 +433,8 @@ export default function Servicio() {
                     nombre: servicio.proveedor,
                     universidad: universidad,
                     contacto: servicio.contacto,
-                    estrellas: servicio.estrellas,
-                    resenas: Array.isArray(servicio.resenas)
-                      ? servicio.resenas.length
-                      : (servicio.resenas ?? 0),
+                    estrellas: proveedorInfo.promedio,
+                    resenas: proveedorInfo.num_resenas ?? 0,
                   },
                 }}
                 style={{ textDecoration: "none" }}
@@ -448,11 +466,8 @@ export default function Servicio() {
                   <div className="card-proveedor-footer">
                     <span className="badge-proveedor">
                       <i className="bi bi-star-fill"></i>{" "}
-                      {servicio.estrellas || "0"} ·{" "}
-                      {Array.isArray(servicio.resenas)
-                        ? servicio.resenas.length
-                        : (servicio.resenas ?? 0)}{" "}
-                      reseñas
+                      {Number(proveedorInfo.promedio || 0).toFixed(1)} ·{" "}
+                      {proveedorInfo.num_resenas ?? 0} reseñas
                     </span>
                     <span className="badge-ver">Ver perfil →</span>
                   </div>
@@ -481,12 +496,14 @@ export default function Servicio() {
                       <i className="bi bi-whatsapp"></i> Contactar por WhatsApp
                     </a>
                   )}
-                  <button
-                    className="btn-primary btn-contacto btn-chat-detalle"
-                    onClick={() => setChatPanelAbierto(true)}
-                  >
-                    <i className="bi bi-chat-dots-fill"></i> Enviar mensaje
-                  </button>
+                  {!esPropio && (
+                    <button
+                      className="btn-primary btn-contacto btn-chat-detalle"
+                      onClick={() => setChatPanelAbierto(true)}
+                    >
+                      <i className="bi bi-chat-dots-fill"></i> Enviar mensaje
+                    </button>
+                  )}
                 </div>
               )}
             </div>
@@ -497,25 +514,30 @@ export default function Servicio() {
               </h3>
               <div className="info-row">
                 <span className="info-label">Publicaciones</span>
-                <span className="info-valor">1 servicio</span>
+                <span className="info-valor">
+                  {proveedorInfo.servicios_publicados ?? 0}{" "}
+                  {proveedorInfo.servicios_publicados === 1 ? "servicio" : "servicios"}
+                </span>
               </div>
               <div className="info-row">
                 <span className="info-label">Reseñas totales</span>
-                <span className="info-valor">{num}</span>
+                <span className="info-valor">{proveedorInfo.num_resenas ?? 0}</span>
               </div>
               <div className="info-row">
                 <span className="info-label">Calificación</span>
-                <span className="info-valor">{prom} ★</span>
+                <span className="info-valor">{Number(proveedorInfo.promedio || 0).toFixed(1)} ★</span>
               </div>
             </div>
 
-            <FormSolicitud
-              servicioId={idServicio}
-              proveedorId={servicio.id_proveedor}
-              proveedorNombre={servicio.proveedor}
-              categoria={servicio.nombre_categoria}
-              showModal={showModal}
-            />
+            {!esPropio && servicio.estado === "aprobado" && (
+              <FormSolicitud
+                servicioId={idServicio}
+                proveedorId={servicio.id_proveedor}
+                proveedorNombre={servicio.proveedor}
+                categoria={servicio.nombre_categoria}
+                showModal={showModal}
+              />
+            )}
           </div>
         </div>
       </main>

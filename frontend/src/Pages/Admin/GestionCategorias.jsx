@@ -1,70 +1,36 @@
 import { useState, useEffect } from "react";
 import { apiFetch } from "../../utils/apiFetch";
+import { ICONOS_POR_NOMBRE_CATEGORIA } from "../shared/constantes";
 
-const API = "/api";
-
-export default function SeccionCategorias({ onRefresh }) {
+// Categorías de la tabla categorias con su número de servicios publicados.
+// Son de sólo lectura: los formularios de la web y la app dependen de sus id (1 a 7).
+export default function SeccionCategorias() {
   const [categorias, setCategorias] = useState([]);
   const [cargando, setCargando] = useState(true);
-  const [nueva, setNueva] = useState("");
-  const [agregando, setAgregando] = useState(false);
-  const [modal, setModal] = useState(null);
-
-  const cargarCategorias = async () => {
-    setCargando(true);
-    try {
-      const { data: servicios } = await apiFetch(`${API}/services`);
-      const serviciosArr = Array.isArray(servicios) ? servicios : [];
-
-      const mapa = {};
-      serviciosArr.forEach((s) => {
-        const nombre = s.nombre_categoria || "Sin categoría";
-        if (!mapa[nombre]) {
-          mapa[nombre] = {
-            id: nombre,
-            nombre: nombre,
-            icono: s.icono?.startsWith("bi-") ? s.icono : "bi-pin",
-            servicios: 0,
-          };
-        }
-        mapa[nombre].servicios++;
-      });
-
-      setCategorias(Object.values(mapa));
-    } catch {
-      setCategorias([]);
-    } finally {
-      setCargando(false);
-    }
-  };
 
   useEffect(() => {
-    cargarCategorias();
+    (async () => {
+      try {
+        const { ok, data } = await apiFetch("/api/servicios/categorias");
+        const lista = ok && Array.isArray(data) ? data : [];
+        // El listado público devuelve el total de servicios aprobados de cada categoría.
+        const totales = await Promise.all(
+          lista.map((c) =>
+            apiFetch(`/api/servicios?categoria=${c.id_categoria}&por_pagina=1`).then((r) => (r.ok ? r.data.total : 0)),
+          ),
+        );
+        setCategorias(
+          lista.map((c, i) => ({
+            ...c,
+            icono: ICONOS_POR_NOMBRE_CATEGORIA[c.nombre] || "bi-pin",
+            servicios: totales[i],
+          })),
+        );
+      } finally {
+        setCargando(false);
+      }
+    })();
   }, []);
-
-  const eliminar = async (nombre) => {
-    const cat = categorias.find((c) => c.nombre === nombre);
-    if (cat && cat.servicios > 0) {
-      setModal({
-        tipo: "error",
-        titulo: "No se puede eliminar",
-        mensaje: `No se puede eliminar "${nombre}" porque tiene ${cat.servicios} servicios asociados.`,
-      });
-      return;
-    }
-    setModal({
-      tipo: "confirm",
-      titulo: "Eliminar categoría",
-      mensaje: `¿Eliminar la categoría "${nombre}"?`,
-      onConfirm: () => {
-        setCategorias((prev) => prev.filter((c) => c.nombre !== nombre));
-        if (window.registrarLogAdmin) {
-          window.registrarLogAdmin("Eliminó categoría", nombre);
-        }
-        setModal({ tipo: "success", titulo: "Categoría eliminada", mensaje: `"${nombre}" ha sido eliminada.` });
-      },
-    });
-  };
 
   return (
     <section className="admin-section">
@@ -88,70 +54,20 @@ export default function SeccionCategorias({ onRefresh }) {
       ) : (
         <div className="admin-category-grid">
           {categorias.map((c) => (
-            <div key={c.id} className="admin-category-card">
+            <div key={c.id_categoria} className="admin-category-card">
               <div className="admin-category-card__header">
                 <span className="admin-category-card__icon">
                   <i className={`bi ${c.icono}`}></i>
                 </span>
-                {c.servicios === 0 && (
-                  <button
-                    className="admin-category-card__delete"
-                    onClick={() => eliminar(c.nombre)}
-                  >
-                    ✕
-                  </button>
-                )}
               </div>
               <p className="admin-category-card__name">{c.nombre}</p>
               <p className="admin-category-card__count">
-                {c.servicios} servicios activos
+                {c.servicios} servicios publicados
               </p>
             </div>
           ))}
         </div>
       )}
-
-      {modal && (
-        <AdminModal modal={modal} onClose={() => setModal(null)} />
-      )}
     </section>
-  );
-}
-
-function AdminModal({ modal, onClose }) {
-  const isConfirm = modal.tipo === "confirm";
-  const isSuccess = modal.tipo === "success";
-  const isError = modal.tipo === "error";
-
-  const icon = isConfirm
-    ? <i className="bi bi-question-circle-fill" style={{ fontSize: "2.5rem", color: "#f59e0b" }}></i>
-    : isSuccess
-    ? <i className="bi bi-check-circle-fill" style={{ fontSize: "2.5rem", color: "#10b981" }}></i>
-    : <i className="bi bi-x-circle-fill" style={{ fontSize: "2.5rem", color: "#ef4444" }}></i>;
-
-  return (
-    <div className="admin-modal-overlay" onClick={onClose}>
-      <div className="admin-modal-content" onClick={(e) => e.stopPropagation()}>
-        <div className="admin-modal-icon">{icon}</div>
-        <h3 className="admin-modal-title">{modal.titulo}</h3>
-        <p className="admin-modal-message">{modal.mensaje}</p>
-        <div className="admin-modal-actions">
-          {isConfirm ? (
-            <>
-              <button className="admin-btn-action admin-btn-action--ghost" onClick={onClose}>
-                Cancelar
-              </button>
-              <button className="admin-btn-action admin-btn-action--danger" onClick={() => { onClose(); modal.onConfirm(); }}>
-                Confirmar
-              </button>
-            </>
-          ) : (
-            <button className="admin-btn-action admin-btn-action--success" onClick={onClose}>
-              Entendido
-            </button>
-          )}
-        </div>
-      </div>
-    </div>
   );
 }

@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from "react";
-import { apiFetch } from "../utils/apiFetch";
+import { apiFetch, mensajeError } from "../utils/apiFetch";
 
 // Tipos según contexto
 const TIPOS_SERVICIO = [
@@ -35,7 +35,6 @@ export default function ModalReporte({
   idUsuarioReportado = null,
   contexto = "pagina",
 }) {
-  const id_usuario = parseInt(localStorage.getItem("usuarioId") || "0");
   const fileInputRef = useRef(null);
   const modalRef = useRef(null);
 
@@ -95,29 +94,33 @@ export default function ModalReporte({
     if (!form.tipo_reporte || !form.titulo.trim() || !form.descripcion.trim()) {
       setError("Por favor completa el tipo, título y descripción."); return;
     }
-    if (form.titulo.length > 150) { setError("El título no puede superar 150 caracteres."); return; }
+    if (form.titulo.trim().length < 5 || form.titulo.length > 150) { setError("El título debe tener entre 5 y 150 caracteres."); return; }
+    if (form.descripcion.trim().length < 10 || form.descripcion.length > 2000) { setError("La descripción debe tener entre 10 y 2000 caracteres."); return; }
     setError("");
     setEnviando(true);
     try {
       const { ok, data } = await apiFetch(`/api/reportes`, {
         method: "POST",
+        // El autor del reporte lo saca la API de la sesión.
         body: JSON.stringify({
-          id_usuario,
           id_servicio: idServicio || null,
           id_solicitud: idSolicitud || null,
           id_usuario_reportado: idUsuarioReportado || null,
           tipo_reporte: form.tipo_reporte,
           titulo: form.titulo.trim(),
           descripcion: form.descripcion.trim(),
-          evidencia: null,
         }),
       });
-      if (!ok || !data?.ok) { setError(data?.error || "No se pudo crear el reporte."); return; }
+      if (!ok) { setError(mensajeError(data, "No se pudo crear el reporte.")); return; }
 
       if (imagenes.length > 0) {
         const formData = new FormData();
         imagenes.forEach((img) => formData.append("imagenes", img));
-        await apiFetch(`/api/reportes/${data.id_reporte}/imagenes`, { method: "POST", body: formData });
+        const subida = await apiFetch(`/api/reportes/${data.id_reporte}/imagenes`, { method: "POST", body: formData });
+        if (!subida.ok) {
+          setError(`El reporte se envió, pero las imágenes no: ${mensajeError(subida.data, "error al subirlas")}`);
+          return;
+        }
       }
       setExito(true);
     } catch { setError("Error de conexión. Intenta de nuevo."); }

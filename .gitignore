@@ -37,3 +37,8 @@ Proyecto-main/src/PHP/UserPerfilFotos/*
 
 #---cache de c# en visual studio---
 *.lscache
+
+# --- Flutter / Dart ---
+.dart_tool/
+.flutter-plugins
+.flutter-plugins-dependencies

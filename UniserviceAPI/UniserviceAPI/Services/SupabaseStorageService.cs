@@ -61,6 +61,24 @@ namespace UniserviceAPI.Services
             return $"{_supabaseUrl}/storage/v1/object/public/{_bucketName}/{nombreArchivo}";
         }
 
+        // Sube bytes ya validados a {bucket}/{ruta} y devuelve la URL pública.
+        public async Task<string> SubirAsync(string ruta, byte[] datos, string contentType, CancellationToken ct = default)
+        {
+            if (string.IsNullOrEmpty(_serviceKey))
+                throw new InvalidOperationException("Supabase Service Key no configurada");
+
+            using var request = new HttpRequestMessage(HttpMethod.Post, $"{_supabaseUrl}/storage/v1/object/{_bucketName}/{ruta}");
+            request.Headers.Add("apikey", _serviceKey);
+            request.Headers.Add("Authorization", $"Bearer {_serviceKey}");
+            request.Content = new ByteArrayContent(datos);
+            request.Content.Headers.ContentType = new MediaTypeHeaderValue(contentType);
+
+            using var response = await _httpClient.SendAsync(request, ct);
+            if (!response.IsSuccessStatusCode)
+                throw new InvalidOperationException($"Supabase Storage respondió {(int)response.StatusCode}: {await response.Content.ReadAsStringAsync(ct)}");
+            return $"{_supabaseUrl}/storage/v1/object/public/{_bucketName}/{ruta}";
+        }
+
         public async Task<bool> EliminarImagenAsync(string urlImagen)
         {
             if (string.IsNullOrEmpty(_serviceKey))
@@ -75,7 +93,8 @@ namespace UniserviceAPI.Services
             var bucketIndex = System.Array.IndexOf(pathSegments, _bucketName);
             if (bucketIndex == -1) return false;
             
-            var nombreArchivo = string.Join("/", pathSegments.Skip(bucketIndex));
+            // Lo que va después del nombre del bucket (antes se incluía el bucket y el borrado fallaba).
+            var nombreArchivo = string.Join("/", pathSegments.Skip(bucketIndex + 1));
 
             var url = $"{_supabaseUrl}/storage/v1/object/{_bucketName}/{nombreArchivo}";
 

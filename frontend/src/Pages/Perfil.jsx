@@ -10,9 +10,30 @@ import InfoItem from "./Perfil/ElementoInfo";
 import BotonTema from "../Components/B_StyleHome";
 import ChatPanel from "./Principal/ChatPanel";
 import ModalReporte from "../Components/ModalReporte";
-import { apiFetch, apiImageUrl } from "../utils/apiFetch";
+import { apiFetch, apiImageUrl, limpiarSesion, mensajeError } from "../utils/apiFetch";
+import { formatPrecio } from "../utils/helpers";
+import { API_HOME, API_PERFIL, ESTADO_SERVICIO, UNIDADES_PRECIO } from "./shared/constantes";
 
-const API_USUARIO = "/api/users";
+// GET /api/perfil/me o /api/perfil/{id} → campos que usa esta página.
+function adaptarPerfil(p) {
+  const e = p.estadisticas || {};
+  return {
+    ...p,
+    total_publicaciones: e.servicios ?? 0,
+    total_seguidores: e.seguidores ?? 0,
+    total_siguiendo: e.siguiendo ?? 0,
+    reputacion: e.calificacion_promedio,
+    total_calificaciones: e.total_calificaciones ?? 0,
+  };
+}
+
+// Mismas reglas que la API: 8 a 72 caracteres, con letras y números.
+function errorPassword(p) {
+  if (p.length < 8) return "La contraseña debe tener al menos 8 caracteres.";
+  if (p.length > 72) return "La contraseña es demasiado larga (máximo 72 caracteres).";
+  if (!/\p{L}/u.test(p) || !/\d/.test(p)) return "La contraseña debe combinar letras y números.";
+  return "";
+}
 
 const Perfil = () => {
   // Hook de navegación — redirige programáticamente a otras rutas
@@ -35,31 +56,32 @@ const Perfil = () => {
 
   // Estado para saber si el usuario logueado ya sigue al dueño del perfil externo
   const [siguiendo, setSiguiendo] = useState(false);
+  const [perfilNoEncontrado, setPerfilNoEncontrado] = useState(false);
 
   // Estado principal con todos los datos del perfil a mostrar
   // Se inicializa con valores por defecto mientras llega la respuesta del API
   const [userData, setUserData] = useState({
     nombre: "Cargando...",
-    avatar: "../src/img/default-avatar.png",
+    avatar: null,
     descripcion: "Cargando información...",
-    telefono: "No disponible",
-    correo: "usuario@ejemplo.com",
-    fecha_registro: "2024-01-01",
-    estado: 0, // 0 = desconectado por defecto mientras carga
+    telefono: "",
+    correo: "",
+    fecha_registro: null,
     total_publicaciones: 0,
     total_seguidores: 0,
     total_siguiendo: 0,
     reputacion: null, // null hasta que llegue el dato real
-    universidad: "Sin universidad",
+    universidad: "",
+    perfil_academico: {},
   });
 
   // Flag antirrebote: impide múltiples clics en "Seguir/Dejar de seguir"
   const [enviandoSeguimiento, setEnviandoSeguimiento] = useState(false);
 
-  // Controla qué modal está visible: "info", "imagen", "actividad", "seguridad" o null
+  // Controla qué modal está visible: "info", "imagen", "seguridad" o null
   const [activeModal, setActiveModal] = useState(null);
 
-  // Lista de servicios publicados por el usuario (solo se carga si es perfil propio)
+  // Servicios del usuario en cualquier estado (solo se carga si es perfil propio)
   const [misServicios, setMisServicios] = useState([]);
   const [modalServicios, setModalServicios] = useState(false);
   // Almacena el servicio que se está editando (con todos sus campos)
@@ -71,7 +93,6 @@ const Perfil = () => {
   const [listaSeguidores, setListaSeguidores] = useState([]);
   const [cargandoSeguidores, setCargandoSeguidores] = useState(false);
 
-  // Agregar junto a los otros estados
   const [modalReporteAbierto, setModalReporteAbierto] = useState(false);
 
   // Modal de siguiendo
@@ -101,26 +122,21 @@ const Perfil = () => {
     confirmar: "",
   });
 
-  // Formulario de cambio de correo
-  const [formCorreo, setFormCorreo] = useState({
-    nuevoCorreo: "",
-    password: "",
-  });
-
   const resetSeguridadForms = () => {
     setSeguridadSubPaso(null);
     setSeguridadCargando(false);
     setFormPassword({ actual: "", nueva: "", confirmar: "" });
-    setFormCorreo({ nuevoCorreo: "", password: "" });
   };
 
+  // La API cierra todas las sesiones (también en otros dispositivos) y devuelve un token nuevo para esta.
   const handleCambiarPassword = async () => {
     if (!formPassword.actual || !formPassword.nueva || !formPassword.confirmar) {
       mostrarAlerta("error", "Error", "Todos los campos son requeridos.");
       return;
     }
-    if (formPassword.nueva.length < 8) {
-      mostrarAlerta("error", "Error", "La contraseña debe tener al menos 8 caracteres.");
+    const error = errorPassword(formPassword.nueva);
+    if (error) {
+      mostrarAlerta("error", "Error", error);
       return;
     }
     if (formPassword.nueva !== formPassword.confirmar) {
@@ -132,16 +148,17 @@ const Perfil = () => {
       const { ok, data } = await apiFetch("/api/auth/change-password", {
         method: "POST",
         body: JSON.stringify({
-          contrasenaActual: formPassword.actual,
-          contrasenaNueva: formPassword.nueva,
+          ContrasenaActual: formPassword.actual,
+          ContrasenaNueva: formPassword.nueva,
         }),
       });
       if (ok) {
-        mostrarAlerta("success", "Hecho", "Contraseña cambiada correctamente.");
+        if (data?.token) localStorage.setItem("token", data.token);
+        mostrarAlerta("success", "Hecho", "Contraseña cambiada. Se cerró la sesión en tus otros dispositivos.");
         resetSeguridadForms();
         setActiveModal(null);
       } else {
-        mostrarAlerta("error", "Error", data?.error || "No se pudo cambiar la contraseña.");
+        mostrarAlerta("error", "Error", mensajeError(data, "No se pudo cambiar la contraseña."));
       }
     } catch {
       mostrarAlerta("error", "Error", "Error de conexión con el servidor.");
@@ -150,38 +167,6 @@ const Perfil = () => {
     }
   };
 
-  const handleCambiarCorreo = async () => {
-    if (!formCorreo.nuevoCorreo || !formCorreo.password) {
-      mostrarAlerta("error", "Error", "Todos los campos son requeridos.");
-      return;
-    }
-    if (!formCorreo.nuevoCorreo.includes("@")) {
-      mostrarAlerta("error", "Error", "Ingresa un correo electrónico válido.");
-      return;
-    }
-    setSeguridadCargando(true);
-    try {
-      const { ok, data } = await apiFetch("/api/auth/change-email", {
-        method: "POST",
-        body: JSON.stringify({
-          nuevoCorreo: formCorreo.nuevoCorreo,
-          password: formCorreo.password,
-        }),
-      });
-      if (ok) {
-        setUserData((prev) => ({ ...prev, correo: formCorreo.nuevoCorreo }));
-        mostrarAlerta("success", "Hecho", "Correo cambiado correctamente.");
-        resetSeguridadForms();
-        setActiveModal(null);
-      } else {
-        mostrarAlerta("error", "Error", data?.error || "No se pudo cambiar el correo.");
-      }
-    } catch {
-      mostrarAlerta("error", "Error", "Error de conexión con el servidor.");
-    } finally {
-      setSeguridadCargando(false);
-    }
-  };
   const [listaSiguiendo, setListaSiguiendo] = useState([]);
   const [cargandoSiguiendo, setCargandoSiguiendo] = useState(false);
 
@@ -191,14 +176,17 @@ const Perfil = () => {
   const [cargandoImagenes, setCargandoImagenes] = useState(false);
   const fileInputRefImagenes = useRef(null);
 
+  // Seguidores y seguidos: { items: [{ id, nombre, avatar, universidad, lo_sigo }], total }
+  const cargarLista = async (tipo) => {
+    const { ok, data } = await apiFetch(`${API_PERFIL}/${id_a_consultar}/${tipo}?tamano=50`);
+    return ok ? data.items.map((u) => ({ ...u, id_usuario: u.id })) : [];
+  };
+
   const abrirModalSeguidores = async () => {
     setModalSeguidores(true);
     setCargandoSeguidores(true);
     try {
-      const { data } = await apiFetch(
-        `/api/seguidores/lista?id_usuario=${id_a_consultar}`,
-      );
-      setListaSeguidores(data);
+      setListaSeguidores(await cargarLista("seguidores"));
     } catch (err) {
       console.error("Error al cargar seguidores:", err);
     } finally {
@@ -210,10 +198,7 @@ const Perfil = () => {
     setModalSiguiendo(true);
     setCargandoSiguiendo(true);
     try {
-      const { data } = await apiFetch(
-        `/api/seguidores/siguiendo?id_usuario=${id_a_consultar}`,
-      );
-      setListaSiguiendo(data);
+      setListaSiguiendo(await cargarLista("siguiendo"));
     } catch (err) {
       console.error("Error al cargar siguiendo:", err);
     } finally {
@@ -221,58 +206,27 @@ const Perfil = () => {
     }
   };
 
-  const getAvatarUrl = (avatar) => {
-    if (!avatar) return "/img/default_avatar.png";
-    if (avatar === "img/default_avatar.png") return "/img/default_avatar.png";
-    if (avatar.startsWith("http")) return avatar;
-    if (avatar.startsWith("/avatars/") || avatar.startsWith("/imagenes-servicios/")) {
-      const API_BASE = import.meta.env.VITE_API_URL || "";
-      return `${API_BASE}${avatar}`;
-    }
-    if (avatar.startsWith("/src") || avatar.startsWith("../")) return avatar;
-    return `/${avatar}`;
-  };
-
-  // ════════════════════════════════════════════════════════════
-  // SABER SI YA SEGUIMOS A ESTE USUARIO (solo en perfil externo)
-  // ════════════════════════════════════════════════════════════
-
-  useEffect(() => {
-    if (esPerfilExterno && id_usuario_logueado && id_a_consultar) {
-      apiFetch(
-        `/api/seguidores/estado?seguidor=${id_usuario_logueado}&seguido=${id_a_consultar}`,
-      )
-        .then(({ data }) => setSiguiendo(data.sigues))
-        .catch((err) => console.error("Error al verificar seguimiento:", err));
-    }
-  }, [id_a_consultar, esPerfilExterno, id_usuario_logueado]);
+  const getAvatarUrl = (avatar) => apiImageUrl(avatar) || "/img/default_avatar.png";
 
   // ════════════════════════
   // CARGAR DATOS DEL USUARIO
   // ════════════════════════
   useEffect(() => {
-    // Guardamos para no hacer fetch con un ID inválido
-    if (!id_a_consultar || id_a_consultar === "undefined") {
-      console.warn("No hay ID guardado. Debes iniciar sesión.");
+    // El perfil exige sesión iniciada
+    if (!localStorage.getItem("token") || !id_a_consultar || id_a_consultar === "undefined") {
+      navigate("/login");
       return;
     }
 
-    // GET al endpoint de usuarios con el token JWT en el header para autenticar
-    apiFetch(`/api/users/${id_a_consultar}`)
-      .then(({ data }) => {
-        if (!data.error) {
-          let enLinea = false;
-          if (data.ultima_actividad) {
-            const ultima = new Date(data.ultima_actividad);
-            const ahora = new Date();
-            const diffMinutos = (ahora - ultima) / 60000;
-            enLinea = diffMinutos < 2;
-          }
-          setUserData({
-            ...data,
-            estado: enLinea,
-          });
+    setPerfilNoEncontrado(false);
+    apiFetch(esPerfilExterno ? `${API_PERFIL}/${encodeURIComponent(id_a_consultar)}` : `${API_PERFIL}/me`)
+      .then(({ ok, data }) => {
+        if (!ok) {
+          setPerfilNoEncontrado(true);
+          return;
         }
+        setUserData(adaptarPerfil(data));
+        if (esPerfilExterno) setSiguiendo(!!data.lo_sigo);
       })
       .catch((err) => console.error("Error al cargar perfil:", err));
 
@@ -283,42 +237,41 @@ const Perfil = () => {
     window.addEventListener("keydown", handleKeyDown);
     // Limpiamos el evento al desmontar el componente para evitar memory leaks
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [id_a_consultar]);
+  }, [id_a_consultar, esPerfilExterno, navigate]);
 
   // ═════════════════════════════════
   // CARGAR DATOS DE SERVICIOS PROPIOS
   // ═════════════════════════════════
-  useEffect(() => {
-    // Los servicios solo se cargan si es el perfil propio
-    if (esPerfilExterno || !id_a_consultar || id_a_consultar === "undefined")
-      return;
-
-    // Traemos servicios del usuario con paginación (pedimos más para asegurar)
-    apiFetch(`/api/services?page=1&pageSize=50&orden=recientes`)
-      .then(({ data }) => {
-        const lista = data.servicios || data;
-        if (!Array.isArray(lista)) return;
-        setMisServicios(
-          lista.filter((s) => s.id_proveedor === parseInt(id_a_consultar)),
-        );
+  const cargarMisServicios = () =>
+    apiFetch(`${API_HOME}/mios`)
+      .then(({ ok, data }) => {
+        if (ok && Array.isArray(data)) setMisServicios(data);
       })
       .catch(console.error);
+
+  useEffect(() => {
+    // Los servicios solo se cargan si es el perfil propio
+    if (esPerfilExterno || !id_a_consultar || id_a_consultar === "undefined") return;
+    cargarMisServicios();
   }, [id_a_consultar, esPerfilExterno]);
 
   // ════════════════════════════════════════════════════════
   // ACTUALIZAR INFO EN LA BASE DE DATOS (solo perfil propio)
   // ════════════════════════════════════════════════════════
-  // Función genérica: recibe el nombre del campo y el nuevo valor
-  // Esto permite reusar la misma función para nombre, descripción, teléfono, etc.
+  // Función genérica: recibe el nombre del campo y el nuevo valor (nombre, descripción, teléfono,
+  // programa, semestre...). La API devuelve el perfil completo ya actualizado.
   const handleUpdate = async (campo, valor) => {
     try {
-      const { ok, data } = await apiFetch(`/api/users/${id_usuario_logueado}`, {
+      const { ok, data } = await apiFetch(`${API_PERFIL}/me`, {
         method: "PUT",
         body: JSON.stringify({ [campo]: valor }),
       });
       if (ok) {
-        setUserData((prev) => ({ ...prev, [campo]: valor }));
+        setUserData(adaptarPerfil(data));
+        if (campo === "nombre") localStorage.setItem("usuarioNombre", data.nombre);
         setActiveModal(null);
+      } else {
+        mostrarAlerta("error", "Error", mensajeError(data, "No se pudo actualizar el campo."));
       }
     } catch {
       mostrarAlerta("error", "Error", "No se pudo actualizar el campo.");
@@ -330,86 +283,107 @@ const Perfil = () => {
   // ═════════════
   const handleCerrarSesion = async () => {
     try {
-      await apiFetch(`/api/users/${id_usuario_logueado}`, {
-        method: "PUT",
-        body: JSON.stringify({ estado: 0 }),
-      });
+      await apiFetch("/api/auth/logout", { method: "POST" });
     } catch (err) {
       console.error("Error al cerrar sesión:", err);
     } finally {
-      localStorage.clear();
+      limpiarSesion();
       navigate("/home-guest");
+    }
+  };
+
+  // ═══════════════════════════════════
+  // GESTIÓN DE MIS SERVICIOS
+  // Editar texto o imágenes devuelve el servicio a revisión ('pendiente').
+  // ═══════════════════════════════════
+  const detalleServicio = async (idServicio) => {
+    const { ok, data } = await apiFetch(`${API_HOME}/${idServicio}`);
+    if (!ok) throw new Error(mensajeError(data, "No se pudo cargar el servicio"));
+    return data;
+  };
+
+  // La edición necesita todos los campos del servicio, no sólo los del listado
+  const abrirEdicion = async (s) => {
+    try {
+      const { servicio } = await detalleServicio(s.id_servicio);
+      setEditando({ ...servicio, id_servicio: s.id_servicio });
+    } catch (err) {
+      mostrarAlerta("error", "Error", err.message);
     }
   };
 
   // Prepara y envía los datos del servicio editado al backend
   const guardarEdicion = async (s) => {
     const body = {
-      id_proveedor: parseInt(id_usuario_logueado),
-      titulo: s.titulo || "",
-      descripcion: s.descripcion || "",
-      precio_hora: Number(s.precio_hora) || 0,
-      contacto: s.contacto || "",
-      icono: s.icono || "bi-pin",
+      titulo: (s.titulo || "").trim(),
+      descripcion: (s.descripcion || "").trim(),
+      id_categoria: s.id_categoria,
+      precio: Number(s.precio) || 0,
+      unidad_precio: s.unidad_precio,
+      modalidad: s.modalidad,
+      disponibilidad: s.disponibilidad,
+      contacto: (s.contacto || "").trim(),
+      direccion: s.direccion || null,
+      ubicacion_lat: s.ubicacion_lat ?? null,
+      ubicacion_lng: s.ubicacion_lng ?? null,
     };
+    if (body.titulo.length < 5) return mostrarAlerta("error", "Error", "El título debe tener al menos 5 caracteres.");
+    if (body.descripcion.length < 20) return mostrarAlerta("error", "Error", "La descripción debe tener al menos 20 caracteres.");
+    if (body.precio < 1000) return mostrarAlerta("error", "Error", "El precio mínimo es $1.000 COP.");
 
-    const { ok, data } = await apiFetch(`/api/services/${s.id_servicio}`, {
+    const { ok, data } = await apiFetch(`${API_HOME}/${s.id_servicio}`, {
       method: "PUT",
       body: JSON.stringify(body),
     });
 
     if (ok) {
-      setMisServicios((prev) =>
-        prev.map((x) =>
-          x.id_servicio === s.id_servicio ? { ...x, ...body } : x,
-        ),
-      );
       setEditando(null);
+      await cargarMisServicios();
+      mostrarAlerta("info", "Enviado a revisión", "Guardamos los cambios. El servicio volverá a publicarse cuando un administrador lo apruebe.");
     } else {
-      mostrarAlerta("error", "Error", data?.error || "No se pudo guardar.");
+      mostrarAlerta("error", "Error", mensajeError(data, "No se pudo guardar."));
     }
+  };
+
+  // Pausar un servicio publicado o reanudar uno pausado (no necesita nueva revisión)
+  const alternarPausa = async (s) => {
+    const { ok, data } = await apiFetch(`${API_HOME}/${s.id_servicio}/pausa`, {
+      method: "PATCH",
+      body: JSON.stringify({ pausado: s.estado === "aprobado" }),
+    });
+    if (ok) setMisServicios((prev) => prev.map((x) => (x.id_servicio === s.id_servicio ? { ...x, estado: data.estado } : x)));
+    else mostrarAlerta("error", "Error", mensajeError(data, "No se pudo cambiar el estado."));
   };
 
   // Llama al endpoint DELETE y elimina el servicio de la lista local si el servidor responde OK
   const confirmarEliminar = async () => {
-    const token = localStorage.getItem("token");
-    const res = await fetch(
-      `/api/services/${confirmEliminar}?id_proveedor=${id_usuario_logueado}`,
-      {
-        method: "DELETE",
-        headers: {
-          "Content-Type": "application/json",
-          "Authorization": `Bearer ${token}`,
-        },
-      },
-    );
-    if (res.ok) {
+    const { ok, data } = await apiFetch(`${API_HOME}/${confirmEliminar}`, { method: "DELETE" });
+    if (ok) {
       // Filtramos el servicio eliminado del estado para que desaparezca de la UI
       setMisServicios((prev) =>
         prev.filter((s) => s.id_servicio !== confirmEliminar),
       );
       setConfirmEliminar(null);
     } else {
-      mostrarAlerta("error", "Error", "No se pudo eliminar el servicio.");
+      setConfirmEliminar(null);
+      mostrarAlerta("error", "Error", mensajeError(data, "No se pudo eliminar el servicio."));
     }
   };
 
   // ════════════════════════════════
   // GESTIÓN DE IMÁGENES DEL SERVICIO
   // ════════════════════════════════
+  // La API devuelve las imágenes ordenadas (orden 0 = portada)
+  const cargarImagenes = async (idServicio) => {
+    const { imagenes } = await detalleServicio(idServicio);
+    setImagenesServicio(imagenes.map((i) => ({ id_imagen: i.id_imagen, url_imagen: i.url, orden: i.orden })));
+  };
+
   const abrirEditorImagenes = async (servicio) => {
     setEditandoImagenes(servicio);
     setCargandoImagenes(true);
     try {
-      const { data } = await apiFetch(`/api/services/${servicio.id_servicio}`);
-      const imgs = (data.imagenes || [])
-        .filter(
-          (img) =>
-            !img.url_imagen?.includes("default") &&
-            !img.url_imagen?.startsWith("img/"),
-        )
-        .sort((a, b) => new Date(a.fecha_subida) - new Date(b.fecha_subida));
-      setImagenesServicio(imgs);
+      await cargarImagenes(servicio.id_servicio);
     } catch (err) {
       console.error("Error cargando imágenes:", err);
       setImagenesServicio([]);
@@ -420,20 +394,14 @@ const Perfil = () => {
 
   const handleSubirImagenesServicio = async (event) => {
     const files = Array.from(event.target.files);
+    event.target.value = "";
     if (files.length === 0) return;
 
-    // Contar solo imágenes reales (excluir default)
-    const imagenesReales = imagenesServicio.filter(
-      (img) =>
-        !img.url_imagen?.includes("default") &&
-        !img.url_imagen?.startsWith("img/"),
-    );
-
-    if (imagenesReales.length + files.length > 5) {
+    if (imagenesServicio.length + files.length > 5) {
       mostrarAlerta(
         "advertencia",
         "Límite alcanzado",
-        `Máximo 5 imágenes permitidas. Puedes subir ${5 - imagenesReales.length} más.`,
+        `Máximo 5 imágenes permitidas. Puedes subir ${5 - imagenesServicio.length} más.`,
       );
       return;
     }
@@ -442,36 +410,20 @@ const Perfil = () => {
     files.forEach((file) => formData.append("imagenes", file));
 
     try {
-      const res = await apiFetch(
-        `/api/services/${editandoImagenes.id_servicio}/imagenes`,
-        {
-          method: "POST",
-          body: formData,
-        },
-      );
+      const res = await apiFetch(`${API_HOME}/${editandoImagenes.id_servicio}/imagenes`, {
+        method: "POST",
+        body: formData,
+      });
       if (res.ok) {
-        const { data: servicioData } = await apiFetch(
-          `/api/services/${editandoImagenes.id_servicio}`,
-        );
-        const imgs = (servicioData.imagenes || [])
-          .filter(
-            (img) =>
-              !img.url_imagen?.includes("default") &&
-              !img.url_imagen?.startsWith("img/"),
-          )
-          .sort((a, b) => new Date(a.fecha_subida) - new Date(b.fecha_subida));
-        setImagenesServicio(imgs);
+        await cargarImagenes(editandoImagenes.id_servicio);
+        cargarMisServicios();
         mostrarAlerta(
           "exito",
           "Imágenes subidas",
-          "Las imágenes se subieron correctamente.",
+          "Las imágenes se subieron. El servicio vuelve a revisión antes de publicarse de nuevo.",
         );
       } else {
-        mostrarAlerta(
-          "error",
-          "Error",
-          res.data?.error || "No se pudieron subir las imágenes.",
-        );
+        mostrarAlerta("error", "Error", mensajeError(res.data, "No se pudieron subir las imágenes."));
       }
     } catch (err) {
       console.error("Error subiendo imágenes:", err);
@@ -481,26 +433,21 @@ const Perfil = () => {
         "No se pudo conectar con el servidor para subir las imágenes.",
       );
     }
-
-    event.target.value = "";
   };
 
   const eliminarImagenServicio = async (idImagen) => {
     if (!confirm("¿Eliminar esta imagen?")) return;
 
     try {
-      const { ok } = await apiFetch(
-        `/api/services/${editandoImagenes.id_servicio}/imagenes/${idImagen}`,
-        {
-          method: "DELETE",
-        },
+      const { ok, data } = await apiFetch(
+        `${API_HOME}/${editandoImagenes.id_servicio}/imagenes/${idImagen}`,
+        { method: "DELETE" },
       );
       if (ok) {
-        setImagenesServicio((prev) =>
-          prev.filter((img) => img.id_imagen !== idImagen),
-        );
+        setImagenesServicio((prev) => prev.filter((img) => img.id_imagen !== idImagen));
+        cargarMisServicios();
       } else {
-        mostrarAlerta("error", "Error", "No se pudo eliminar la imagen.");
+        mostrarAlerta("error", "Error", mensajeError(data, "No se pudo eliminar la imagen."));
       }
     } catch (err) {
       console.error("Error eliminando imagen:", err);
@@ -523,31 +470,24 @@ const Perfil = () => {
     });
   };
 
+  // Se envían todos los id_imagen en el orden deseado; el primero queda de portada
   const guardarOrdenImagenes = async () => {
     try {
-      for (let i = 0; i < imagenesServicio.length; i++) {
-        const img = imagenesServicio[i];
-        await apiFetch(
-          `/api/services/${editandoImagenes.id_servicio}/imagenes/${img.id_imagen}/orden`,
-          {
-            method: "PUT",
-            body: JSON.stringify({ orden: i, es_principal: i === 0 }),
-          },
-        );
-      }
+      const { ok, data } = await apiFetch(`${API_HOME}/${editandoImagenes.id_servicio}/imagenes/orden`, {
+        method: "PUT",
+        body: JSON.stringify({ imagenes: imagenesServicio.map((img) => img.id_imagen) }),
+      });
+      if (!ok) throw new Error(mensajeError(data, "No se pudo guardar el orden de las imágenes."));
       mostrarAlerta(
         "exito",
         "Orden guardado",
         "El orden de las imágenes se guardó correctamente.",
       );
       setEditandoImagenes(null);
+      cargarMisServicios();
     } catch (err) {
       console.error("Error guardando orden:", err);
-      mostrarAlerta(
-        "error",
-        "Error",
-        "No se pudo guardar el orden de las imágenes.",
-      );
+      mostrarAlerta("error", "Error", err.message);
     }
   };
 
@@ -555,20 +495,22 @@ const Perfil = () => {
   // COMPARTIR PERFIL
   // ════════════════════════════════
   const handleShare = async () => {
+    // El enlace compartido apunta siempre al perfil público con su id
+    const url = `${window.location.origin}/perfil/${id_a_consultar}`;
     try {
       // Usamos la Web Share API si el navegador la soporta (principalmente móvil)
       if (navigator.share) {
         await navigator.share({
           title: "UniServices - Perfil de " + userData.nombre,
-          url: window.location.href,
+          url,
         });
       } else {
         // Fallback: copiar el enlace al portapapeles en navegadores de escritorio
-        await navigator.clipboard.writeText(window.location.href);
+        await navigator.clipboard.writeText(url);
         mostrarAlerta(
           "exito",
           "Enlace copiado",
-          "¡El enlace de tu perfil se copió al portapapeles!",
+          "¡El enlace del perfil se copió al portapapeles!",
         );
       }
     } catch (err) {
@@ -577,32 +519,32 @@ const Perfil = () => {
   };
 
   // ════════════════════════════════
-  // SUBIR IMAGEN LOCAL
+  // AVATAR: JPG, PNG o WebP de máximo 2 MB (la API quita los metadatos)
   // ════════════════════════════════
   const handleSubirImagenLocal = async (event) => {
     const file = event.target.files[0];
+    event.target.value = "";
     if (!file) return;
+    if (file.size > 2 * 1024 * 1024) {
+      mostrarAlerta("error", "Imagen muy pesada", "La foto de perfil debe pesar menos de 2 MB.");
+      return;
+    }
 
     // FormData permite enviar archivos binarios al servidor (multipart/form-data)
     const formData = new FormData();
-    formData.append("file", file); // Debe coincidir con el nombre del parámetro IFormFile en C#
-    formData.append("id_usuario", id_usuario_logueado);
+    formData.append("avatar", file); // Debe coincidir con el nombre del parámetro IFormFile en C#
 
     try {
-      const response = await apiFetch("/api/usuarios/upload-avatar", {
+      const response = await apiFetch(`${API_PERFIL}/me/avatar`, {
         method: "POST",
         body: formData,
       });
 
-      if (response.ok && response.data?.ok) {
-        setUserData((prev) => ({ ...prev, avatar: response.data.avatarUrl }));
+      if (response.ok) {
+        setUserData((prev) => ({ ...prev, avatar: response.data.avatar }));
         setActiveModal(null);
       } else {
-        mostrarAlerta(
-          "error",
-          "Error al subir",
-          response.data?.error || "Error en el servidor.",
-        );
+        mostrarAlerta("error", "Error al subir", mensajeError(response.data, "Error en el servidor."));
       }
     } catch (err) {
       console.error("Error en subida:", err);
@@ -611,6 +553,16 @@ const Perfil = () => {
         "Error de conexión",
         "No se pudo conectar con el servidor.",
       );
+    }
+  };
+
+  const handleQuitarAvatar = async () => {
+    const { ok, data } = await apiFetch(`${API_PERFIL}/me/avatar`, { method: "DELETE" });
+    if (ok) {
+      setUserData((prev) => ({ ...prev, avatar: null }));
+      setActiveModal(null);
+    } else {
+      mostrarAlerta("error", "Error", mensajeError(data, "No se pudo quitar la foto."));
     }
   };
 
@@ -641,44 +593,29 @@ const Perfil = () => {
     return num;
   };
 
-  // Boolean que indica si el usuario está activo/disponible según la BD
-  const estaConectado = userData.estado;
-
   // Si no hay calificaciones, mostramos un texto en lugar de "0/5.0"
   const reputacionTexto =
-    userData.reputacion && userData.reputacion !== "N/A"
-      ? parseFloat(userData.reputacion).toFixed(1) + "/5.0"
+    userData.reputacion != null && userData.total_calificaciones > 0
+      ? `${parseFloat(userData.reputacion).toFixed(1)}/5.0 (${userData.total_calificaciones})`
       : "Sin calificaciones";
 
-  // Maneja la lógica de seguir/dejar de seguir
-  // Usa el flag enviandoSeguimiento para bloquear el botón mientras espera respuesta
+  const academico = userData.perfil_academico || {};
+
+  // Seguir / dejar de seguir. La API devuelve el total de seguidores actualizado.
   const toggleSeguir = async () => {
     if (enviandoSeguimiento) return;
     setEnviandoSeguimiento(true);
 
-    // Guardamos el estado ANTES de llamar al API
-    const accionActual = siguiendo;
-
     try {
-      const response = await apiFetch(`/api/seguidores/toggle`, {
-        method: "POST",
-        body: JSON.stringify({
-          id_seguidor: parseInt(id_usuario_logueado),
-          id_seguido: parseInt(id_a_consultar),
-        }),
+      const response = await apiFetch(`${API_PERFIL}/${id_a_consultar}/seguir`, {
+        method: siguiendo ? "DELETE" : "POST",
       });
 
       if (response.ok) {
-        const ahoraSigue = !accionActual;
-        setSiguiendo(ahoraSigue);
-        setUserData((prev) => ({
-          ...prev,
-          total_seguidores: ahoraSigue
-            ? (prev.total_seguidores || 0) + 1
-            : Math.max(0, (prev.total_seguidores || 0) - 1),
-        }));
+        setSiguiendo(response.data.siguiendo);
+        setUserData((prev) => ({ ...prev, total_seguidores: response.data.total_seguidores }));
       } else {
-        mostrarAlerta("error", "Error", "No se pudo procesar el seguimiento.");
+        mostrarAlerta("error", "Error", mensajeError(response.data, "No se pudo procesar el seguimiento."));
       }
     } catch (error) {
       console.error("Error de conexión:", error);
@@ -691,6 +628,21 @@ const Perfil = () => {
       setEnviandoSeguimiento(false);
     }
   };
+
+  if (perfilNoEncontrado) {
+    return (
+      <>
+        <Navbar onCerrarSesion={handleCerrarSesion} />
+        <div className="container" style={{ textAlign: "center", padding: "120px 24px" }}>
+          <h2>Perfil no encontrado</h2>
+          <p className="texto-muted" style={{ margin: "12px 0 24px" }}>
+            Este usuario no existe o su cuenta no está disponible.
+          </p>
+          <a href="/home" className="btn btn-verde">← Volver al inicio</a>
+        </div>
+      </>
+    );
+  }
 
   // ════════════════════════════════
   // JSX
@@ -794,11 +746,6 @@ const Perfil = () => {
                       e.currentTarget.src = "/img/default_avatar.png";
                     }}
                   />
-                  {esPerfilExterno && (
-                    <div
-                      className={`status-badge ${estaConectado ? "online" : "busy"}`}
-                    ></div>
-                  )}
                 </div>
                 <h1 className="profile-name">{userData.nombre}</h1>
                 <p className="profile-username">
@@ -809,7 +756,9 @@ const Perfil = () => {
               </div>
 
               <div className="profile-body">
-                <p className="profile-bio">{userData.descripcion}</p>
+                <p className="profile-bio">
+                  {userData.descripcion || (esPerfilExterno ? "" : "Agrega una descripción desde \"Editar Perfil\".")}
+                </p>
 
                 <div className="stats-grid">
                   <StatItem
@@ -897,7 +846,8 @@ const Perfil = () => {
                   <i className="bi bi-clipboard-data"></i> Información
                 </div>
                 <div className="info-grid">
-                  <InfoItem label="Correo" value={userData.correo} />
+                  {/* Correo y teléfono sólo los ve el dueño: el perfil público no los incluye */}
+                  {!esPerfilExterno && <InfoItem label="Correo" value={userData.correo} />}
                   <InfoItem
                     label="Miembro desde"
                     value={formatearFecha(userData.fecha_registro)}
@@ -906,12 +856,30 @@ const Perfil = () => {
                     label="Universidad"
                     value={userData.universidad || "Sin universidad"}
                   />
+                  {(academico.programa || !esPerfilExterno) && (
+                    <InfoItem
+                      label="Programa"
+                      value={
+                        academico.programa
+                          ? `${academico.programa}${academico.semestre ? ` · ${academico.semestre}° semestre` : ""}`
+                          : "Sin especificar"
+                      }
+                    />
+                  )}
                   {/* La reputación se calcula en el backend promediando las calificaciones recibidas */}
                   <InfoItem label="Reputación" value={reputacionTexto} />
-                  <InfoItem
-                    label="Teléfono"
-                    value={userData.telefono || "No disponible"}
-                  />
+                  {!esPerfilExterno && (
+                    <InfoItem
+                      label="Teléfono"
+                      value={userData.telefono || "No disponible"}
+                    />
+                  )}
+                  {!esPerfilExterno && (
+                    <InfoItem
+                      label="Correo institucional"
+                      value={userData.correo_verificado ? "Verificado" : "Sin verificar"}
+                    />
+                  )}
                   {/* Opciones solo para perfil propio */}
                   {!esPerfilExterno && (
                     <div className="menu-list">
@@ -953,7 +921,7 @@ const Perfil = () => {
                     <MenuItem
                       icon={<i className="bi bi-box-seam-fill"></i>}
                       title={`Mis servicios (${misServicios.length})`}
-                      desc="Administra tus servicios publicados"
+                      desc="Administra tus servicios: publicados, en revisión y pausados"
                       onClick={() => setModalServicios(true)}
                     />
                   </div>
@@ -982,8 +950,9 @@ const Perfil = () => {
                         margin: "0 0 20px",
                       }}
                     >
-                      ¿Estás seguro? Esto eliminará también todas las
-                      solicitudes asociadas y no se puede deshacer.
+                      ¿Estás seguro? Esto eliminará también sus solicitudes,
+                      reseñas e imágenes y no se puede deshacer. Si tiene
+                      solicitudes aceptadas en curso, primero complétalas.
                     </p>
                     <div className="image-menu-options">
                       <button
@@ -1036,13 +1005,15 @@ const Perfil = () => {
                     <h3 className="image-menu-title">
                       <i className="bi bi-pencil"></i> Editar servicio
                     </h3>
+                    <p style={{ opacity: 0.7, fontSize: "0.82rem", margin: "0 0 14px" }}>
+                      Al guardar, el servicio vuelve a revisión y se publica de nuevo cuando un administrador lo aprueba.
+                    </p>
 
                     {/* Generamos los campos del formulario dinámicamente desde un array */}
                     {[
                       ["Título", "titulo", "text"],
-                      ["Precio/hora", "precio_hora", "number"],
+                      ["Precio (COP)", "precio", "number"],
                       ["Contacto", "contacto", "text"],
-                      ["Ícono", "icono", "text"],
                     ].map(([label, field, type]) => (
                       <div key={field} style={{ marginBottom: "14px" }}>
                         <label
@@ -1087,10 +1058,42 @@ const Perfil = () => {
                           marginBottom: "5px",
                         }}
                       >
+                        Se cobra
+                      </label>
+                      <select
+                        value={editando.unidad_precio || "hora"}
+                        onChange={(e) => setEditando({ ...editando, unidad_precio: e.target.value })}
+                        style={{
+                          width: "100%",
+                          boxSizing: "border-box",
+                          background: "rgba(255,255,255,0.05)",
+                          border: "1px solid rgba(255,255,255,0.15)",
+                          borderRadius: "8px",
+                          padding: "10px 12px",
+                          color: "inherit",
+                          fontSize: "0.9rem",
+                        }}
+                      >
+                        {UNIDADES_PRECIO.map((u) => (
+                          <option key={u.valor} value={u.valor}>{u.label}</option>
+                        ))}
+                      </select>
+                    </div>
+
+                    <div style={{ marginBottom: "14px" }}>
+                      <label
+                        style={{
+                          display: "block",
+                          fontSize: "0.82rem",
+                          opacity: 0.7,
+                          marginBottom: "5px",
+                        }}
+                      >
                         Descripción
                       </label>
                       <textarea
                         rows={4}
+                        maxLength={2000}
                         value={editando.descripcion || ""}
                         onChange={(e) =>
                           setEditando({
@@ -1167,7 +1170,8 @@ const Perfil = () => {
                       }}
                     >
                       {imagenesServicio.length}/5 — Usa ↑↓ para cambiar el
-                      orden. La primera es la portada.
+                      orden. La primera es la portada. Subir imágenes nuevas
+                      devuelve el servicio a revisión.
                     </p>
 
                     <input
@@ -1460,39 +1464,64 @@ const Perfil = () => {
                 </p>
               ) : (
                 <div className="menu-list" style={{ marginTop: "8px" }}>
-                  {misServicios.map((s) => (
+                  {misServicios.map((s) => {
+                    const estado = ESTADO_SERVICIO[s.estado] || {};
+                    return (
                     <div
                       key={s.id_servicio}
                       className="menu-item"
                       style={{ cursor: "default", display: "flex", alignItems: "center", padding: "10px" }}
                     >
-                      <div className="menu-icon">
-                        <i className={`bi ${s.icono?.startsWith("bi-") ? s.icono : "bi-pin"}`}></i>
+                      <div className="menu-icon" style={{ overflow: "hidden" }}>
+                        {s.imagen ? (
+                          <img src={s.imagen} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+                        ) : (
+                          <i className="bi bi-pin"></i>
+                        )}
                       </div>
                       <div className="menu-text" style={{ flex: 1, minWidth: 0, marginLeft: "10px" }}>
-                        <div className="menu-title" style={{ whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", fontWeight: "bold" }}>
+                        <div
+                          className="menu-title"
+                          style={{ whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", fontWeight: "bold", cursor: "pointer" }}
+                          onClick={() => navigate(`/servicio?id=${s.id_servicio}`)}
+                          title="Ver servicio"
+                        >
                           {s.titulo}
                         </div>
                         <div className="menu-desc" style={{ fontSize: "0.85rem", opacity: 0.8 }}>
-                          ${s.precio_hora}/hr · {s.nombre_categoria || "Sin categoría"}
+                          {formatPrecio(s.precio, s.unidad_precio)} · {s.categoria || "Sin categoría"}
                         </div>
+                        <div style={{ fontSize: "0.78rem", color: estado.color, marginTop: "2px" }} title={s.motivo_rechazo || undefined}>
+                          <i className={`bi ${estado.icono}`}></i> {estado.texto || s.estado}
+                          {s.solicitudes_pendientes > 0 && ` · ${s.solicitudes_pendientes} solicitud(es) pendiente(s)`}
+                        </div>
+                        {s.estado === "rechazado" && s.motivo_rechazo && (
+                          <div style={{ fontSize: "0.75rem", opacity: 0.8 }}>Motivo: {s.motivo_rechazo}</div>
+                        )}
                       </div>
                       <div className="servicio-actions">
+                        {(s.estado === "aprobado" || s.estado === "pausado") && (
+                          <button className="btn btn-primary" style={{ width: "36px", height: "36px", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "0.85rem", padding: 0, margin: 0, lineHeight: 1, background: "transparent", borderColor: "rgba(148, 163, 184, 0.4)", color: "#94a3b8" }}
+                            onClick={() => alternarPausa(s)} title={s.estado === "aprobado" ? "Pausar" : "Reanudar"}>
+                            <i className={`bi ${s.estado === "aprobado" ? "bi-pause-fill" : "bi-play-fill"}`}></i>
+                          </button>
+                        )}
                         <button className="btn btn-primary" style={{ width: "36px", height: "36px", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "0.85rem", padding: 0, margin: 0, lineHeight: 1, background: "transparent", borderColor: "rgba(52, 211, 153, 0.4)", color: "#34d399" }}
                           onClick={() => abrirEditorImagenes(s)} title="Gestionar imágenes">
                           <i className="bi bi-images"></i>
                         </button>
                         <button className="btn btn-primary" style={{ width: "36px", height: "36px", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "0.85rem", padding: 0, margin: 0, lineHeight: 1 }}
-                          onClick={() => setEditando({ ...s })}>
+                          onClick={() => abrirEdicion(s)} title="Editar">
                           <i className="bi bi-pencil"></i>
                         </button>
                         <button className="btn btn-primary" style={{ width: "36px", height: "36px", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "0.85rem", padding: 0, margin: 0, lineHeight: 1, background: "transparent", borderColor: "rgba(177, 52, 52, 0.4)", color: "#f87171" }}
-                          onClick={() => setConfirmEliminar(s.id_servicio)}>
+                          onClick={() => setConfirmEliminar(s.id_servicio)} title="Eliminar">
                           <i className="bi bi-trash"></i>
                         </button>
                       </div>
                     </div>
-                  ))}
+                    );
+                  })}
                 </div>
               )}
             </div>
@@ -1531,10 +1560,10 @@ const Perfil = () => {
                   className="image-option"
                   onClick={() => {
                     const d = prompt(
-                      "Nueva descripción:",
-                      userData.descripcion,
+                      "Nueva descripción (máximo 500 caracteres; vacío para borrarla):",
+                      userData.descripcion || "",
                     );
-                    if (d) handleUpdate("descripcion", d);
+                    if (d !== null) handleUpdate("descripcion", d.trim());
                   }}
                 >
                   <span className="image-option-icon">
@@ -1548,18 +1577,37 @@ const Perfil = () => {
                 <button
                   className="image-option"
                   onClick={() => {
-                    const e = prompt(
-                      "Nueva universidad:",
-                      userData.universidad,
+                    const p = prompt(
+                      "Programa académico (ej: Ingeniería de Sistemas):",
+                      academico.programa || "",
                     );
-                    if (e) handleUpdate("universidad", e);
+                    if (p === null) return;
+                    const sem = prompt("Semestre (1 a 20, vacío si no aplica):", academico.semestre || "");
+                    if (sem === null) return;
+                    const semestre = sem.trim() === "" ? 0 : parseInt(sem, 10);
+                    if (Number.isNaN(semestre) || semestre < 0 || semestre > 20) {
+                      mostrarAlerta("error", "Error", "El semestre debe ser un número entre 1 y 20.");
+                      return;
+                    }
+                    (async () => {
+                      const { ok, data } = await apiFetch(`${API_PERFIL}/me`, {
+                        method: "PUT",
+                        body: JSON.stringify({ programa: p.trim(), semestre }),
+                      });
+                      if (ok) {
+                        setUserData(adaptarPerfil(data));
+                        setActiveModal(null);
+                      } else {
+                        mostrarAlerta("error", "Error", mensajeError(data, "No se pudo actualizar el programa."));
+                      }
+                    })();
                   }}
                 >
                   <span className="image-option-icon">
-                    <i className="bi bi-buildings"></i>
+                    <i className="bi bi-mortarboard"></i>
                   </span>
                   <div className="image-option-text">
-                    <b>Cambiar Universidad</b>
+                    <b>Cambiar Programa y Semestre</b>
                   </div>
                 </button>
 
@@ -1567,10 +1615,10 @@ const Perfil = () => {
                   className="image-option"
                   onClick={() => {
                     const u = prompt(
-                      "Nuevo número de teléfono:",
-                      userData.telefono,
+                      "Nuevo número de teléfono (7 a 12 dígitos):",
+                      userData.telefono || "",
                     );
-                    if (u) handleUpdate("telefono", u);
+                    if (u) handleUpdate("telefono", u.trim());
                   }}
                 >
                   <span className="image-option-icon">
@@ -1598,25 +1646,21 @@ const Perfil = () => {
               <input
                 type="file"
                 ref={FileInputRef}
-                accept="image/*"
+                accept="image/jpeg,image/png,image/webp"
                 style={{ display: "none" }}
                 onChange={handleSubirImagenLocal}
               />
               <div className="image-menu-options">
-                <button
-                  className="image-option"
-                  onClick={() => {
-                    const url = prompt("URL de la imagen:");
-                    if (url) handleUpdate("avatar", url);
-                  }}
-                >
-                  <span className="image-option-icon">
-                    <i className="bi bi-globe2"></i>
-                  </span>
-                  <div className="image-option-text">
-                    <b>Usar URL</b>
-                  </div>
-                </button>
+                {userData.avatar && (
+                  <button className="image-option" onClick={handleQuitarAvatar}>
+                    <span className="image-option-icon">
+                      <i className="bi bi-person-x"></i>
+                    </span>
+                    <div className="image-option-text">
+                      <b>Quitar foto</b>
+                    </div>
+                  </button>
+                )}
                 <button
                   className="image-option"
                   onClick={() => FileInputRef.current?.click()}
@@ -1626,6 +1670,7 @@ const Perfil = () => {
                   </span>
                   <div className="image-option-text">
                     <b>Subir Imagen</b>
+                    <span style={{ display: "block", fontSize: "0.75rem", opacity: 0.6 }}>JPG, PNG o WebP · máx. 2 MB</span>
                   </div>
                 </button>
               </div>
@@ -1660,17 +1705,11 @@ const Perfil = () => {
                       <b>Cambiar Contraseña</b>
                     </div>
                   </button>
-                  <button
-                    className="image-option"
-                    onClick={() => setSeguridadSubPaso("correo")}
-                  >
-                    <span className="image-option-icon">
-                      <i className="bi bi-envelope-fill"></i>
-                    </span>
-                    <div className="image-option-text">
-                      <b>Cambiar Correo Electrónico</b>
-                    </div>
-                  </button>
+                  {/* El correo institucional verificado no se puede cambiar desde la cuenta */}
+                  <p style={{ fontSize: "0.8rem", opacity: 0.6, margin: "8px 4px 0" }}>
+                    <i className="bi bi-envelope-check"></i> Tu correo {userData.correo} está verificado con la
+                    universidad y no se puede cambiar desde aquí.
+                  </p>
                 </div>
               )}
 
@@ -1696,7 +1735,7 @@ const Perfil = () => {
                       type="password"
                       value={formPassword.nueva}
                       onChange={(e) => setFormPassword((p) => ({ ...p, nueva: e.target.value }))}
-                      placeholder="Mínimo 8 caracteres"
+                      placeholder="Mínimo 8, con letras y números"
                       className="modal-input"
                     />
                   </div>
@@ -1743,62 +1782,6 @@ const Perfil = () => {
                 </div>
               )}
 
-              {seguridadSubPaso === "correo" && (
-                <div className="image-menu-options" style={{ padding: "8px 0" }}>
-                  <div style={{ marginBottom: "12px" }}>
-                    <label className="form-label">
-                      Nuevo correo electrónico
-                    </label>
-                    <input
-                      type="email"
-                      value={formCorreo.nuevoCorreo}
-                      onChange={(e) => setFormCorreo((c) => ({ ...c, nuevoCorreo: e.target.value }))}
-                      placeholder="nuevo@correo.com"
-                      className="modal-input"
-                    />
-                  </div>
-                  <div style={{ marginBottom: "16px" }}>
-                    <label className="form-label">
-                      Contraseña actual (para confirmar)
-                    </label>
-                    <input
-                      type="password"
-                      value={formCorreo.password}
-                      onChange={(e) => setFormCorreo((c) => ({ ...c, password: e.target.value }))}
-                      placeholder="••••••••"
-                      className="modal-input"
-                    />
-                  </div>
-                  <div style={{ display: "flex", gap: "8px" }}>
-                    <button
-                      className="image-option"
-                      onClick={() => setSeguridadSubPaso(null)}
-                      disabled={seguridadCargando}
-                      style={{ flex: 1, justifyContent: "center" }}
-                    >
-                      <span className="image-option-icon">
-                        <i className="bi bi-arrow-left"></i>
-                      </span>
-                      <div className="image-option-text">
-                        <b>Volver</b>
-                      </div>
-                    </button>
-                    <button
-                      className="image-option"
-                      onClick={handleCambiarCorreo}
-                      disabled={seguridadCargando}
-                      style={{ flex: 1, justifyContent: "center" }}
-                    >
-                      <span className="image-option-icon">
-                        <i className="bi bi-check-lg"></i>
-                      </span>
-                      <div className="image-option-text">
-                        <b>{seguridadCargando ? "Guardando..." : "Guardar"}</b>
-                      </div>
-                    </button>
-                  </div>
-                </div>
-              )}
             </div>
           </div>
         )}

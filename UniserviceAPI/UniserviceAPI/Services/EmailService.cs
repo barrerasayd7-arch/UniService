@@ -1,26 +1,84 @@
-using MailKit.Net.Smtp;
-using MimeKit;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.Extensions.Configuration;
 using System.IO;
 using System.Threading.Tasks;
 using System.Collections.Concurrent;
+using System.Net.Http;
+using System.Text;
+using System.Text.Json;
+using System.Text.Json.Serialization;
 
 namespace UniserviceAPI.Services
 {
     public class EmailService
     {
+        private static readonly string LogoUrl = "https://mpdeejiivmctbqcfflbz.supabase.co/storage/v1/object/public/imagenes-servicios/logo_uniservice.png";
         private readonly IWebHostEnvironment _env;
         private readonly IConfiguration _config;
+        private static readonly HttpClient _httpClient = new()
+        {
+            BaseAddress = new Uri("https://api.brevo.com/")
+        };
         private static readonly ConcurrentDictionary<string, (DateTime ultimoEnvio, CancellationTokenSource cts)> _spamControl = new();
+        private static bool _httpClientInitialized;
 
         public EmailService(IWebHostEnvironment env, IConfiguration config)
         {
             _env = env;
             _config = config;
+
+            if (!_httpClientInitialized)
+            {
+                var apiKey = _config["Brevo:ApiKey"] ?? "";
+                if (!string.IsNullOrEmpty(apiKey))
+                {
+                    _httpClient.DefaultRequestHeaders.Remove("api-key");
+                    _httpClient.DefaultRequestHeaders.Add("api-key", apiKey);
+                }
+                _httpClientInitialized = true;
+            }
         }
 
-        public async Task EnviarNotificacionChat(string emailDestino, string nombreDestinatario, string nombreRemitente, string previewMensaje)
+        private async Task<string> SendViaBrevoAsync(string to, string subject, string htmlBody)
+        {
+            var fromEmail = _config["Brevo:FromEmail"] ?? "";
+            var fromName = _config["Brevo:FromName"] ?? "UniService";
+
+            var payload = new
+            {
+                sender = new { name = fromName, email = fromEmail },
+                to = new[] { new { email = to } },
+                subject,
+                htmlContent = htmlBody
+            };
+
+            var json = JsonSerializer.Serialize(payload, new JsonSerializerOptions
+            {
+                PropertyNamingPolicy = JsonNamingPolicy.CamelCase
+            });
+            var content = new StringContent(json, Encoding.UTF8, "application/json");
+
+            try
+            {
+                var response = await _httpClient.PostAsync("v3/smtp/email", content);
+                var responseBody = await response.Content.ReadAsStringAsync();
+
+                if (response.IsSuccessStatusCode)
+                    Console.WriteLine($"[BREVO] Correo enviado a {to}: {subject}");
+                else
+                    Console.WriteLine($"[BREVO] Error {response.StatusCode}: {responseBody}");
+
+                return responseBody;
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"[BREVO] Error enviando a {to}: {ex.Message}");
+                return "";
+            }
+        }
+
+
+        public void EnviarNotificacionChat(string emailDestino, string nombreDestinatario, string nombreRemitente, string previewMensaje)
         {
             string key = $"chat_{emailDestino}";
 
@@ -32,25 +90,32 @@ namespace UniserviceAPI.Services
             var cts = new CancellationTokenSource();
             _spamControl[key] = (DateTime.UtcNow, cts);
 
-            await Task.Delay(45000, cts.Token).ContinueWith(async _ =>
+            _ = Task.Run(async () =>
             {
-                if (cts.Token.IsCancellationRequested) return;
+                try
+                {
+                    await Task.Delay(45000, cts.Token);
+                    if (cts.Token.IsCancellationRequested) return;
 
-                await EnviarEmailChativo(emailDestino, nombreDestinatario, nombreRemitente, previewMensaje);
-
-                _spamControl.TryRemove(key, out var _);
+                    await EnviarEmailChativo(emailDestino, nombreDestinatario, nombreRemitente, previewMensaje);
+                }
+                catch (OperationCanceledException)
+                {
+                    // Cancelado por nuevo mensaje, no es error
+                }
+                catch (Exception ex)
+                {
+                    Console.WriteLine($"[EMAIL CHAT] ERROR: {ex.Message}");
+                }
+                finally
+                {
+                    _spamControl.TryRemove(key, out _);
+                }
             });
         }
 
         private async Task EnviarEmailChativo(string emailDestino, string nombreDestinatario, string nombreRemitente, string previewMensaje)
         {
-            var mensaje = new MimeMessage();
-            mensaje.From.Add(new MailboxAddress("UniService", _config["EmailSettings:Email"]));
-            mensaje.To.Add(new MailboxAddress(nombreDestinatario, emailDestino));
-            mensaje.Subject = $"Nuevo mensaje de {nombreRemitente} - UniService";
-
-            var builder = new BodyBuilder();
-
             string htmlBody = $@"
             <html>
             <body style='font-family: Arial, sans-serif; background: #f5f5f5; padding: 20px;'>
@@ -67,34 +132,7 @@ namespace UniserviceAPI.Services
             </body>
             </html>";
 
-            builder.HtmlBody = htmlBody;
-            mensaje.Body = builder.ToMessageBody();
-
-            using var client = new SmtpClient();
-            try
-            {
-                await client.ConnectAsync(
-                    _config["EmailSettings:Host"],
-                    int.Parse(_config["EmailSettings:Port"]),
-                    MailKit.Security.SecureSocketOptions.StartTls
-                );
-
-                await client.AuthenticateAsync(
-                    _config["EmailSettings:Email"],
-                    _config["EmailSettings:Password"]
-                );
-
-                await client.SendAsync(mensaje);
-                Console.WriteLine($"[EMAIL CHAT] Correo enviado a {emailDestino}");
-            }
-            catch (Exception ex)
-            {
-                Console.WriteLine($"[EMAIL CHAT] ERROR SMTP: {ex.Message}");
-            }
-            finally
-            {
-                await client.DisconnectAsync(true);
-            }
+            await SendViaBrevoAsync(emailDestino, $"Nuevo mensaje de {nombreRemitente} - UniService", htmlBody);
         }
 
         public async Task EnviarNotificacionSolicitud(
@@ -107,137 +145,61 @@ namespace UniserviceAPI.Services
             string presupuesto = "",
             string urgencia = "")
         {
-            var mensaje = new MimeMessage();
-            mensaje.From.Add(new MailboxAddress("UniService", _config["EmailSettings:Email"]));
-            mensaje.To.Add(new MailboxAddress(nombreProveedor, emailProveedor));
-            mensaje.Subject = $"Nueva solicitud de servicio - UniService";
-
-            var builder = new BodyBuilder();
-
-            // 1. Buscar la plantilla en wwwroot/templates
-            string pathHtml = Path.Combine(_env.WebRootPath, "templates", "email_solicitud.html");
-
-            if (!File.Exists(pathHtml))
-            {
-                throw new FileNotFoundException($"No se encontró la plantilla en: {pathHtml}");
-            }
-
-            string htmlBody = await File.ReadAllTextAsync(pathHtml);
-
-            // 2. Reemplazar los placeholders con la información real
-            string presupuestoTexto = string.IsNullOrEmpty(presupuesto) ? "No especificado" : $"${presupuesto}";
-            string urgenciaTexto = string.IsNullOrEmpty(urgencia) ? "Normal" : urgencia;
-
-            htmlBody = htmlBody.Replace("{{nombreProveedor}}", nombreProveedor)
-                               .Replace("{{nombreCliente}}", nombreCliente)
-                               .Replace("{{tituloServicio}}", tituloServicio)
-                               .Replace("{{tipoServicio}}", tipoServicio)
-                               .Replace("{{descripcion}}", descripcion)
-                               .Replace("{{presupuesto}}", presupuestoTexto)
-                               .Replace("{{urgencia}}", urgenciaTexto);
-
-            // 3. Embeber el logo
-            string pathLogo = Path.Combine(_env.WebRootPath, "img", "logo_uniservice.png");
-            if (File.Exists(pathLogo))
-            {
-                var image = builder.LinkedResources.Add(pathLogo);
-                image.ContentId = "logo_uniservice";
-            }
-
-            builder.HtmlBody = htmlBody;
-            mensaje.Body = builder.ToMessageBody();
-
-            using var client = new SmtpClient();
             try
             {
-                await client.ConnectAsync(
-                    _config["EmailSettings:Host"],
-                    int.Parse(_config["EmailSettings:Port"]),
-                    MailKit.Security.SecureSocketOptions.StartTls
-                );
+                string pathHtml = Path.Combine(_env.WebRootPath, "templates", "email_solicitud.html");
 
-                await client.AuthenticateAsync(
-                    _config["EmailSettings:Email"],
-                    _config["EmailSettings:Password"]
-                );
+                if (!File.Exists(pathHtml))
+                {
+                    Console.WriteLine($"[EMAIL] Plantilla no encontrada: {pathHtml}");
+                    return;
+                }
 
-                Console.WriteLine("Enviando correo...");
+                string htmlBody = await File.ReadAllTextAsync(pathHtml);
 
-                await client.SendAsync(mensaje);
+                string presupuestoTexto = string.IsNullOrEmpty(presupuesto) ? "No especificado" : $"${presupuesto}";
+                string urgenciaTexto = string.IsNullOrEmpty(urgencia) ? "Normal" : urgencia;
 
-                Console.WriteLine("Correo enviado correctamente");
+                htmlBody = htmlBody.Replace("{{nombreProveedor}}", nombreProveedor)
+                                   .Replace("{{nombreCliente}}", nombreCliente)
+                                   .Replace("{{tituloServicio}}", tituloServicio)
+                                   .Replace("{{tipoServicio}}", tipoServicio)
+                                   .Replace("{{descripcion}}", descripcion)
+                                   .Replace("{{presupuesto}}", presupuestoTexto)
+                                   .Replace("{{urgencia}}", urgenciaTexto);
+
+                htmlBody = htmlBody.Replace("cid:logo_uniservice", LogoUrl);
+
+                await SendViaBrevoAsync(emailProveedor, $"Nueva solicitud de servicio - UniService", htmlBody);
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"ERROR SMTP: {ex.Message}");
-            }
-            finally
-            {
-                await client.DisconnectAsync(true);
+                Console.WriteLine($"[EMAIL] Error en notificación de solicitud: {ex.Message}");
             }
         }
 
         public async Task EnviarCodigoVerificacion(string emailDestino, string codigo)
         {
-            var mensaje = new MimeMessage();
-
-            // Configuraci�n del Remitente usando EmailSettings del JSON
-            mensaje.From.Add(new MailboxAddress("UniService", _config["EmailSettings:Email"]));
-            mensaje.To.Add(new MailboxAddress("", emailDestino));
-            mensaje.Subject = "Verifica tu cuenta - UniService";
-
-            var builder = new BodyBuilder();
-
-            // 1. Cargar la plantilla HTML desde wwwroot/templates
-            string pathHtml = Path.Combine(_env.WebRootPath, "templates", "email_verificacion.html");
-
-            if (!File.Exists(pathHtml))
-            {
-                throw new FileNotFoundException("No se encontr� la plantilla HTML en la ruta: " + pathHtml);
-            }
-
-            string htmlBody = await File.ReadAllTextAsync(pathHtml);
-
-            // 2. Inyectar el c�digo din�mico
-            htmlBody = htmlBody.Replace("{{codigo}}", codigo);
-
-            // 3. Embeber el logo local mediante Content-ID (CID)
-            string pathLogo = Path.Combine(_env.WebRootPath, "img", "logo_uniservice.png");
-
-            if (File.Exists(pathLogo))
-            {
-                var image = builder.LinkedResources.Add(pathLogo);
-                image.ContentId = "logo_uniservice";
-            }
-
-            builder.HtmlBody = htmlBody;
-            mensaje.Body = builder.ToMessageBody();
-
-            // 4. Configuraci�n y env�o mediante SMTP
-            using var client = new MailKit.Net.Smtp.SmtpClient();
-
             try
             {
-                // Conexi�n usando las llaves exactas de tu appsettings.json
+                string pathHtml = Path.Combine(_env.WebRootPath, "templates", "email_verificacion.html");
 
+                if (!File.Exists(pathHtml))
+                {
+                    Console.WriteLine($"[EMAIL] Plantilla no encontrada: {pathHtml}");
+                    return;
+                }
 
-                await client.ConnectAsync(
-                    _config["EmailSettings:Host"],
-                    int.Parse(_config["EmailSettings:Port"]),
-                    MailKit.Security.SecureSocketOptions.StartTls
-                );
+                string htmlBody = await File.ReadAllTextAsync(pathHtml);
+                htmlBody = htmlBody.Replace("{{codigo}}", codigo);
 
-                await client.AuthenticateAsync(
-                    _config["EmailSettings:Email"],
-                    _config["EmailSettings:Password"]
-                );
+                htmlBody = htmlBody.Replace("cid:logo_uniservice", LogoUrl);
 
-                await client.SendAsync(mensaje);
+                await SendViaBrevoAsync(emailDestino, "Verifica tu cuenta - UniService", htmlBody);
             }
-            finally
+            catch (Exception ex)
             {
-                await client.DisconnectAsync(true);
-                client.Dispose();
+                Console.WriteLine($"[EMAIL] Error enviando código: {ex.Message}");
             }
         }
         public async Task EnviarNotificacionNuevoServicio(
@@ -247,13 +209,9 @@ namespace UniserviceAPI.Services
         string tituloServicio,
         int idServicio)
         {
-            var mensaje = new MimeMessage();
-            mensaje.From.Add(new MailboxAddress("UniService", _config["EmailSettings:Email"]));
-            mensaje.To.Add(new MailboxAddress(nombreAdmin, emailAdmin));
-            mensaje.Subject = $"Nuevo servicio pendiente de revisión - UniService";
-
-            var builder = new BodyBuilder();
-            builder.HtmlBody = $@"
+            try
+            {
+                string htmlBody = $@"
     <html>
     <body style='font-family: Arial, sans-serif; background: #f5f5f5; padding: 20px;'>
         <div style='max-width: 500px; margin: 0 auto; background: white; border-radius: 12px; padding: 24px;'>
@@ -270,26 +228,11 @@ namespace UniserviceAPI.Services
     </body>
     </html>";
 
-            mensaje.Body = builder.ToMessageBody();
-
-            using var client = new SmtpClient();
-            try
-            {
-                await client.ConnectAsync(
-                    _config["EmailSettings:Host"],
-                    int.Parse(_config["EmailSettings:Port"]),
-                    MailKit.Security.SecureSocketOptions.StartTls);
-                await client.AuthenticateAsync(_config["EmailSettings:Email"], _config["EmailSettings:Password"]);
-                await client.SendAsync(mensaje);
-                Console.WriteLine($"[EMAIL] Notificación de nuevo servicio enviada a {emailAdmin}");
+                await SendViaBrevoAsync(emailAdmin, $"Nuevo servicio pendiente de revisión - UniService", htmlBody);
             }
             catch (Exception ex)
             {
                 Console.WriteLine($"[EMAIL] ERROR: {ex.Message}");
-            }
-            finally
-            {
-                await client.DisconnectAsync(true);
             }
         }
 
@@ -300,48 +243,35 @@ namespace UniserviceAPI.Services
     bool aprobado,
     string? razonRechazo = null)
         {
-            var mensaje = new MimeMessage();
-            mensaje.From.Add(new MailboxAddress("UniService", _config["EmailSettings:Email"]));
-            mensaje.To.Add(new MailboxAddress(nombreProveedor, emailProveedor));
-            mensaje.Subject = aprobado
-                ? "Tu servicio fue aprobado - UniService"
-                : "Tu servicio fue rechazado - UniService";
+            try
+            {
+                string colorTitulo = aprobado ? "#4ac7b6" : "#ef4444";
+                string titulo = aprobado ? "¡Tu servicio fue aprobado!" : "Tu servicio fue rechazado";
+                string cuerpo = aprobado
+                    ? $"Tu servicio ha sido revisado por nuestro equipo y ha sido <strong style='color:#4ac7b6;'>aprobado</strong>. Ya está visible para todos los usuarios de UniService."
+                    : $"Tu servicio ha sido revisado por nuestro equipo y lamentablemente <strong style='color:#ef4444;'>no pudo ser aprobado</strong> en esta ocasión.";
 
-            string colorTitulo = aprobado ? "#4ac7b6" : "#ef4444";
-            string titulo = aprobado ? "¡Tu servicio fue aprobado!" : "Tu servicio fue rechazado";
-            string cuerpo = aprobado
-                ? $"Tu servicio ha sido revisado por nuestro equipo y ha sido <strong style='color:#4ac7b6;'>aprobado</strong>. Ya está visible para todos los usuarios de UniService."
-                : $"Tu servicio ha sido revisado por nuestro equipo y lamentablemente <strong style='color:#ef4444;'>no pudo ser aprobado</strong> en esta ocasión.";
-
-            string bloqueRazon = (!aprobado && !string.IsNullOrEmpty(razonRechazo))
-                ? $@"<div style='background-color:#1a0a0a;border-left:4px solid #ef4444;border-radius:8px;padding:16px 20px;margin:20px 0;'>
+                string bloqueRazon = (!aprobado && !string.IsNullOrEmpty(razonRechazo))
+                    ? $@"<div style='background-color:#1a0a0a;border-left:4px solid #ef4444;border-radius:8px;padding:16px 20px;margin:20px 0;'>
                 <p style='color:#ef4444;font-size:13px;font-weight:700;margin:0 0 6px 0;text-transform:uppercase;letter-spacing:0.5px;'>Motivo del rechazo</p>
                 <p style='color:#ffffff;font-size:14px;line-height:1.6;margin:0;opacity:0.9;'>{razonRechazo}</p>
              </div>"
-                : "";
+                    : "";
 
-            string bloqueExtra = aprobado
-                ? @"<div style='text-align:center;margin:24px 0 8px 0;'>
+                string bloqueExtra = aprobado
+                    ? @"<div style='text-align:center;margin:24px 0 8px 0;'>
                 <a href='https://localhost:5173/home'
                    style='background-color:#4ac7b6;color:#031424;padding:14px 32px;text-decoration:none;border-radius:10px;font-weight:bold;font-size:16px;display:inline-block;'>
                     Ver mi servicio
                 </a>
             </div>"
-                : @"<p style='color:#ffffff;font-size:14px;line-height:1.6;opacity:0.75;margin:16px 0 0 0;'>
+                    : @"<p style='color:#ffffff;font-size:14px;line-height:1.6;opacity:0.75;margin:16px 0 0 0;'>
                 Puedes crear un nuevo servicio corrigiendo los puntos mencionados y enviarlo nuevamente para revisión.
             </p>";
 
-            string pathLogo = Path.Combine(_env.WebRootPath, "img", "logo_uniservice.png");
+                string logoSrc = LogoUrl;
 
-            var builder = new BodyBuilder();
-
-            if (System.IO.File.Exists(pathLogo))
-            {
-                var image = builder.LinkedResources.Add(pathLogo);
-                image.ContentId = "logo_uniservice";
-            }
-
-            builder.HtmlBody = $@"
+                string htmlBody = $@"
 <!DOCTYPE html>
 <html lang='es'>
 <body style='margin:0;padding:0;background-color:#031424;font-family:""Helvetica Neue"",Helvetica,Arial,sans-serif;'>
@@ -352,7 +282,7 @@ namespace UniserviceAPI.Services
                     <!-- Logo -->
                     <tr>
                         <td align='center' style='padding:36px 40px 20px 40px;'>
-                            <img src='cid:logo_uniservice' alt='UniService Logo' style='width:300px;height:auto;display:block;margin:0 auto;'>
+                            <img src='{logoSrc}' alt='UniService Logo' style='width:300px;height:auto;display:block;margin:0 auto;'>
                         </td>
                     </tr>
                     <tr>
@@ -392,29 +322,15 @@ namespace UniserviceAPI.Services
 </body>
 </html>";
 
-            mensaje.Body = builder.ToMessageBody();
+                string subject = aprobado
+                    ? "Tu servicio fue aprobado - UniService"
+                    : "Tu servicio fue rechazado - UniService";
 
-            using var client = new SmtpClient();
-            try
-            {
-                await client.ConnectAsync(
-                    _config["EmailSettings:Host"],
-                    int.Parse(_config["EmailSettings:Port"]),
-                    MailKit.Security.SecureSocketOptions.StartTls);
-                await client.AuthenticateAsync(
-                    _config["EmailSettings:Email"],
-                    _config["EmailSettings:Password"]);
-                await client.SendAsync(mensaje);
-                Console.WriteLine($"[EMAIL] Resultado de revisión enviado a {emailProveedor}");
+                await SendViaBrevoAsync(emailProveedor, subject, htmlBody);
             }
             catch (Exception ex)
             {
                 Console.WriteLine($"[EMAIL] ERROR al enviar resultado: {ex.Message}");
-                throw;
-            }
-            finally
-            {
-                await client.DisconnectAsync(true);
             }
         }
     }

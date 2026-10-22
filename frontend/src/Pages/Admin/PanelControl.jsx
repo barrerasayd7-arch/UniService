@@ -1,98 +1,52 @@
 // Panel de control — Dashboard principal del panel de administración
 import { useState, useEffect } from "react";
 import StatCard from "./TarjetaEstadistica";
+import { NOMBRES_ACCION } from "./RegistroActividades";
 import { apiFetch } from "../../utils/apiFetch";
 
-const API = "/api";
+// Tipo de punto de color en la actividad reciente según la entidad de la bitácora.
+const TIPO_ACTIVIDAD = { usuario: "usuario", servicio: "servicio", reporte: "alerta", admin: "alerta" };
 
 export default function SeccionDashboard({ refreshKey }) {
-  const [stats, setStats] = useState({
-    totalUsuarios: 0,
-    totalServicios: 0,
-    totalSolicitudes: 0,
-    reportesPendientes: 0,
-  });
+  const [resumen, setResumen] = useState(null);
+  const [solicitudes, setSolicitudes] = useState({ total: 0, pendientes: 0 });
   const [actividad, setActividad] = useState([]);
   const [cargando, setCargando] = useState(true);
 
   useEffect(() => {
     const cargar = async () => {
       try {
-        const [usersData, servicesData, solicitudesData] = await Promise.all([
-          apiFetch(`${API}/users`).then(r => r.data).catch(() => []),
-          apiFetch(`${API}/services`).then(r => r.data).catch(() => []),
-          apiFetch(`${API}/solicitudes/enviadas/0`).then(r => r.data).catch(() => []),
+        const [dashboard, auditoria] = await Promise.all([
+          apiFetch("/api/admin/dashboard"),
+          apiFetch("/api/admin/auditoria?pageSize=10"),
         ]);
-
-        const users = Array.isArray(usersData) ? usersData : [];
-        const services = Array.isArray(servicesData) ? servicesData : [];
-        const solicitudes = Array.isArray(solicitudesData) ? solicitudesData : [];
-
-        const usersArr = Array.isArray(users) ? users : [];
-        const servicesArr = Array.isArray(services) ? services : [];
-        const solicitudesArr = Array.isArray(solicitudes) ? solicitudes : [];
-
-        setStats({
-          totalUsuarios: usersArr.length,
-          totalServicios: servicesArr.length,
-          totalSolicitudes: solicitudesArr.length,
-          reportesPendientes: solicitudesArr.filter(
-            (s) => s.estado === "Pendiente"
-          ).length,
-        });
-
-        const actividadReciente = [];
-
-        usersArr
-          .slice(-5)
-          .reverse()
-          .forEach((u) =>
-            actividadReciente.push({
-              accion: "Usuario registrado",
-              detalle: u.correo || u.nombre,
-              hora: u.fecha_registro
-                ? new Date(u.fecha_registro).toLocaleString("es-CO")
-                : "Reciente",
-              tipo: "usuario",
-            })
+        if (dashboard.ok) {
+          setResumen(dashboard.data.resumen);
+          const porEstado = dashboard.data.solicitudes_por_estado || {};
+          setSolicitudes({
+            total: Object.values(porEstado).reduce((a, b) => a + b, 0),
+            pendientes: porEstado.Pendiente || 0,
+          });
+        }
+        if (auditoria.ok) {
+          setActividad(
+            auditoria.data.items.map((a) => ({
+              accion: NOMBRES_ACCION[a.accion] || a.accion,
+              detalle: [a.admin, a.detalle].filter(Boolean).join(" · ") || `${a.entidad} #${a.id_entidad}`,
+              hora: new Date(a.fecha).toLocaleString("es-CO"),
+              tipo: TIPO_ACTIVIDAD[a.entidad] || "servicio",
+            })),
           );
-
-        servicesArr
-          .slice(-5)
-          .reverse()
-          .forEach((s) =>
-            actividadReciente.push({
-              accion: "Servicio publicado",
-              detalle: s.titulo,
-              hora: s.fecha_publicacion || "Reciente",
-              tipo: "servicio",
-            })
-          );
-
-        solicitudesArr
-          .slice(-3)
-          .reverse()
-          .forEach((s) =>
-            actividadReciente.push({
-              accion: `Solicitud ${s.estado || "Pendiente"}`,
-              detalle: `#${s.id_solicitud || "?"} → ${s.tipo_servicio || "Servicio"}`,
-              hora: "Reciente",
-              tipo: "servicio",
-            })
-          );
-
-        actividadReciente.sort(
-          (a, b) => new Date(b.hora) - new Date(a.hora)
-        );
-        setActividad(actividadReciente.slice(0, 10));
-      } catch {
-        setStats({ totalUsuarios: 0, totalServicios: 0, totalSolicitudes: 0, reportesPendientes: 0 });
+        }
       } finally {
         setCargando(false);
       }
     };
     cargar();
   }, [refreshKey]);
+
+  const r = resumen || {};
+  const valor = (v) => (cargando ? "..." : v ?? 0);
 
   return (
     <section className="admin-dashboard">
@@ -105,29 +59,29 @@ export default function SeccionDashboard({ refreshKey }) {
         <StatCard
           icon={<i className="bi bi-people-fill"></i>}
           label="Usuarios registrados"
-          value={cargando ? "..." : stats.totalUsuarios}
-          sub={`${stats.totalUsuarios > 0 ? "↑ Activos" : "Sin registros"}`}
+          value={valor(r.usuarios_total)}
+          sub={`${r.usuarios_activos ?? 0} activos · ${r.usuarios_nuevos_7d ?? 0} nuevos esta semana`}
           type="primary"
         />
         <StatCard
           icon={<i className="bi bi-card-checklist"></i>}
-          label="Servicios activos"
-          value={cargando ? "..." : stats.totalServicios}
-          sub={`${stats.totalServicios > 0 ? "Publicados" : "Sin servicios"}`}
+          label="Servicios publicados"
+          value={valor(r.servicios_publicados)}
+          sub={`${r.servicios_pendientes ?? 0} pendientes de revisión`}
           type="success"
         />
         <StatCard
           icon={<i className="bi bi-arrow-repeat"></i>}
           label="Solicitudes totales"
-          value={cargando ? "..." : stats.totalSolicitudes}
-          sub={`${stats.reportesPendientes} pendientes`}
+          value={valor(solicitudes.total)}
+          sub={`${solicitudes.pendientes} pendientes`}
           type="info"
         />
         <StatCard
           icon={<i className="bi bi-flag-fill"></i>}
-          label="Reportes pendientes"
-          value={cargando ? "..." : stats.reportesPendientes}
-          sub={stats.reportesPendientes > 0 ? "Requieren revisión" : "Al día"}
+          label="Reportes abiertos"
+          value={valor(r.reportes_abiertos)}
+          sub={r.reportes_abiertos > 0 ? "Requieren revisión" : "Al día"}
           type="danger"
         />
       </div>

@@ -2,6 +2,6 @@
 {
     public class EmailDTO
     {
-        public string correo { get; set; }
+        public string correo { get; set; } = null!;
     }
 }

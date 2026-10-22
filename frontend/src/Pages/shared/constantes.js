@@ -62,10 +62,37 @@ export const mapaCategoriaId = {
   otros: 7,
 };
 
-export const API_HOME = "/api/services";
-export const API_USUARIO = "/api/users";
+export const API_HOME = "/api/servicios";
+export const API_PERFIL = "/api/perfil";
 export const API_SOLICITUD = "/api/solicitudes";
 export const API_CHAT = "/api/chat";
+export const API_CALIFICACIONES = "/api/calificaciones";
+
+// La API usa valores fijos en minúscula; la web muestra estos textos.
+export const MODALIDAD_API = { Presencial: "presencial", Virtual: "virtual", Mixta: "mixta" };
+export const DISPONIBILIDAD_API = {
+  "Entre semana": "entre_semana",
+  "Fines de semana": "fines_de_semana",
+  "Siempre disponible": "siempre",
+};
+const invertir = (o) => Object.fromEntries(Object.entries(o).map(([k, v]) => [v, k]));
+export const MODALIDAD_LABEL = invertir(MODALIDAD_API);
+export const DISPONIBILIDAD_LABEL = invertir(DISPONIBILIDAD_API);
+
+// Unidad del precio: arriendo se cobra por mes, el resto por hora o por proyecto.
+export const UNIDADES_PRECIO = [
+  { valor: "hora", label: "Por hora" },
+  { valor: "proyecto", label: "Por proyecto" },
+  { valor: "mes", label: "Por mes" },
+];
+
+// Estado de moderación de un servicio (columna servicios.estado).
+export const ESTADO_SERVICIO = {
+  pendiente: { texto: "En revisión", icono: "bi-hourglass-split", color: "#f59e0b" },
+  aprobado: { texto: "Publicado", icono: "bi-check-circle-fill", color: "#10b981" },
+  rechazado: { texto: "Rechazado", icono: "bi-x-circle-fill", color: "#ef4444" },
+  pausado: { texto: "Pausado", icono: "bi-pause-circle-fill", color: "#94a3b8" },
+};
 
 export const MAPA_ICONOS_MODALIDAD = {
   Presencial: "bi-building",
@@ -84,6 +111,7 @@ export const BADGE = {
   Aceptada: { bg: "#D1E7DD", color: "#0A5C36", texto: "Aceptada", icono: "bi-check-circle-fill" },
   Rechazada: { bg: "#F8D7DA", color: "#721C24", texto: "Rechazada", icono: "bi-x-circle-fill" },
   Completada: { bg: "#CCE5FF", color: "#004085", texto: "Completada", icono: "bi-check2-all" },
+  Cancelada: { bg: "#E2E3E5", color: "#41464B", texto: "Cancelada", icono: "bi-slash-circle" },
 };
 
 export const ICONOS_POR_NOMBRE_CATEGORIA = {
@@ -117,7 +145,6 @@ export const CONFIGURACION_FORMULARIOS_SOLICITUD = {
       { nombre: "fecha_deseada", tipo: "date", obligatorio: true, label: "Fecha preferida" },
       { nombre: "hora_deseada", tipo: "time", obligatorio: true, label: "Hora preferida" },
       { nombre: "presupuesto", tipo: "number", obligatorio: true, label: "Presupuesto (COP)", placeholder: "Ej: 50000" },
-      { nombre: "archivo", tipo: "file", obligatorio: false, label: "Adjuntar documento (opcional)", accept: ".pdf,.doc,.docx,.jpg,.png" },
     ],
   },
   ensayos: {
@@ -127,7 +154,6 @@ export const CONFIGURACION_FORMULARIOS_SOLICITUD = {
       { nombre: "fecha_deseada", tipo: "date", obligatorio: true, label: "Fecha de entrega" },
       { nombre: "presupuesto", tipo: "number", obligatorio: true, label: "Presupuesto (COP)", placeholder: "Ej: 80000" },
       { nombre: "cantidad_paginas", tipo: "select", obligatorio: false, label: "Cantidad de páginas", opciones: ["1-3 páginas", "4-6 páginas", "7-10 páginas", "Más de 10"], placeholder: "Selecciona" },
-      { nombre: "archivo", tipo: "file", obligatorio: false, label: "Instrucciones o guía (opcional)", accept: ".pdf,.doc,.docx" },
     ],
   },
   proyectos: {
@@ -136,7 +162,6 @@ export const CONFIGURACION_FORMULARIOS_SOLICITUD = {
       { nombre: "descripcion", tipo: "textarea", obligatorio: true, label: "Describe el proyecto", placeholder: "¿Qué necesitas?" },
       { nombre: "fecha_deseada", tipo: "date", obligatorio: true, label: "Fecha de entrega" },
       { nombre: "presupuesto", tipo: "number", obligatorio: true, label: "Presupuesto (COP)", placeholder: "Ej: 150000" },
-      { nombre: "archivo", tipo: "file", obligatorio: false, label: "Requisitos del proyecto (opcional)", accept: ".pdf,.doc,.docx,.xlsx" },
     ],
   },
   programacion: {
@@ -146,7 +171,6 @@ export const CONFIGURACION_FORMULARIOS_SOLICITUD = {
       { nombre: "fecha_deseada", tipo: "date", obligatorio: true, label: "Fecha de entrega" },
       { nombre: "presupuesto", tipo: "number", obligatorio: true, label: "Presupuesto (COP)", placeholder: "Ej: 200000" },
       { nombre: "lenguaje", tipo: "select", obligatorio: false, label: "Lenguaje preferido", opciones: ["Python", "JavaScript", "Java", "C#", "C++", "Otro"], placeholder: "Selecciona" },
-      { nombre: "archivo", tipo: "file", obligatorio: false, label: "Documentación o enunciado (opcional)", accept: ".pdf,.doc,.docx,.txt,.zip" },
     ],
   },
   diseno: {
@@ -155,7 +179,6 @@ export const CONFIGURACION_FORMULARIOS_SOLICITUD = {
       { nombre: "descripcion", tipo: "textarea", obligatorio: true, label: "Describe el diseño que necesitas", placeholder: "Logo, banner, presentación..." },
       { nombre: "fecha_deseada", tipo: "date", obligatorio: true, label: "Fecha de entrega" },
       { nombre: "presupuesto", tipo: "number", obligatorio: true, label: "Presupuesto (COP)", placeholder: "Ej: 100000" },
-      { nombre: "archivo", tipo: "file", obligatorio: false, label: "Referencias o brief (opcional)", accept: ".pdf,.jpg,.png,.ai,.psd" },
     ],
   },
   arriendo: {

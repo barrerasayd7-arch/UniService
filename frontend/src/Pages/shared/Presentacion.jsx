@@ -1,10 +1,13 @@
 import HeroTesseract from '../../Components/HeroTesseract'
 import FloatingIcons from '../../Components/FloatingIcons'
+import ErrorBoundary from '../../Components/ErrorBoundary'
 
 export default function Presentacion({ primaryBtn, secondaryBtn }) {
   return (
     <section className="hero" id="inicio">
-      <HeroTesseract />
+      <ErrorBoundary>
+        <HeroTesseract />
+      </ErrorBoundary>
       <FloatingIcons />
       <div className="container">
         <p className="label-seccion">Plataforma Universitaria</p>

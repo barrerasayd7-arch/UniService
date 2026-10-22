@@ -4,8 +4,9 @@
 // ─────────────────────────────────────────────────────────────────────────────
 
 import { useState, useEffect, useCallback, useRef } from "react";
-import { CANTIDAD_POR_PAGINA, CHIPS_CATEGORIA, API_HOME } from "../shared/constantes";
-import { normalizar, promedioEstrellas, debounce } from "../shared/utilidades";
+import { CANTIDAD_POR_PAGINA, CHIPS_CATEGORIA } from "../shared/constantes";
+import { debounce } from "../shared/utilidades";
+import { listarServicios } from "../shared/servicios";
 import TarjetaServicio from "../shared/TarjetaServicio";
 
 export default function SeccionBuscar() {
@@ -27,27 +28,16 @@ export default function SeccionBuscar() {
     setFadeClass("fade-exit");
 
     try {
-      const params = new URLSearchParams({
-        page: page,
-        pageSize: CANTIDAD_POR_PAGINA(),
+      const data = await listarServicios({
+        pagina: page,
+        porPagina: CANTIDAD_POR_PAGINA(),
+        categoria: cat,
+        busqueda: texto,
         orden: ord,
       });
-
-      if (cat !== "todos") params.append("categoria", cat);
-      if (texto.trim()) params.append("busqueda", texto.trim());
-
-      const res = await fetch(`${API_HOME}?${params.toString()}`);
-      const data = await res.json();
-
-      if (data.servicios) {
-        setResultados(data.servicios);
-        setTotalResultados(data.paginacion.total);
-        setTotalPaginas(data.paginacion.totalPaginas);
-      } else if (Array.isArray(data)) {
-        setResultados(data);
-        setTotalResultados(data.length);
-        setTotalPaginas(Math.ceil(data.length / CANTIDAD_POR_PAGINA()));
-      }
+      setResultados(data.servicios);
+      setTotalResultados(data.total);
+      setTotalPaginas(data.totalPaginas);
 
       setTimeout(() => setFadeClass("fade-enter"), 50);
       setTimeout(() => setFadeClass("fade-visible"), 200);

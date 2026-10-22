@@ -2,73 +2,34 @@ import { useState, useEffect, useRef } from "react";
 import { createPortal } from "react-dom";
 import TarjetaSolicitud from "./TarjetaSolicitud";
 import ModalRechazo from "./ModalRechazo";
-import { API_SOLICITUD } from "../shared/constantes";
-import { apiFetch } from "../../utils/apiFetch";
+import { useSolicitudes } from "./useSolicitudes";
 
 export default function ModalSolicitudes({ abierto, onCerrar }) {
   const [tab, setTab] = useState("enviadas");
-  const [enviadas, setEnviadas] = useState([]);
-  const [recibidas, setRecibidas] = useState([]);
-  const [cargando, setCargando] = useState(true);
-  const [rechazando, setRechazando] = useState(null);
+  const {
+    enviadas, recibidas, cargando, setCargando, error, ocupado, recargar,
+    respondiendo, abrirRespuesta, cerrarRespuesta, confirmarRespuesta, completar, cancelar,
+  } = useSolicitudes();
   const modalRef = useRef(null);
-
-  const id = localStorage.getItem("usuarioId");
 
   useEffect(() => {
     if (abierto) {
       document.body.style.overflow = "hidden";
       setCargando(true);
-      if (!id) return;
-
-      Promise.all([
-        apiFetch(`${API_SOLICITUD}/enviadas/${id}`).then((r) => r.data),
-        apiFetch(`${API_SOLICITUD}/recibidas/${id}`).then((r) => r.data),
-      ])
-        .then(([env, rec]) => {
-          setEnviadas(Array.isArray(env) ? env : []);
-          setRecibidas(Array.isArray(rec) ? rec : []);
-        })
-        .catch(console.error)
-        .finally(() => setCargando(false));
+      recargar();
     } else {
       document.body.style.overflow = "";
     }
     return () => { document.body.style.overflow = ""; };
-  }, [abierto, id]);
+  }, [abierto, recargar]);
 
   useEffect(() => {
-    const handleEscape = (e) => { if (e.key === "Escape" && abierto && !rechazando) onCerrar(); };
+    const handleEscape = (e) => { if (e.key === "Escape" && abierto && !respondiendo) onCerrar(); };
     document.addEventListener("keydown", handleEscape);
     return () => document.removeEventListener("keydown", handleEscape);
-  }, [abierto, onCerrar, rechazando]);
+  }, [abierto, onCerrar, respondiendo]);
 
-  const responder = async (id_solicitud, accion, motivo_rechazo = "", contraoferta = null) => {
-    await apiFetch(`${API_SOLICITUD}/responder`, {
-      method: "POST",
-      body: JSON.stringify({ id_solicitud, accion, motivo_rechazo, contraoferta }),
-    });
-
-    window.dispatchEvent(new CustomEvent("solicitud-actualizada"));
-
-    const { data } = await apiFetch(`${API_SOLICITUD}/recibidas/${id}`);
-    setRecibidas(data || []);
-  };
-
-  const completar = async (id_solicitud) => {
-    const { ok } = await apiFetch(`${API_SOLICITUD}/completar`, {
-      method: "POST",
-      body: JSON.stringify({ id_solicitud }),
-    });
-
-    if (ok) {
-      window.dispatchEvent(new CustomEvent("solicitud-actualizada"));
-      const { data } = await apiFetch(`${API_SOLICITUD}/recibidas/${id}`);
-      setRecibidas(data || []);
-    }
-  };
-
-  const handleClose = () => { setRechazando(null); onCerrar(); };
+  const handleClose = () => { cerrarRespuesta(); onCerrar(); };
 
   if (!abierto) return null;
 
@@ -108,6 +69,7 @@ export default function ModalSolicitudes({ abierto, onCerrar }) {
 
           {/* Body */}
           <div className="ms-body">
+            {error && <p className="solicitud-rechazo" role="alert">{error}</p>}
             {cargando ? (
               <div className="ms-loading">
                 <div className="ms-spinner" />
@@ -129,9 +91,10 @@ export default function ModalSolicitudes({ abierto, onCerrar }) {
                     key={sol.id_solicitud}
                     sol={sol}
                     tipo={tab === "enviadas" ? "enviada" : "recibida"}
-                    responder={responder}
-                    setRechazando={setRechazando}
+                    onResponder={abrirRespuesta}
                     onCompletar={completar}
+                    onCancelarSolicitud={cancelar}
+                    ocupado={ocupado}
                   />
                 ))}
               </div>
@@ -140,13 +103,11 @@ export default function ModalSolicitudes({ abierto, onCerrar }) {
         </div>
       </div>
 
-      {rechazando && createPortal(
+      {respondiendo && createPortal(
         <ModalRechazo
-          onConfirmar={(motivo, contraoferta) => {
-            responder(rechazando, "rechazar", motivo, contraoferta);
-            setRechazando(null);
-          }}
-          onCancelar={() => setRechazando(null)}
+          modo={respondiendo.modo}
+          onConfirmar={confirmarRespuesta}
+          onCancelar={cerrarRespuesta}
         />,
         document.body
       )}
